@@ -1,11 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { platformStorage } from './storage';
 import axios from 'axios';
 
 interface AuthContextType {
   token: string | null;
   user: any | null;
-  signIn: (username: string, password: string) => Promise<void>;
+  // signIn uses MSISDN + PIN — Option A mobile-first auth
+  signIn: (msisdn: string, pin: string) => Promise<void>;
   signOut: () => Promise<void>;
   isLoading: boolean;
 }
@@ -24,8 +25,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Load token from storage on mount
     const loadToken = async () => {
       try {
-        const savedToken = await SecureStore.getItemAsync('userToken');
-        const savedUser = await SecureStore.getItemAsync('userData');
+        const savedToken = await platformStorage.getItemAsync('userToken');
+        const savedUser = await platformStorage.getItemAsync('userData');
         if (savedToken) {
           setToken(savedToken);
           setUser(savedUser ? JSON.parse(savedUser) : null);
@@ -39,14 +40,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadToken();
   }, []);
 
-  const signIn = async (username: string, password: string) => {
+  const signIn = async (msisdn: string, pin: string) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { username, password });
-      const { access_token, user: userData } = response.data;
-      
-      await SecureStore.setItemAsync('userToken', access_token);
-      await SecureStore.setItemAsync('userData', JSON.stringify(userData));
-      
+      // Option A: Mobile-first MSISDN + PIN auth via RS256-secured mobile BFF endpoint.
+      // The backend returns snake_case tokens (access_token / refresh_token).
+      const response = await axios.post(`${API_URL}/api/v1/mobile/auth/login`, {
+        msisdn,
+        pin,
+        device_id: 'DEVICE-S6-ENTERPRISE', // Demo device identifier
+        platform: 'android',
+      });
+
+      // Map snake_case backend response → local camelCase state
+      const { access_token, refresh_token, user: userData } = response.data;
+
+      await platformStorage.setItemAsync('userToken', access_token);
+      await platformStorage.setItemAsync('refreshToken', refresh_token);
+      await platformStorage.setItemAsync('userData', JSON.stringify(userData));
+
       setToken(access_token);
       setUser(userData);
     } catch (error) {
@@ -56,8 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await SecureStore.deleteItemAsync('userToken');
-    await SecureStore.deleteItemAsync('userData');
+    await platformStorage.deleteItemAsync('userToken');
+    await platformStorage.deleteItemAsync('userData');
     setToken(null);
     setUser(null);
   };

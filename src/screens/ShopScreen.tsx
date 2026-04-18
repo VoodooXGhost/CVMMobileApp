@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Star } from 'lucide-react-native';
 
-import { useGetShopDataQuery } from '../services/apiSlice';
+// Fixed: useGetShopDataQuery was renamed to useGetOffersDataQuery in apiSlice.ts
+import { useGetOffersDataQuery } from '../services/apiSlice';
 import { ActivityIndicator } from 'react-native';
 
 /**
@@ -15,7 +16,8 @@ import { ActivityIndicator } from 'react-native';
  * @returns {JSX.Element} The rendered Shop Screen.
  */
 const ShopScreen = () => {
-  const { data: shopData, isLoading, error } = useGetShopDataQuery();
+  // Updated hook name to match the renamed apiSlice endpoint
+  const { data: shopData, isLoading, error } = useGetOffersDataQuery();
 
   if (isLoading) {
     return (
@@ -33,7 +35,10 @@ const ShopScreen = () => {
     );
   }
 
-  const { categories, trending } = shopData || {};
+  // The offers endpoint wraps data in a { data: { offers, categories } } envelope
+  const { offers, categories } = shopData?.data || {};
+  // Map offers to the shape this screen expects
+  const trending = offers?.map((o: any) => ({ ...o, price: `${o.price} YB`, reward: Math.round(o.price * 0.1) }));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,7 +104,18 @@ const styles = StyleSheet.create({
   categoryIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.surface_container_high, marginBottom: 8 },
   section: { marginBottom: Spacing.xl },
   productsRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
-  productCard: { flex: 1, backgroundColor: Colors.surface_container_lowest, borderRadius: BorderRadius.md, overflow: 'hidden', elevation: 2 },
+  productCard: { 
+    flex: 1, 
+    backgroundColor: Colors.surface_container_lowest, 
+    borderRadius: BorderRadius.md, 
+    overflow: 'hidden', 
+    elevation: 2,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
+  },
   productImage: { height: 120, backgroundColor: Colors.surface_container_high },
   productInfo: { padding: Spacing.md },
   rewardTag: { flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: Colors.primary_container + '33', padding: 4, borderRadius: 4 },
@@ -111,6 +127,11 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md, 
     marginTop: Spacing.sm,
     elevation: 1,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    ...(Platform.OS === 'web' && { boxShadow: '0px 2px 4px rgba(0,0,0,0.04)' }),
   },
   bundleIcon: { width: 50, height: 50, borderRadius: 8, backgroundColor: Colors.surface_container_high },
   earnBadge: { backgroundColor: Colors.secondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },

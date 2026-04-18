@@ -46,7 +46,7 @@ export const BorderRadius = {
 };
 
 export const Typography = {
-  // Headlines (Work Sans equivalent fallback)
+  // Headlines (Work Sans)
   display: {
     fontSize: 56, // 3.5rem
     fontFamily: 'WorkSans-Bold',
@@ -57,7 +57,7 @@ export const Typography = {
     fontFamily: 'WorkSans-SemiBold',
     lineHeight: 36,
   },
-  // Body (Plus Jakarta Sans equivalent fallback)
+  // Body (Plus Jakarta Sans)
   title: {
     fontSize: 18, // 1.125rem
     fontFamily: 'PlusJakartaSans-Medium',

@@ -1,10 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Scan } from 'lucide-react-native';
-
 import { useGetWalletDataQuery } from '../services/apiSlice';
-import { ActivityIndicator } from 'react-native';
 
 /**
  * WalletScreen Component
@@ -82,7 +80,7 @@ const WalletScreen = () => {
                   <Text style={Typography.title}>{tx.merchant}</Text>
                   <Text style={Typography.label}>{tx.date}</Text>
                 </View>
-                <Text style={[Typography.title, { color: tx.amount.includes('-') ? 'red' : 'green' }]}>{tx.amount}</Text>
+                <Text style={[Typography.title, { color: tx.amount.includes('-') ? Colors.on_surface : Colors.secondary }]}>{tx.amount}</Text>
               </View>
             ))}
           </View>
@@ -102,6 +100,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.md,
     elevation: 2,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
   },
   actionsRow: { marginBottom: Spacing.xl },
   scanButton: {
@@ -121,11 +124,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     justifyContent: 'space-between',
     // Ambient light shadow
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
-    elevation: 8,
+    ...(Platform.OS === 'web' && { boxShadow: '0px 10px 15px rgba(0,0,0,0.3)' }),
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -138,6 +142,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: Spacing.sm, // Vertical whitespace instead of dividers
+    elevation: 1,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    ...(Platform.OS === 'web' && { boxShadow: '0px 2px 4px rgba(0,0,0,0.04)' }),
   },
   txIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface_container_high },
 });

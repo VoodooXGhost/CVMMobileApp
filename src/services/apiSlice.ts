@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import * as SecureStore from 'expo-secure-store';
+import { platformStorage } from './storage';
 
 /**
  * Enterprise API Slice using RTK Query.
@@ -11,7 +11,7 @@ export const apiSlice = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.EXPO_PUBLIC_API_URL,
     prepareHeaders: async (headers) => {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await platformStorage.getItemAsync('userToken');
       if (token) {
         headers.set('authorization', `Bearer ${token}`);
       }
@@ -21,18 +21,18 @@ export const apiSlice = createApi({
   tagTypes: ['Home', 'Wallet', 'Shop'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
-      query: () => '/api/home',
+      query: () => '/api/v1/mobile/v1/home',
       providesTags: ['Home'],
     }),
     getWalletData: builder.query<any, void>({
-      query: () => '/api/wallet',
+      query: () => '/api/v1/mobile/v1/wallet',
       providesTags: ['Wallet'],
     }),
-    getShopData: builder.query<any, void>({
-      query: () => '/api/shop',
+    getOffersData: builder.query<any, void>({
+      query: () => '/api/v1/mobile/v1/offers',
       providesTags: ['Shop'],
     }),
   }),
 });
 
-export const { useGetHomeDataQuery, useGetWalletDataQuery, useGetShopDataQuery } = apiSlice;
+export const { useGetHomeDataQuery, useGetWalletDataQuery, useGetOffersDataQuery } = apiSlice;
