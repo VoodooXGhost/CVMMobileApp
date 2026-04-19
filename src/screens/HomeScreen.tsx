@@ -78,13 +78,16 @@ const HomeScreen = () => {
         <View style={styles.heroCard}>
           <View style={styles.heroContent}>
             <Text style={[Typography.label, { color: Colors.on_primary_fixed }]}>YelloBucks Balance</Text>
-            <Text style={[Typography.display, { color: Colors.on_primary_fixed }]}>{loyalty?.yello_bucks_balance || 0}</Text>
+            <Text style={[Typography.display, { color: Colors.on_primary_fixed }]}>{loyalty?.yello_bucks_balance || 0} YB</Text>
+            <Text style={[Typography.label, { color: Colors.on_primary_fixed, opacity: 0.8, marginTop: -4 }]}>
+              R {loyalty?.yello_bucks_value_rand?.toLocaleString() || '0.00'} equivalent
+            </Text>
             
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: '45%' }]} />
+                <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
               </View>
-              <Text style={[Typography.label, {marginTop: 4, color: Colors.on_primary_fixed + '99'}]}>{loyalty?.points_to_next || 0} pts to {loyalty?.next_tier || 'Gold'} Tier</Text>
+              <Text style={[Typography.label, {marginTop: 4, color: Colors.on_primary_fixed + '99'}]}>{loyalty?.points_to_next?.toLocaleString() || 0} pts to {loyalty?.next_tier || 'Silver'} Tier</Text>
             </View>
           </View>
         </View>

@@ -63,6 +63,7 @@ const RewardsScreen = () => {
           <View style={styles.streakDays}>
             {[1, 2, 3, 4, 5, 6, 7].map((day) => {
               const active = day <= (gamification?.current_streak || 0);
+              // If milestone is 30, we offset the visualization for high streaks or just keep showing the current week
               return (
                 <View key={day} style={styles.dayContainer}>
                   <View style={[
@@ -80,7 +81,7 @@ const RewardsScreen = () => {
             })}
           </View>
           <Text style={[Typography.label, { marginTop: Spacing.md, opacity: 0.7 }]}>
-            Maintain your streak to earn a Mystery Box on Day 7!
+            Maintain your streak to earn a Mystery Box on Day {gamification?.milestone_target || 7}!
           </Text>
         </View>
 
