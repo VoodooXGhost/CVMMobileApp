@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Alert,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { 
   LogOut, 
@@ -18,42 +19,48 @@ import {
   Settings, 
   HelpCircle, 
   ChevronRight,
-  User as UserIcon
+  User as UserIcon,
+  Activity,
+  History
 } from 'lucide-react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
-import { useGetHomeDataQuery } from '../services/apiSlice';
+import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
 
 /**
  * My MTN Screen
  * 
- * A premium, editorial profile management screen aligned with "The Digital Pulse" design system.
- * Replaces the generic "Account" placeholder with high-fidelity components from mock screenshots.
+ * High-fidelity profile management with real-time usage analytics and line management.
  */
 const AccountScreen = () => {
   const { signOut, user } = useAuth();
-  const { data: homeData } = useGetHomeDataQuery();
+  const { data: homeResponse } = useGetHomeDataQuery();
+  const { data: usageResponse, isLoading: usageLoading } = useGetUsageDataQuery();
 
-  const profile = homeData?.data?.profile || {};
-  const loyalty = homeData?.data?.loyalty || {};
+  const profile = homeResponse?.data?.profile || {};
+  const loyalty = homeResponse?.data?.loyalty || {};
+  const usage = usageResponse?.data || { usage_history: [], linked_lines: [] };
 
-  // Extract initials for the avatar circle (e.g., "Thabo Mokoena" -> "TM")
   const getInitials = () => {
     if (profile.first_name && profile.last_name) {
       return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
     }
-    return 'User';
+    return 'U';
   };
 
   const menuAlert = (title: string) => {
-    Alert.alert("Feature Coming Soon", `The ${title} management feature is currently being finalized for the production release.`);
+    Alert.alert("Feature Coming Soon", `The ${title} management feature is currently being finalized.`);
   };
+
+  // Calculate some aggregate stats for the header
+  const totalData = usage.usage_history?.reduce((acc: number, curr: any) => acc + curr.data_mb, 0) || 0;
+  const avgData = totalData > 0 ? (totalData / 1024 / 30).toFixed(1) : '0';
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Section 1: Profile Header (White Card) */}
+        {/* Profile Header */}
         <View style={styles.headerCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
@@ -65,102 +72,109 @@ const AccountScreen = () => {
           </View>
           
           <Text style={[Typography.headline, { marginTop: Spacing.md }]}>
-            {profile.first_name || 'User'} {profile.last_name || ''}
+            {profile.first_name || 'MTN'} {profile.last_name || 'Customer'}
           </Text>
           <Text style={[Typography.body, { color: Colors.on_surface, opacity: 0.6 }]}>
-            {user?.msisdn || '083 123 4567'}
+            {user?.msisdn}
           </Text>
 
           <View style={styles.tierBadge}>
-            <Text style={styles.tierBadgeText}>{loyalty.tier || 'GOLD MEMBER'}</Text>
+            <Text style={styles.tierBadgeText}>{loyalty.current_tier || 'BRONZE'} MEMBER</Text>
           </View>
         </View>
 
-        {/* Section 2: Stats Summary Card (The "Black Block") */}
+        {/* Real-time Stats Dashboard */}
         <View style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>CUSTOMER SINCE</Text>
-              <Text style={styles.statValue}>Jan 2018</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>ACTIVE LINES</Text>
-              <Text style={styles.statValue}>3 Lines</Text>
-            </View>
-          </View>
-          
-          <View style={styles.rowDivider} />
-          
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>TOTAL SPEND</Text>
-              <Text style={styles.statValue}>R450.00</Text>
-              <Text style={styles.statSubValue}>/mo</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>DATA USAGE</Text>
-              <Text style={styles.statValue}>12.4 GB <Text style={{fontSize: 12, opacity: 0.6}}>avg</Text></Text>
-            </View>
-          </View>
+           <View style={styles.statsHeader}>
+              <Activity size={16} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.statsHeaderTitle}>30-DAY INSIGHTS</Text>
+           </View>
+           
+           <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                 <Text style={styles.statValue}>{usage.linked_lines?.length || 1}</Text>
+                 <Text style={styles.statLabel}>LINKED LINES</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                 <Text style={styles.statValue}>{avgData}GB</Text>
+                 <Text style={styles.statLabel}>AVG DATA/DAY</Text>
+              </View>
+           </View>
+
+           {/* Minimal Usage Visualizer (Bar Chart Replacement) */}
+           <View style={styles.usageVisualizer}>
+              <View style={styles.visualizerBars}>
+                 {usage.usage_history?.slice(-15).map((day: any, i: number) => {
+                    const height = (day.data_mb / 1100) * 40; // Scale to 40px height
+                    return (
+                      <View 
+                        key={i} 
+                        style={[
+                          styles.usageBar, 
+                          { height: Math.max(4, height), backgroundColor: i === 14 ? Colors.primary : 'rgba(255,255,255,0.2)' }
+                        ]} 
+                      />
+                    );
+                 })}
+              </View>
+              <Text style={styles.visualizerLabel}>USAGE TREND (LAST 15 DAYS)</Text>
+           </View>
         </View>
 
-        {/* Section 3: Line Management Group */}
+        {/* Linked Lines Section */}
         <View style={styles.menuGroup}>
-          <Text style={styles.groupLabel}>LINE MANAGEMENT</Text>
+           <Text style={styles.groupLabel}>ASSOCIATED LINES</Text>
+           <View style={styles.groupCard}>
+              {usage.linked_lines?.map((msisdn: string) => (
+                <TouchableOpacity key={msisdn} style={styles.lineRow} onPress={() => menuAlert("Line Switch")}>
+                   <Smartphone size={20} color={Colors.primary} />
+                   <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[Typography.title, { fontSize: 16 }]}>{msisdn}</Text>
+                      <Text style={[Typography.label, { opacity: 0.5 }]}>Primary Line</Text>
+                   </View>
+                   <View style={styles.activeTag}>
+                      <Text style={styles.activeTagText}>ACTIVE</Text>
+                   </View>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.addLineCta} onPress={() => menuAlert("Add Line")}>
+                 <Text style={[Typography.label, { color: Colors.primary }]}>+ LINK NEW NUMBER</Text>
+              </TouchableOpacity>
+           </View>
+        </View>
+
+        {/* Line Management Group */}
+        <View style={styles.menuGroup}>
+          <Text style={styles.groupLabel}>ACCOUNT SETTINGS</Text>
           <View style={styles.groupCard}>
             <MenuRow 
-              icon={<Smartphone size={20} color={Colors.on_surface} />} 
-              label="My Devices" 
-              onPress={() => menuAlert("Devices")}
+              icon={<History size={20} color={Colors.on_surface} />} 
+              label="Bill History & Invoices" 
+              onPress={() => menuAlert("Billing")}
             />
             <MenuRow 
               icon={<PieChart size={20} color={Colors.on_surface} />} 
-              label="Usage Breakdown" 
-              onPress={() => menuAlert("Usage")}
-            />
-            <MenuRow 
-              icon={<FileText size={20} color={Colors.on_surface} />} 
-              label="Detailed Billing" 
-              onPress={() => menuAlert("Billing")}
-            />
-          </View>
-        </View>
-
-        {/* Section 4: Security & Support Group */}
-        <View style={styles.menuGroup}>
-          <Text style={styles.groupLabel}>SECURITY & SUPPORT</Text>
-          <View style={styles.groupCard}>
-            <MenuRow 
-              icon={<ShieldCheck size={20} color={Colors.on_surface} />} 
-              label="Privacy & Security" 
+              label="Security & Privacy" 
               onPress={() => menuAlert("Security")}
             />
             <MenuRow 
               icon={<Settings size={20} color={Colors.on_surface} />} 
-              label="App Settings" 
+              label="Notification Preferences" 
               onPress={() => menuAlert("Settings")}
-            />
-            <MenuRow 
-              icon={<HelpCircle size={20} color={Colors.on_surface} />} 
-              label="Help Center" 
-              onPress={() => menuAlert("Help")}
             />
           </View>
         </View>
 
-        {/* Section 5: Sign Out Action */}
         <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
           <LogOut size={20} color="#C00000" />
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
-        {/* Footer Version Info */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>MTN SOUTH AFRICA V4.2.0</Text>
+          <Text style={styles.footerText}>MTN SUPER APP V4.5.0-PROD</Text>
           <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>
-            © 2024 MTN Group Management Services (Pty) Ltd
+            © 2024 MTN South Africa. All rights reserved.
           </Text>
         </View>
 
@@ -169,7 +183,6 @@ const AccountScreen = () => {
   );
 };
 
-// Helper Component for Menu Rows
 const MenuRow = ({ icon, label, onPress }: any) => (
   <TouchableOpacity style={styles.menuRow} onPress={onPress}>
     <View style={styles.menuIconContainer}>
@@ -183,163 +196,38 @@ const MenuRow = ({ icon, label, onPress }: any) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
-  
-  // Profile Header
-  headerCard: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    backgroundColor: 'transparent',
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.primary_container,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    ...Typography.headline,
-    fontSize: 32,
-    color: Colors.on_primary_fixed,
-  },
-  avatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  tierBadge: {
-    backgroundColor: '#F3F3F3',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.full,
-    marginTop: Spacing.lg,
-  },
-  tierBadgeText: {
-    ...Typography.label,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-
-  // Stats Card (Black Block)
-  statsCard: {
-    backgroundColor: Colors.on_surface,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.xl,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.1)' }),
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  statItem: {
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  statDivider: {
-    width: 1,
-    height: '60%',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginHorizontal: -Spacing.lg,
-  },
-  statLabel: {
-    ...Typography.label,
-    color: '#fff',
-    opacity: 0.5,
-    marginBottom: 4,
-  },
-  statValue: {
-    ...Typography.title,
-    color: '#fff',
-    fontSize: 22,
-    fontFamily: 'WorkSans-Bold',
-  },
-  statSubValue: {
-    ...Typography.label,
-    color: '#fff',
-    opacity: 0.4,
-    marginTop: -2,
-  },
-
-  // Menu Groups
-  menuGroup: {
-    marginBottom: Spacing.xl,
-  },
-  groupLabel: {
-    ...Typography.label,
-    color: Colors.on_surface,
-    opacity: 0.4,
-    marginBottom: Spacing.md,
-    letterSpacing: 1,
-    fontWeight: 'bold',
-  },
-  groupCard: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    // Note: No borders as per "No-Line" rule
-  },
-  menuIconContainer: {
-    marginRight: Spacing.lg,
-    opacity: 0.7,
-  },
-
-  // Sign Out
-  signOutButton: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface_container_lowest,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    gap: 8,
-  },
-  signOutText: {
-    ...Typography.title,
-    color: '#C00000',
-    fontWeight: 'bold',
-  },
-
-  // Footer
-  footer: {
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
-  footerText: {
-    ...Typography.label,
-    color: Colors.on_surface,
-    opacity: 0.3,
-    textAlign: 'center',
-  },
+  headerCard: { alignItems: 'center', paddingVertical: Spacing.xl },
+  avatarContainer: { position: 'relative' },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { ...Typography.headline, fontSize: 32, color: '#000' },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  tierBadge: { backgroundColor: '#F3F3F3', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 16 },
+  tierBadgeText: { ...Typography.label, fontWeight: '900', letterSpacing: 1, fontSize: 10 },
+  statsCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
+  statsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
+  statsHeaderTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  statItem: { flex: 1 },
+  statValue: { color: '#fff', fontSize: 28, fontWeight: '900' },
+  statLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '900', marginTop: 4 },
+  statDivider: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 20 },
+  usageVisualizer: { marginTop: 8, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+  visualizerBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 40, marginBottom: 12 },
+  usageBar: { flex: 1, borderRadius: 2 },
+  visualizerLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 8, fontWeight: '900', textAlign: 'center' },
+  menuGroup: { marginBottom: Spacing.xl },
+  groupLabel: { ...Typography.label, color: Colors.on_surface, opacity: 0.4, marginBottom: Spacing.md, letterSpacing: 1, fontWeight: '900' },
+  groupCard: { backgroundColor: Colors.surface_container_lowest, borderRadius: BorderRadius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.outline_variant },
+  lineRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.outline_variant },
+  activeTag: { backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  activeTagText: { color: '#16A34A', fontSize: 10, fontWeight: '900' },
+  addLineCta: { padding: Spacing.lg, alignItems: 'center' },
+  menuRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg },
+  menuIconContainer: { marginRight: Spacing.lg, opacity: 0.7 },
+  signOutButton: { flexDirection: 'row', backgroundColor: '#FEF2F2', padding: Spacing.lg, borderRadius: BorderRadius.full, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xl, gap: 8 },
+  signOutText: { ...Typography.title, color: '#C00000', fontWeight: '900' },
+  footer: { alignItems: 'center', paddingBottom: 40 },
+  footerText: { ...Typography.label, color: Colors.on_surface, opacity: 0.3, textAlign: 'center' },
 });
 
 export default AccountScreen;

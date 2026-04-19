@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Text, Dimensions, Platform } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
-import { Home, Wallet, ShoppingBag, Gift, User } from 'lucide-react-native';
+import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -29,7 +29,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
             const iconSize = 22;
             if (route.name === 'Home') return <Home size={iconSize} color={color} />;
             if (route.name === 'Wallet') return <Wallet size={iconSize} color={color} />;
-            if (route.name === 'Shop') return <ShoppingBag size={iconSize} color={color} />;
+            if (route.name === 'Marketplace') return <Store size={iconSize} color={color} />;
             if (route.name === 'Rewards') return <Gift size={iconSize} color={color} />;
             if (route.name === 'My MTN') return <User size={iconSize} color={color} />;
             return null;
@@ -50,7 +50,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
               </View>
               {isFocused && (
                 <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10 }]}>
-                  {route.name === 'My MTN' ? 'Account' : route.name}
+                  {route.name === 'My MTN' ? 'Account' : route.name === 'Marketplace' ? 'Store' : route.name}
                 </Text>
               )}
             </TouchableOpacity>

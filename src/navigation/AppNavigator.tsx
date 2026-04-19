@@ -5,7 +5,7 @@ import { Colors, Typography, BorderRadius } from '../theme/tokens';
 
 import HomeScreen from '../screens/HomeScreen';
 import WalletScreen from '../screens/WalletScreen';
-import ShopScreen from '../screens/ShopScreen';
+import MarketplaceScreen from '../screens/MarketplaceScreen';
 import RewardsScreen from '../screens/RewardsScreen';
 import AccountScreen from '../screens/AccountScreen';
 
@@ -23,7 +23,7 @@ const AppNavigator = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Wallet" component={WalletScreen} />
-      <Tab.Screen name="Shop" component={ShopScreen} />
+      <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
       <Tab.Screen name="Rewards" component={RewardsScreen} />
       <Tab.Screen name="My MTN" component={AccountScreen} />
     </Tab.Navigator>

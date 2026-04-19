@@ -1,0 +1,210 @@
+import React from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
+import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { Star, Store, Smartphone, Wifi, Zap } from 'lucide-react-native';
+import { useGetOffersDataQuery } from '../services/apiSlice';
+import { useNavigation } from '@react-navigation/native';
+
+/**
+ * MarketplaceScreen Component (Formerly ShopScreen)
+ * 
+ * An intuitive marketplace for customers to purchase data, airtime, and rewards.
+ * Dynamically displays products and categories from the seeded BFF data.
+ */
+const MarketplaceScreen = () => {
+  const navigation = useNavigation<any>();
+  const { data: shopData, isLoading, error } = useGetOffersDataQuery();
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={Typography.body}>Error loading marketplace. Please try again.</Text>
+      </View>
+    );
+  }
+
+  const { offers, categories } = shopData?.data || {};
+  
+  // Custom categories with icons
+  const categoryIcons: Record<string, any> = {
+    'Voice': Smartphone,
+    'Data': Wifi,
+    'Lifestyle': Star,
+    'Rewards': Zap,
+    'All': Store
+  };
+
+  const getCategoryIcon = (cat: string) => {
+    const Icon = categoryIcons[cat] || Store;
+    return <Icon color={Colors.primary} size={24} />;
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={Typography.headline}>Marketplace</Text>
+        <Text style={[Typography.body, { marginBottom: Spacing.lg, opacity: 0.7 }]}>
+          Exclusive MTN deals tailored for you.
+        </Text>
+
+        {/* Categories Horizontal Scroll */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          {['All', ...(categories || [])].map((cat: string) => (
+            <TouchableOpacity 
+              key={cat} 
+              style={styles.categoryItem}
+              onPress={() => console.log(`Filter by ${cat}`)}
+            >
+              <View style={styles.categoryIconCircle}>
+                {getCategoryIcon(cat)}
+              </View>
+              <Text style={[Typography.label, { marginTop: 8 }]}>{cat}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Trending Deals Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={Typography.title}>Trending Deals</Text>
+            <TouchableOpacity>
+              <Text style={[Typography.label, { color: Colors.primary }]}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.productsRow}>
+            {offers?.slice(0, 2).map((product: any) => (
+              <TouchableOpacity 
+                key={product.id} 
+                style={styles.productCard}
+                onPress={() => console.log(`Selected product: ${product.title}`)}
+              >
+                <View style={styles.productImagePlaceholder}>
+                  <Image 
+                    source={{ uri: product.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.promoBadge}>
+                    <Text style={styles.promoText}>HOT</Text>
+                  </View>
+                </View>
+                <View style={styles.productInfo}>
+                  <Text style={[Typography.label, { fontWeight: '900' }]} numberOfLines={1}>{product.title}</Text>
+                  <Text style={[Typography.title, { fontSize: 16, color: Colors.primary }]}>{product.price} YB</Text>
+                  <View style={styles.rewardTag}>
+                    <Star color={Colors.secondary} size={10} fill={Colors.secondary} />
+                    <Text style={[Typography.label, { marginLeft: 4, fontSize: 10, color: Colors.on_surface_variant }]}>
+                      Earn {Math.round(product.price * 0.1)} YB
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Exclusive Bundles */}
+        <View style={styles.section}>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Exclusive Bundles</Text>
+          
+          <TouchableOpacity style={styles.bundleCard}>
+            <View style={[styles.bundleIcon, { backgroundColor: Colors.primary + '20' }]}>
+              <Smartphone color={Colors.primary} size={24} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={[Typography.title, { fontSize: 16 }]}>MTN XtraTime Data</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>15GB + 5GB Social (30 Days)</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>R 199.00</Text>
+            </View>
+            <View style={styles.earnBadge}>
+              <Star color="#fff" size={12} fill="#fff" />
+              <Text style={[Typography.label, {color: '#fff', marginLeft: 4}]}>Earn 200</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bundleCard}>
+            <View style={[styles.bundleIcon, { backgroundColor: Colors.secondary + '20' }]}>
+              <Wifi color={Colors.secondary} size={24} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={[Typography.title, { fontSize: 16 }]}>Home Pro Fibre</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>Uncapped @ 50Mbps</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>R 499.00</Text>
+            </View>
+            <View style={[styles.earnBadge, { backgroundColor: Colors.primary }]}>
+              <Star color="#000" size={12} fill="#000" />
+              <Text style={[Typography.label, {color: '#000', marginLeft: 4}]}>Earn 500</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  categoryScroll: { marginBottom: Spacing.xl },
+  categoryItem: { alignItems: 'center', marginRight: 20 },
+  categoryIconCircle: { 
+    width: 64, 
+    height: 64, 
+    borderRadius: 24, 
+    backgroundColor: Colors.surface_container_highest, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
+      android: { elevation: 4 },
+      web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.08)' }
+    })
+  },
+  section: { marginBottom: Spacing.xl },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  productsRow: { flexDirection: 'row', gap: Spacing.md },
+  productCard: { 
+    flex: 1, 
+    backgroundColor: Colors.surface_container_lowest, 
+    borderRadius: BorderRadius.xl, 
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+  },
+  productImagePlaceholder: { height: 140, backgroundColor: Colors.surface_container_high, position: 'relative' },
+  promoBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: Colors.error, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  promoText: { color: '#fff', fontSize: 10, fontWeight: '900' },
+  productInfo: { padding: Spacing.md },
+  rewardTag: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  bundleCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: Spacing.md, 
+    backgroundColor: Colors.surface_container_lowest, 
+    borderRadius: BorderRadius.xl, 
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+  },
+  bundleIcon: { width: 56, height: 56, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  earnBadge: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: Colors.secondary, 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 14 
+  },
+});
+
+export default MarketplaceScreen;

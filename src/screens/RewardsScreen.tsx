@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { 
   View,
   Text,
@@ -7,25 +8,33 @@ import {
   TouchableOpacity, 
   Dimensions, 
   ActivityIndicator,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { 
   Trophy, 
   Flame, 
   ChevronRight, 
-  Star 
+  Star,
+  Zap,
+  Gift,
+  Award
 } from 'lucide-react-native';
 import { useGetHomeDataQuery, useGetOffersDataQuery } from '../services/apiSlice';
+import SpinWheelModal from '../components/SpinWheelModal';
 
 const { width } = Dimensions.get('window');
 
 const RewardsScreen = () => {
-  const { data: homeData, isLoading: isHomeLoading } = useGetHomeDataQuery();
-  const { data: offersData, isLoading: isOffersLoading } = useGetOffersDataQuery();
+  const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
+  const { data: offersResponse, isLoading: isOffersLoading } = useGetOffersDataQuery();
+  const [spinVisible, setSpinVisible] = useState(false);
 
-  const { gamification, loyalty } = homeData?.data || {};
-  const { offers } = offersData?.data || {};
+  const homeData = homeResponse?.data || {};
+  const { gamification, loyalty } = homeData;
+  const offersData = offersResponse?.data || {};
+  const { offers } = offersData;
 
   if (isHomeLoading || isOffersLoading) {
     return (
@@ -42,85 +51,126 @@ const RewardsScreen = () => {
           <Text style={Typography.headline}>Rewards Hub</Text>
           <View style={styles.pointsBadge}>
             <Star size={14} color={Colors.on_primary_fixed} fill={Colors.on_primary_fixed} />
-            <Text style={[Typography.label, { marginLeft: 4, fontWeight: 'bold' }]}>
-              {loyalty?.yello_bucks_balance || 0} YB
+            <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900' }]}>
+              {loyalty?.yello_bucks_balance?.toLocaleString() || 0} YB
             </Text>
           </View>
         </View>
 
-        {/* Daily Streak Tracker */}
+        {/* Premium Streak Tracker */}
         <View style={styles.streakCard}>
           <View style={styles.streakHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Flame size={24} color="#FF6B00" />
-              <Text style={[Typography.title, { marginLeft: 8 }]}>
-                {gamification?.current_streak || 0} Day Streak
-              </Text>
+              <Flame size={24} color={Colors.secondary} fill={Colors.secondary} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={Typography.title}>{gamification?.current_streak || 0} Day Streak</Text>
+                <Text style={[Typography.label, { opacity: 0.6 }]}>YelloBucks multiplier: 1.2x</Text>
+              </View>
             </View>
-            <Trophy size={20} color={Colors.primary} />
+            <Award size={24} color={Colors.primary} />
           </View>
           
           <View style={styles.streakDays}>
             {[1, 2, 3, 4, 5, 6, 7].map((day) => {
               const active = day <= (gamification?.current_streak || 0);
-              // If milestone is 30, we offset the visualization for high streaks or just keep showing the current week
+              const isToday = day === (gamification?.current_streak || 0);
               return (
                 <View key={day} style={styles.dayContainer}>
                   <View style={[
                     styles.dayCircle,
-                    active && { backgroundColor: Colors.tertiary_container }
+                    active && { backgroundColor: Colors.primary },
+                    isToday && { borderWidth: 2, borderColor: Colors.secondary }
                   ]}>
                     <Text style={[
                       Typography.label,
-                      active && { color: Colors.on_surface }
+                      active ? { color: '#000', fontWeight: '900' } : { opacity: 0.5 }
                     ]}>{day}</Text>
                   </View>
-                  <Text style={Typography.label}>D{day}</Text>
+                  <Text style={[styles.dayLabel, active && { color: Colors.primary }]}>D{day}</Text>
                 </View>
               );
             })}
           </View>
-          <Text style={[Typography.label, { marginTop: Spacing.md, opacity: 0.7 }]}>
-            Maintain your streak to earn a Mystery Box on Day {gamification?.milestone_target || 7}!
-          </Text>
+          <View style={styles.streakFooter}>
+            <Zap size={14} color={Colors.secondary} fill={Colors.secondary} />
+            <Text style={styles.streakFooterText}>
+               Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
+            </Text>
+          </View>
         </View>
 
         {/* Spin-the-Wheel Hero Section */}
-        <TouchableOpacity style={styles.spinHero}>
+        <TouchableOpacity style={styles.spinHero} onPress={() => setSpinVisible(true)}>
           <View style={styles.spinContent}>
-            <Text style={[Typography.headline, { color: Colors.on_primary_fixed }]}>Daily Spin</Text>
+            <Text style={[Typography.headline, { color: Colors.on_primary_fixed, fontSize: 24 }]}>Daily Spin</Text>
             <Text style={[Typography.body, { color: Colors.on_primary_fixed, opacity: 0.8 }]}>
-              Win up to 500 YelloBucks today!
+              Win up to 500 YelloBucks!
             </Text>
             <View style={styles.spinCta}>
-              <Text style={[Typography.title, { color: '#fff' }]}>Spin Now</Text>
+              <Text style={[Typography.title, { color: '#000', fontWeight: '900' }]}>SPIN NOW</Text>
             </View>
           </View>
-          <View style={styles.spinImagePlaceholder} />
+          <View style={styles.spinIconContainer}>
+             <Star size={80} color="rgba(255, 255, 0, 0.1)" fill="rgba(255, 255, 0, 0.2)" />
+          </View>
         </TouchableOpacity>
 
         {/* Redemption Catalog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>Redeem YelloBucks</Text>
-            <ChevronRight size={20} color={Colors.on_surface} />
+            <Text style={Typography.title}>Featured Rewards</Text>
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+               <Text style={[Typography.label, { color: Colors.primary }]}>VIEW ALL</Text>
+               <ChevronRight size={16} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
           
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.redeemScroll}>
             {offers?.map((offer: any) => (
               <TouchableOpacity key={offer.id} style={styles.redeemCard}>
-                <View style={styles.redeemImage} />
-                <Text style={[Typography.title, { fontSize: 14, marginTop: 8 }]} numberOfLines={1}>
-                  {offer.title}
-                </Text>
-                <View style={styles.priceRow}>
-                   <Star size={12} color={Colors.primary} fill={Colors.primary} />
-                   <Text style={[Typography.label, { marginLeft: 4 }]}>{offer.price} YB</Text>
+                <View style={styles.redeemImageContainer}>
+                   <Image 
+                     source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
+                     style={StyleSheet.absoluteFill}
+                     resizeMode="cover"
+                   />
+                </View>
+                <View style={styles.redeemInfo}>
+                  <Text style={[Typography.title, { fontSize: 13 }]} numberOfLines={1}>
+                    {offer.title}
+                  </Text>
+                  <View style={styles.priceRow}>
+                    <Star size={10} color={Colors.secondary} fill={Colors.secondary} />
+                    <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900', color: Colors.secondary }]}>
+                       {offer.price} YB
+                    </Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
+
+        {/* Gamified Quests Placeholder */}
+        <View style={styles.section}>
+           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Daily Quests</Text>
+           <View style={styles.questCard}>
+              <View style={styles.questIcon}>
+                <Gift size={20} color={Colors.secondary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                 <Text style={Typography.title}>Refer a Friend</Text>
+                 <Text style={[Typography.label, { opacity: 0.6 }]}>Earn 500 YB per referral</Text>
+              </View>
+              <ChevronRight size={20} color={Colors.outline} />
+           </View>
+        </View>
+
+        <SpinWheelModal 
+          visible={spinVisible} 
+          onClose={() => setSpinVisible(false)} 
+          gameId={1} // Assuming Game ID 1 is Daily Spin
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -128,8 +178,8 @@ const RewardsScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -147,63 +197,78 @@ const styles = StyleSheet.create({
   streakCard: {
     backgroundColor: Colors.surface_container_lowest,
     padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.xl,
     marginBottom: Spacing.xl,
-    elevation: 2,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
   },
   streakHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: 20,
   },
   streakDays: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 4,
   },
   dayContainer: {
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
   dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.surface_container_high,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  dayLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_variant },
+  streakFooter: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 20, 
+    paddingTop: 16, 
+    borderTopWidth: 1, 
+    borderTopColor: Colors.outline_variant,
+    gap: 8
+  },
+  streakFooterText: { fontSize: 10, fontWeight: '600', color: Colors.on_surface_variant },
   spinHero: {
-    height: 160,
+    height: 180,
     backgroundColor: Colors.primary_container,
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',
     overflow: 'hidden',
     marginBottom: Spacing.xl,
+    elevation: 4,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
   spinContent: {
     flex: 1,
-    padding: Spacing.lg,
+    padding: 24,
     justifyContent: 'center',
+    zIndex: 10,
   },
   spinCta: {
-    backgroundColor: Colors.on_primary_fixed,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.md,
+    marginTop: 16,
     alignSelf: 'flex-start',
   },
-  spinImagePlaceholder: {
-    width: 100,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    height: '100%',
+  spinIconContainer: {
+    position: 'absolute',
+    right: -20,
+    top: 20,
+    opacity: 0.5,
   },
   section: { marginBottom: Spacing.xl },
   sectionHeader: {
@@ -212,21 +277,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  redeemScroll: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
   redeemCard: {
-    width: 140,
-    marginRight: Spacing.md,
+    width: 150,
+    marginRight: 16,
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
   },
-  redeemImage: {
-    width: 140,
-    height: 100,
+  redeemImageContainer: {
+    width: 150,
+    height: 110,
     backgroundColor: Colors.surface_container_high,
-    borderRadius: BorderRadius.md,
   },
+  redeemInfo: { padding: 12 },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
+  questCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+  },
+  questIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.secondary + '10', justifyContent: 'center', alignItems: 'center' },
 });
 
 export default RewardsScreen;

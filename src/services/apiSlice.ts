@@ -32,7 +32,41 @@ export const apiSlice = createApi({
       query: () => '/api/v1/mobile/v1/offers',
       providesTags: ['Shop'],
     }),
+    toggleCardFreeze: builder.mutation<any, { freeze: boolean }>({
+      query: (body) => ({
+        url: '/api/v1/mobile/v1/wallet/card/toggle-freeze',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Wallet'],
+    }),
+    p2pTransfer: builder.mutation<any, { receiver_msisdn: string, amount: number }>({
+      query: (body) => ({
+        url: '/api/v1/mobile/v1/wallet/p2p',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Wallet'],
+    }),
+    playGame: builder.mutation<any, { game_id: number }>({
+      query: ({ game_id }) => ({
+        url: `/api/v1/mobile/v1/games/${game_id}/play`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Home', 'Wallet'],
+    }),
+    getUsageData: builder.query<any, void>({
+      query: () => '/api/v1/mobile/v1/mymtn/usage',
+    }),
   }),
 });
 
-export const { useGetHomeDataQuery, useGetWalletDataQuery, useGetOffersDataQuery } = apiSlice;
+export const { 
+  useGetHomeDataQuery, 
+  useGetWalletDataQuery, 
+  useGetOffersDataQuery,
+  useToggleCardFreezeMutation,
+  useP2pTransferMutation,
+  usePlayGameMutation,
+  useGetUsageDataQuery
+} = apiSlice;

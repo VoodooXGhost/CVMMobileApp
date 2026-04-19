@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,25 +9,37 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
+import { 
+  Home, 
+  Wallet, 
+  Store, 
+  Gift, 
+  User, 
+  Zap, 
+  Star, 
+  Flame, 
+  ChevronRight, 
+  Bell, 
+  Search, 
+  Gamepad2, 
+  Smartphone 
+} from 'lucide-react-native';
+import { useGetHomeDataQuery } from '../services/apiSlice';
 
 const { width } = Dimensions.get('window');
-
-import { useGetHomeDataQuery } from '../services/apiSlice';
 
 /**
  * HomeScreen Component
  * 
- * Displays the primary dashboard for the customer, including airtime/data visualizers,
- * YelloBucks balance, and personalized offers sourced from the BFF.
- * 
- * @returns {JSX.Element} The rendered Home Screen.
+ * Production-ready dashboard with real-time balances and MAB-optimized CVM banners.
  */
 const HomeScreen = () => {
   const { user } = useAuth();
-  const { data: homeData, isLoading, error } = useGetHomeDataQuery();
+  const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
 
   if (isLoading) {
     return (
@@ -45,169 +57,248 @@ const HomeScreen = () => {
     );
   }
 
-  const { profile, loyalty, gamification, offers } = homeData?.data || {};
+  const homeData = response?.data || {};
+  const { profile, loyalty, gamification, hero_banners, offers } = homeData;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View>
-            {/* Greet by first name from BFF profile, fall back to MSISDN from auth context */}
-            <Text style={Typography.body}>Yello, {profile?.first_name || user?.msisdn || 'User'}</Text>
-            <Text style={Typography.headline}>The Digital Pulse</Text>
-          </View>
-          <View style={styles.profilePlaceholder}>
-            <Text style={Typography.label}>Profile</Text>
-          </View>
+      {/* Custom Header */}
+      <View style={styles.navHeader}>
+        <View style={styles.headerLeft}>
+          <View style={styles.mtnLogoSmall} />
+          <Text style={[Typography.title, { fontSize: 18, fontWeight: '900' }]}>EngageHub</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Search size={20} color={Colors.on_surface} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Bell size={20} color={Colors.on_surface} />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={[Typography.body, { opacity: 0.6 }]}>Yello, {profile?.first_name || 'Customer'}</Text>
+          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4 }]}>Your day at a glance</Text>
         </View>
 
-        {/* Airtime & Data Visualizer Section */}
-        <View style={styles.balanceRow}>
-          <View style={[styles.balanceCard, { backgroundColor: Colors.surface_container_lowest }]}>
-            <Text style={Typography.label}>Airtime</Text>
-            <Text style={Typography.title}>R {profile?.balances?.airtime || '0.00'}</Text>
+        {/* FR-1.1 Glance Card (Balances) */}
+        <View style={styles.glanceCard}>
+          <View style={styles.glanceHeader}>
+            <Text style={[Typography.label, { fontWeight: '900', color: Colors.on_surface_variant }]}>MY BALANCES</Text>
+            <TouchableOpacity onPress={() => refetch()}>
+              <Text style={[Typography.label, { color: Colors.primary }]}>Refresh</Text>
+            </TouchableOpacity>
           </View>
-          <View style={[styles.balanceCard, { backgroundColor: Colors.surface_container_lowest }]}>
-            <Text style={Typography.label}>Data</Text>
-            <Text style={Typography.title}>{profile?.balances?.data || '0 MB'}</Text>
-          </View>
-        </View>
-
-        {/* YelloBucks Hero Card - Restored to Typography.display size */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroContent}>
-            <Text style={[Typography.label, { color: Colors.on_primary_fixed }]}>YelloBucks Balance</Text>
-            <Text style={[Typography.display, { color: Colors.on_primary_fixed }]}>{loyalty?.yello_bucks_balance || 0} YB</Text>
-            <Text style={[Typography.label, { color: Colors.on_primary_fixed, opacity: 0.8, marginTop: -4 }]}>
-              R {loyalty?.yello_bucks_value_rand?.toLocaleString() || '0.00'} equivalent
-            </Text>
-            
-            <View style={styles.progressContainer}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
-              </View>
-              <Text style={[Typography.label, {marginTop: 4, color: Colors.on_primary_fixed + '99'}]}>{loyalty?.points_to_next?.toLocaleString() || 0} pts to {loyalty?.next_tier || 'Silver'} Tier</Text>
+          
+          <View style={styles.balancesContainer}>
+            <View style={styles.balanceItem}>
+              <Text style={styles.balanceValue}>R {profile?.balances?.airtime || '0.00'}</Text>
+              <Text style={styles.balanceLabel}>Airtime</Text>
+            </View>
+            <View style={styles.balanceDivider} />
+            <View style={styles.balanceItem}>
+              <Text style={styles.balanceValue}>{profile?.balances?.data || '0GB'}</Text>
+              <Text style={styles.balanceLabel}>Data</Text>
+            </View>
+            <View style={styles.balanceDivider} />
+            <View style={styles.balanceItem}>
+              <Text style={[styles.balanceValue, { color: Colors.secondary }]}>{loyalty?.yello_bucks_balance?.toLocaleString() || '0'}</Text>
+              <Text style={styles.balanceLabel}>YB</Text>
             </View>
           </View>
+
+          <TouchableOpacity style={styles.rechargeCta}>
+            <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>QUICK RECHARGE</Text>
+            <ChevronRight size={16} color="#000" />
+          </TouchableOpacity>
         </View>
 
-        {/* CVM Hero Banners - Asymmetrical Editorial Layout */}
+        {/* Streak / Gamification Visibility */}
+        {gamification && (
+          <View style={styles.streakCard}>
+             <View style={styles.streakIconContainer}>
+                <Flame size={20} color={Colors.secondary} fill={Colors.secondary} />
+             </View>
+             <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[Typography.title, { fontSize: 16 }]}>{gamification.current_streak} Day Streak!</Text>
+                <Text style={[Typography.label, { opacity: 0.6 }]}>{gamification.milestone_target - gamification.current_streak} days to next reward</Text>
+             </View>
+             <TouchableOpacity style={styles.playButton}>
+                <Text style={[Typography.label, { color: '#fff' }]}>PLAY</Text>
+             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* FR-1.2 Dynamic CVM Banner (MAB Optimized) */}
         <View style={styles.section}>
-          <Text style={Typography.headline}>The Pulse Picks</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bannerScroll}>
-            {homeData?.data?.hero_banners?.map((banner: any, index: number) => (
-              <TouchableOpacity 
-                key={banner.id} 
-                style={[
-                  styles.heroBanner, 
-                  { width: width * 0.8, marginRight: Spacing.md },
-                  index % 2 !== 0 && { marginTop: Spacing.lg } // Asymmetry
-                ]}
-              >
-                <View style={[styles.bannerContent, { backgroundColor: index % 2 === 0 ? Colors.surface_container_highest : Colors.surface_container_low }]}>
-                   <Text style={[Typography.title, { marginBottom: 4 }]}>{banner.title}</Text>
-                   <Text style={Typography.body} numberOfLines={2}>{banner.subtitle}</Text>
-                   <View style={styles.bannerCta}>
-                      <Text style={[Typography.label, { color: Colors.secondary }]}>Claim Offer</Text>
-                   </View>
-                </View>
+          <ScrollView 
+            horizontal 
+            pagingEnabled 
+            showsHorizontalScrollIndicator={false}
+            style={styles.bannerRow}
+          >
+            {hero_banners?.map((banner: any) => (
+              <TouchableOpacity key={banner.id} style={styles.bannerContainer}>
+                 <View style={styles.promoBanner}>
+                    <Image 
+                      source={{ uri: banner.image_url }} 
+                      style={StyleSheet.absoluteFill} 
+                      resizeMode="cover"
+                    />
+                    <View style={styles.bannerOverlay}>
+                      <View style={styles.bannerBadge}>
+                        <Zap size={12} color="#fff" fill="#fff" />
+                        <Text style={styles.bannerBadgeText}>JUST FOR YOU</Text>
+                      </View>
+                      <Text style={styles.bannerTitle}>{banner.title}</Text>
+                      <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                      <View style={styles.bannerButton}>
+                        <Text style={styles.bannerButtonText}>CLAIM NOW</Text>
+                      </View>
+                    </View>
+                 </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Quick Actions Grid */}
+        {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={Typography.title}>Quick Actions</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity style={styles.actionItem}>
-              <View style={styles.actionIcon} />
-              <Text style={Typography.label}>Buy Data</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem}>
-              <View style={styles.actionIcon} />
-              <Text style={Typography.label}>Recharge</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem}>
-              <View style={styles.actionIcon} />
-              <Text style={Typography.label}>Scan to Pay</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem}>
-              <View style={styles.actionIcon} />
-              <Text style={Typography.label}>Mystery Box</Text>
-            </TouchableOpacity>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Quick Actions</Text>
+          <View style={styles.quickActionRow}>
+            <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" />
+            <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" />
+            <ActionIcon Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" />
+            <ActionIcon Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" />
           </View>
         </View>
 
-        {/* Dynamic CVM Offers (Grid Layout) */}
-        <View style={styles.section}>
-          <Text style={Typography.headline}>Special Offers</Text>
-          <View style={styles.offerGrid}>
-            {offers?.map((offer: any) => (
-              <View key={offer.id} style={styles.offerCard}>
-                <View style={styles.offerTag}>
-                  <Text style={[Typography.label, { color: '#fff' }]}>{offer.tag || 'HOT'}</Text>
-                </View>
-                <Text style={Typography.title}>{offer.title}</Text>
-                <Text style={Typography.body}>{offer.price}</Text>
-                <TouchableOpacity style={styles.offerCta}>
-                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Claim Now</Text>
-                </TouchableOpacity>
+        {/* Loyalty Progression */}
+        <View style={styles.loyaltyCard}>
+           <View style={styles.tierHeader}>
+              <View>
+                <Text style={styles.tierLabel}>CURRENT TIER</Text>
+                <Text style={styles.tierName}>{loyalty?.current_tier || 'Bronze'}</Text>
               </View>
-            ))}
-          </View>
+              <Text style={styles.tierPoints}>{loyalty?.yello_bucks_balance?.toLocaleString()} YB</Text>
+           </View>
+           <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
+           </View>
+           <Text style={styles.progressText}>
+              {loyalty?.points_to_next?.toLocaleString()} points needed for {loyalty?.next_tier || 'Silver'}
+           </Text>
+        </View>
+
+        {/* Market Sneak Peek */}
+        <View style={styles.section}>
+           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Marketplace Picks</Text>
+           <View style={styles.offersList}>
+              {offers?.slice(0, 3).map((offer: any) => (
+                <TouchableOpacity key={offer.id} style={styles.offerItem}>
+                   <View style={styles.offerIconPlaceholder} />
+                   <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={Typography.title} numberOfLines={1}>{offer.title}</Text>
+                      <Text style={[Typography.label, { color: Colors.primary }]}>{offer.price} YB</Text>
+                   </View>
+                   <ChevronRight size={20} color={Colors.outline} />
+                </TouchableOpacity>
+              ))}
+           </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+const ActionIcon = ({ Icon, label, color, iconColor }: any) => (
+  <TouchableOpacity style={styles.actionIconItem}>
+     <View style={[styles.iconCircle, { backgroundColor: color }]}>
+        <Icon color={iconColor} size={24} />
+     </View>
+     <Text style={styles.actionLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
-  profilePlaceholder: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.surface_container_high, justifyContent: 'center', alignItems: 'center' },
-  balanceRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  balanceCard: { 
-    flex: 1, 
-    padding: Spacing.md, 
-    borderRadius: BorderRadius.md, 
-    elevation: 1,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 2px 4px rgba(0,0,0,0.05)' }),
+  navHeader: { 
+    height: 64, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.surface,
   },
-  heroCard: { backgroundColor: Colors.primary_container, padding: Spacing.xl, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
-  progressContainer: { width: '100%' },
-  progressTrack: { height: 8, backgroundColor: Colors.on_primary_fixed + '22', borderRadius: 4, marginTop: 12 },
-  progressFill: { height: '100%', backgroundColor: Colors.secondary, borderRadius: 4 },
-  section: { marginBottom: Spacing.xl },
-  bannerScroll: { paddingVertical: Spacing.sm },
-  heroBanner: { borderRadius: BorderRadius.md, overflow: 'hidden' },
-  bannerContent: { padding: Spacing.lg, borderRadius: BorderRadius.md, minHeight: 140, justifyContent: 'center' },
-  bannerCta: { marginTop: Spacing.md, alignSelf: 'flex-start' },
-  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.md },
-  actionItem: { alignItems: 'center', width: '22%' },
-  actionIcon: { width: 50, height: 50, backgroundColor: Colors.surface_container_high, borderRadius: 25, marginBottom: 8 },
-  offerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.md },
-  offerCard: { 
-    width: (width - Spacing.lg * 2 - Spacing.md) / 2, 
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mtnLogoSmall: { width: 32, height: 24, backgroundColor: Colors.primary, borderRadius: 4 },
+  headerRight: { flexDirection: 'row', gap: 16 },
+  headerIcon: { position: 'relative' },
+  notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.error, borderWidth: 2, borderColor: Colors.surface },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  welcomeSection: { marginBottom: Spacing.xl },
+  glanceCard: { 
     backgroundColor: Colors.surface_container_lowest, 
-    padding: Spacing.md, 
-    borderRadius: BorderRadius.md, 
-    elevation: 2,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
+    borderRadius: BorderRadius.xl, 
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+    marginBottom: Spacing.lg,
   },
-  offerTag: { backgroundColor: Colors.primary, padding: 4, borderRadius: 4, alignSelf: 'flex-start', marginBottom: 8 },
-  offerCta: { backgroundColor: Colors.secondary, padding: 8, borderRadius: 16, marginTop: 12, alignItems: 'center' },
+  glanceHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
+  balancesContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  balanceItem: { flex: 1, alignItems: 'center' },
+  balanceValue: { fontSize: 18, fontWeight: '900', color: Colors.on_surface },
+  balanceLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_variant, marginTop: 4, textTransform: 'uppercase' },
+  balanceDivider: { width: 1, height: 30, backgroundColor: Colors.outline_variant },
+  rechargeCta: { backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: BorderRadius.md, gap: 8 },
+  streakCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#FFFBEB', 
+    padding: Spacing.md, 
+    borderRadius: BorderRadius.xl, 
+    borderWidth: 1, 
+    borderColor: '#FEF3C7',
+    marginBottom: Spacing.xl,
+  },
+  streakIconContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
+  playButton: { backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  section: { marginBottom: Spacing.xl },
+  bannerRow: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
+  bannerContainer: { width: width - (Spacing.lg * 2), marginRight: 12 },
+  promoBanner: { height: 180, borderRadius: BorderRadius.xl, overflow: 'hidden', backgroundColor: '#333' },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', padding: 20, justifyContent: 'flex-end' },
+  bannerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  bannerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
+  bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '900' },
+  bannerSubtitle: { color: '#fff', fontSize: 13, opacity: 0.9, marginTop: 4 },
+  bannerButton: { backgroundColor: Colors.primary, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
+  bannerButtonText: { color: '#000', fontWeight: '900', fontSize: 12 },
+  quickActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  actionIconItem: { alignItems: 'center', flex: 1 },
+  iconCircle: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  actionLabel: { fontSize: 11, fontWeight: '700', color: Colors.on_surface_variant },
+  loyaltyCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
+  tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  tierLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '900' },
+  tierName: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  tierPoints: { color: Colors.secondary, fontSize: 18, fontWeight: '900' },
+  progressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, marginBottom: 8 },
+  progressFill: { height: '100%', backgroundColor: Colors.secondary, borderRadius: 3 },
+  progressText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '600' },
+  offersList: { gap: Spacing.md },
+  offerItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface_container_lowest, padding: 12, borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.outline_variant },
+  offerIconPlaceholder: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.surface_container_high },
 });
 
 export default HomeScreen;
