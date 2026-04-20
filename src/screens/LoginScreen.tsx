@@ -16,8 +16,7 @@ import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 
 const LoginScreen = () => {
-  // MSISDN + PIN state: matches Option A mobile-first auth flow
-  const [msisdn, setMsisdn] = useState('+27821234567');
+  const [msisdn, setMsisdn] = useState('0785106688');
   const [pin, setPin] = useState('@dmin!10');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { signIn } = useAuth();
@@ -96,7 +95,7 @@ const LoginScreen = () => {
                 onFocus={() => setFocusedInput('pin')}
                 onBlur={() => setFocusedInput(null)}
                 secureTextEntry
-                keyboardType="numeric"
+                keyboardType="default"
               />
             </View>
 

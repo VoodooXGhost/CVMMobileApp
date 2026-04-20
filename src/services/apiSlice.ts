@@ -8,16 +8,34 @@ import { platformStorage } from './storage';
  */
 export const apiSlice = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: process.env.EXPO_PUBLIC_API_URL,
-    prepareHeaders: async (headers) => {
-      const token = await platformStorage.getItemAsync('userToken');
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`);
+  baseQuery: async (args, api, extraOptions) => {
+    const baseQuery = fetchBaseQuery({
+      baseUrl: process.env.EXPO_PUBLIC_API_URL,
+      prepareHeaders: async (headers) => {
+        const token = await platformStorage.getItemAsync('userToken');
+        if (token && token.length > 20) {
+          headers.set('authorization', `Bearer ${token}`);
+        }
+        return headers;
+      },
+    });
+    
+    const result = await baseQuery(args, api, extraOptions);
+    
+    // If we get a 401, the token is likely stale or invalid
+    if (result.error && result.error.status === 401) {
+      console.warn('Unauthorized request. Clearing stale session.');
+      await platformStorage.deleteItemAsync('userToken');
+      await platformStorage.deleteItemAsync('userData');
+      
+      // On web, we can force a reload to reset the App state
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.reload();
       }
-      return headers;
-    },
-  }),
+    }
+    
+    return result;
+  },
   tagTypes: ['Home', 'Wallet', 'Shop'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({

@@ -27,9 +27,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const savedToken = await platformStorage.getItemAsync('userToken');
         const savedUser = await platformStorage.getItemAsync('userData');
-        if (savedToken) {
+        
+        console.log('--- Auth Initialization ---');
+        console.log('Saved Token:', savedToken);
+        
+        // STRICT VALIDATION: Token must be a non-empty string and NOT garbage
+        const isValidToken = 
+          savedToken && 
+          typeof savedToken === 'string' &&
+          savedToken !== 'undefined' && 
+          savedToken !== 'null' && 
+          savedToken !== '[object Object]' &&
+          savedToken.length > 20; // JWTs are typically long
+
+        if (isValidToken) {
+          console.log('Token validated. User authenticated.');
           setToken(savedToken);
-          setUser(savedUser ? JSON.parse(savedUser) : null);
+          
+          const isValidUser = savedUser && savedUser !== 'undefined' && savedUser !== 'null' && savedUser.startsWith('{');
+          if (isValidUser) {
+            try {
+              setUser(JSON.parse(savedUser!));
+            } catch (parseError) {
+              console.error('Failed to parse saved user', parseError);
+              setUser(null);
+            }
+          }
+        } else {
+          console.log('Token invalid or missing. Forcing logout state.');
+          // If token looks invalid, ensure we are logged out
+          await platformStorage.deleteItemAsync('userToken');
+          await platformStorage.deleteItemAsync('userData');
+          setToken(null);
+          setUser(null);
         }
       } catch (e) {
         console.error('Failed to load token', e);
@@ -42,8 +72,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (msisdn: string, pin: string) => {
     try {
-      // Option A: Mobile-first MSISDN + PIN auth via RS256-secured mobile BFF endpoint.
-      // The backend returns snake_case tokens (access_token / refresh_token).
+      // Clear old session to prevent "undefined" or stale data issues
+      await platformStorage.deleteItemAsync('userToken');
+      await platformStorage.deleteItemAsync('userData');
+      await platformStorage.deleteItemAsync('refreshToken');
+      
+      // Option A: Mobile-first MSISDN + PIN auth
       const response = await axios.post(`${API_URL}/api/v1/mobile/auth/login`, {
         msisdn,
         pin,
@@ -60,8 +94,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setToken(access_token);
       setUser(userData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed', error);
+      if (error.response && error.response.data) {
+        console.log('CRITICAL BACKEND ERROR:', JSON.stringify(error.response.data, null, 2));
+      }
       throw error;
     }
   };
