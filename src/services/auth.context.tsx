@@ -28,9 +28,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const savedToken = await platformStorage.getItemAsync('userToken');
         const savedUser = await platformStorage.getItemAsync('userData');
         
-        console.log('--- Auth Initialization ---');
-        console.log('Saved Token:', savedToken);
-        
         // STRICT VALIDATION: Token must be a non-empty string and NOT garbage
         const isValidToken = 
           savedToken && 
@@ -41,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           savedToken.length > 20; // JWTs are typically long
 
         if (isValidToken) {
-          console.log('Token validated. User authenticated.');
           setToken(savedToken);
           
           const isValidUser = savedUser && savedUser !== 'undefined' && savedUser !== 'null' && savedUser.startsWith('{');
@@ -54,10 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } else {
-          console.log('Token invalid or missing. Forcing logout state.');
           // If token looks invalid, ensure we are logged out
           await platformStorage.deleteItemAsync('userToken');
           await platformStorage.deleteItemAsync('userData');
+          await platformStorage.deleteItemAsync('refreshToken');
           setToken(null);
           setUser(null);
         }
@@ -70,35 +66,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadToken();
   }, []);
 
+  const mapAuthPayload = (data: any) => {
+    const token = data?.access_token ?? data?.token ?? null;
+    const refreshToken = data?.refresh_token ?? null;
+    const userData = data?.user ?? data?.profile ?? null;
+    return { token, refreshToken, userData };
+  };
+
   const signIn = async (msisdn: string, pin: string) => {
     try {
       // Clear old session to prevent "undefined" or stale data issues
       await platformStorage.deleteItemAsync('userToken');
       await platformStorage.deleteItemAsync('userData');
       await platformStorage.deleteItemAsync('refreshToken');
-      
-      // Option A: Mobile-first MSISDN + PIN auth
-      const response = await axios.post(`${API_URL}/api/v1/mobile/auth/login`, {
-        msisdn,
-        pin,
-        device_id: 'DEVICE-S6-ENTERPRISE', // Demo device identifier
-        platform: 'android',
-      });
 
-      // Map snake_case backend response → local camelCase state
-      const { access_token, refresh_token, user: userData } = response.data;
+      // Support both mobile and legacy auth contracts in deterministic order.
+      const attempts = [
+        {
+          url: `${API_URL}/api/v1/mobile/auth/login`,
+          body: {
+            msisdn,
+            pin,
+            device_id: 'DEVICE-S6-ENTERPRISE',
+            platform: 'android',
+          },
+        },
+        {
+          url: `${API_URL}/auth/login`,
+          body: {
+            username: msisdn,
+            password: pin,
+          },
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ];
 
-      await platformStorage.setItemAsync('userToken', access_token);
-      await platformStorage.setItemAsync('refreshToken', refresh_token);
-      await platformStorage.setItemAsync('userData', JSON.stringify(userData));
+      let lastError: any = null;
+      for (let index = 0; index < attempts.length; index += 1) {
+        const attempt = attempts[index];
+        try {
+          const response = await axios.post(attempt.url, attempt.body, {
+            headers: attempt.headers,
+          });
+          const { token, refreshToken, userData } = mapAuthPayload(response.data);
 
-      setToken(access_token);
-      setUser(userData);
+          if (!token || typeof token !== 'string') {
+            throw new Error('Authentication response is missing a valid token.');
+          }
+
+          await platformStorage.setItemAsync('userToken', token);
+          if (refreshToken && typeof refreshToken === 'string') {
+            await platformStorage.setItemAsync('refreshToken', refreshToken);
+          }
+          if (userData) {
+            await platformStorage.setItemAsync('userData', JSON.stringify(userData));
+          }
+
+          setToken(token);
+          setUser(userData ?? null);
+          return;
+        } catch (error: any) {
+          lastError = error;
+          const statusCode = error?.response?.status;
+          const canFallback = statusCode === 404 || statusCode === 405;
+          if (!canFallback || index === attempts.length - 1) {
+            break;
+          }
+        }
+      }
+
+      throw lastError ?? new Error('Authentication failed');
     } catch (error: any) {
       console.error('Login failed', error);
-      if (error.response && error.response.data) {
-        console.log('CRITICAL BACKEND ERROR:', JSON.stringify(error.response.data, null, 2));
-      }
       throw error;
     }
   };
@@ -106,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     await platformStorage.deleteItemAsync('userToken');
     await platformStorage.deleteItemAsync('userData');
+    await platformStorage.deleteItemAsync('refreshToken');
     setToken(null);
     setUser(null);
   };

@@ -6,14 +6,13 @@ import {
   SafeAreaView,
   ScrollView, 
   TouchableOpacity, 
-  Dimensions, 
   ActivityIndicator,
-  Platform,
-  Image
+  Image,
+  Alert,
+  Share
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { 
-  Trophy, 
   Flame, 
   ChevronRight, 
   Star,
@@ -21,20 +20,20 @@ import {
   Gift,
   Award
 } from 'lucide-react-native';
-import { useGetHomeDataQuery, useGetOffersDataQuery } from '../services/apiSlice';
+import { useGetHomeDataQuery, useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
-
-const { width } = Dimensions.get('window');
 
 const RewardsScreen = () => {
   const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
   const { data: offersResponse, isLoading: isOffersLoading } = useGetOffersDataQuery();
+  const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const [spinVisible, setSpinVisible] = useState(false);
 
   const homeData = homeResponse?.data || {};
   const { gamification, loyalty } = homeData;
   const offersData = offersResponse?.data || {};
   const { offers } = offersData;
+  const safeOffers = Array.isArray(offers) ? offers : [];
 
   if (isHomeLoading || isOffersLoading) {
     return (
@@ -43,6 +42,57 @@ const RewardsScreen = () => {
       </View>
     );
   }
+
+  const handleRedeem = (offer: any) => {
+    const itemId = Number(offer?.id);
+    if (!Number.isFinite(itemId) || itemId <= 0) {
+      Alert.alert('Unavailable', 'This reward is not redeemable right now.');
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Redemption',
+      `Redeem ${offer.title} for ${offer.price} YB?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Redeem', 
+          onPress: async () => {
+            try {
+              await redeemOffer({ item_id: itemId }).unwrap();
+              Alert.alert('Success', `You have redeemed ${offer.title}!`);
+            } catch (err: any) {
+              Alert.alert('Error', err?.data?.detail || 'Failed to redeem offer.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleReferral = async () => {
+    const referralCode = `MTN-PULSE-7851`;
+    const referralText = `Hey! Join me on MTN Pulse Rewards, use my referral code ${referralCode} to get 500 YelloBucks instantly on sign up! Download here: https://mtn.co.za/pulse`;
+    
+    Alert.alert(
+      'Refer a Friend & Earn 500 YB',
+      `Share your referral code with friends. Once they register and complete their first spin, you'll both receive 500 YelloBucks!\n\nYour Code: ${referralCode}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Share Invitation', 
+          onPress: async () => {
+            try {
+              await Share.share({
+                message: referralText,
+                title: 'MTN Pulse Referral'
+              });
+            } catch (_error: any) {}
+          } 
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -126,8 +176,13 @@ const RewardsScreen = () => {
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.redeemScroll}>
-            {offers?.map((offer: any) => (
-              <TouchableOpacity key={offer.id} style={styles.redeemCard}>
+            {safeOffers.map((offer: any) => (
+              <TouchableOpacity 
+                key={offer.id} 
+                style={styles.redeemCard}
+                onPress={() => handleRedeem(offer)}
+                disabled={isRedeeming}
+              >
                 <View style={styles.redeemImageContainer}>
                    <Image 
                      source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
@@ -154,7 +209,7 @@ const RewardsScreen = () => {
         {/* Gamified Quests Placeholder */}
         <View style={styles.section}>
            <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Daily Quests</Text>
-           <View style={styles.questCard}>
+           <TouchableOpacity style={styles.questCard} onPress={handleReferral}>
               <View style={styles.questIcon}>
                 <Gift size={20} color={Colors.secondary} />
               </View>
@@ -163,7 +218,7 @@ const RewardsScreen = () => {
                  <Text style={[Typography.label, { opacity: 0.6 }]}>Earn 500 YB per referral</Text>
               </View>
               <ChevronRight size={20} color={Colors.outline} />
-           </View>
+           </TouchableOpacity>
         </View>
 
         <SpinWheelModal 

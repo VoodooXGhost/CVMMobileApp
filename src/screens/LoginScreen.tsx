@@ -16,8 +16,8 @@ import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 
 const LoginScreen = () => {
-  const [msisdn, setMsisdn] = useState('0785106688');
-  const [pin, setPin] = useState('@dmin!10');
+  const [msisdn, setMsisdn] = useState('');
+  const [pin, setPin] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { signIn } = useAuth();
 
@@ -162,9 +162,9 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
   },
   logoText: {
-    fontFamily: 'WorkSans-Bold',
     fontSize: 24,
     color: Colors.on_primary_fixed,
+    fontWeight: 'bold', // Emulate the bold weight
   },
   subtitle: {
     color: Colors.on_surface + '99',
@@ -178,7 +178,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.xl, // 1.5rem
     padding: Spacing.xl,
-    zIndex: 2,
     zIndex: 2,
     // Soft glow ambient shadow: Diffused for editorial feel
     elevation: 5,
@@ -228,7 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: Spacing.lg,
-    marginTop: Spacing.lg,
     // Soft signature texture would be a gradient, here we use elevation
     elevation: 3,
     shadowColor: Colors.primary,
@@ -240,7 +238,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: Colors.on_primary_fixed,
     fontSize: 18,
-    fontFamily: 'WorkSans-SemiBold',
+    fontWeight: '600', // Emulate semibold weight
   },
   forgotPassword: {
     marginTop: Spacing.md,

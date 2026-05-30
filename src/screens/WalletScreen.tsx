@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import P2PTransferModal from '../components/P2PTransferModal';
+import ScanToPayModal from '../components/ScanToPayModal';
 
 /**
  * WalletScreen Component
@@ -17,6 +19,8 @@ const WalletScreen = () => {
   const { authenticate } = useBiometricAuth();
   const [revealedCards, setRevealedCards] = useState<Record<string, boolean>>({});
   const [freezingId, setFreezingId] = useState<string | null>(null);
+  const [p2pVisible, setP2pVisible] = useState(false);
+  const [scanVisible, setScanVisible] = useState(false);
 
   if (isLoading) {
     return (
@@ -36,6 +40,8 @@ const WalletScreen = () => {
 
   const walletData = response?.data || {};
   const { balance, totalBalance, cards, transactions } = walletData;
+  const safeCards = Array.isArray(cards) ? cards : [];
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
   const handleReveal = async (cardId: string) => {
     if (revealedCards[cardId]) {
@@ -90,13 +96,13 @@ const WalletScreen = () => {
 
         {/* Action Grid */}
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionItem}>
+          <TouchableOpacity style={styles.actionItem} onPress={() => setScanVisible(true)}>
             <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
               <Scan color="#fff" size={24} />
             </View>
             <Text style={styles.actionLabel}>Scan to Pay</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem}>
+          <TouchableOpacity style={styles.actionItem} onPress={() => setP2pVisible(true)}>
             <View style={[styles.actionIcon, { backgroundColor: Colors.secondary }]}>
               <ArrowUpRight color="#fff" size={24} />
             </View>
@@ -113,9 +119,14 @@ const WalletScreen = () => {
         {/* Virtual Card Section */}
         <View style={styles.section}>
           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>My Virtual Cards</Text>
-          {cards?.map((card: any) => {
+          {safeCards.map((card: any) => {
             const isRevealed = revealedCards[card.id];
             const isFrozen = card.status === 'FROZEN';
+            const rawCardNumber = typeof card.number === 'string' ? card.number : '';
+            const maskedNumber =
+              rawCardNumber && rawCardNumber.length >= 4
+                ? rawCardNumber.replace(/\d(?=\d{4})/g, "•")
+                : '•••• •••• •••• ••••';
             
             return (
               <View key={card.id} style={[styles.cardContainer, isFrozen && styles.frozenCard]}>
@@ -127,7 +138,7 @@ const WalletScreen = () => {
                   
                   <View style={styles.cardNumberContainer}>
                     <Text style={styles.cardNumber}>
-                      {isRevealed ? card.number : card.number.replace(/\d(?=\d{4})/g, "•")}
+                      {isRevealed ? (rawCardNumber || maskedNumber) : maskedNumber}
                     </Text>
                   </View>
                   
@@ -188,7 +199,7 @@ const WalletScreen = () => {
           </View>
           
           <View style={styles.transactionList}>
-            {transactions?.length > 0 ? transactions.map((tx: any) => (
+            {safeTransactions.length > 0 ? safeTransactions.map((tx: any) => (
               <View key={tx.id} style={styles.transactionItem}>
                 <View style={[styles.txIconContainer, { backgroundColor: tx.amount < 0 ? '#FEF2F2' : '#F0FDF4' }]}>
                   {tx.amount < 0 ? (
@@ -200,11 +211,11 @@ const WalletScreen = () => {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[Typography.title, { fontSize: 15 }]} numberOfLines={1}>{tx.description}</Text>
                   <Text style={[Typography.label, { color: Colors.on_surface_variant, fontSize: 11 }]}>
-                    {new Date(tx.date).toLocaleDateString()} • {tx.type.replace('_', ' ')}
+                    {new Date(tx.date).toLocaleDateString()} • {String(tx.type || 'activity').replace('_', ' ')}
                   </Text>
                 </View>
                 <Text style={[Typography.title, { color: tx.amount < 0 ? Colors.on_surface : Colors.secondary }]}>
-                  {tx.amount < 0 ? '' : '+'}{tx.amount.toLocaleString()} YB
+                  {tx.amount < 0 ? '' : '+'}{Number(tx.amount || 0).toLocaleString()} YB
                 </Text>
               </View>
             )) : (
@@ -214,6 +225,9 @@ const WalletScreen = () => {
             )}
           </View>
         </View>
+
+        <P2PTransferModal visible={p2pVisible} onClose={() => setP2pVisible(false)} />
+        <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
       </ScrollView>
     </SafeAreaView>
   );
