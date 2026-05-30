@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Star, Store, Smartphone, Wifi, Zap } from 'lucide-react-native';
 import { useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
+import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
+import { getExperimentAssignments } from '../services/experiments';
 
 /**
  * MarketplaceScreen Component (Formerly ShopScreen)
@@ -17,6 +19,7 @@ const MarketplaceScreen = () => {
   const { data: shopData, isLoading, error } = useGetOffersDataQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const [activeCategory, setActiveCategory] = React.useState('All');
+  const [cardCtaVariant, setCardCtaVariant] = React.useState('hot_badge');
 
   if (isLoading) {
     return (
@@ -36,6 +39,34 @@ const MarketplaceScreen = () => {
 
   const { offers, categories } = shopData?.data || {};
   const safeOffers = Array.isArray(offers) ? offers : [];
+
+  useEffect(() => {
+    track('screen_view', { name: 'marketplace' }, { screen: 'marketplace' });
+  }, []);
+
+  useEffect(() => {
+    const loadVariant = async () => {
+      const assignments = await getExperimentAssignments(getAnalyticsIdentity());
+      setCardCtaVariant(assignments.marketplace_card_cta_variant || 'hot_badge');
+    };
+    loadVariant();
+  }, []);
+
+  useEffect(() => {
+    const subset =
+      activeCategory === 'All'
+        ? safeOffers
+        : safeOffers.filter((offer: any) => offer.category?.toLowerCase() === activeCategory.toLowerCase());
+    subset.slice(0, 8).forEach((product: any) => {
+      if (shouldTrackImpression(product.id, 'marketplace_grid')) {
+        track(
+          'offer_impression',
+          { item_id: product.id, placement: 'marketplace_grid', category: product.category },
+          { screen: 'marketplace', placement: 'marketplace_grid' },
+        );
+      }
+    });
+  }, [activeCategory, safeOffers]);
   
   // Custom categories with icons
   const categoryIcons: Record<string, any> = {
@@ -68,9 +99,24 @@ const MarketplaceScreen = () => {
           text: 'Buy', 
           onPress: async () => {
             try {
+              await track(
+                'redeem_start',
+                { item_id: itemId, placement: 'marketplace_grid' },
+                { screen: 'marketplace', placement: 'marketplace_grid' },
+              );
               await redeemOffer({ item_id: itemId }).unwrap();
+              await track(
+                'redeem_success',
+                { item_id: itemId, placement: 'marketplace_grid' },
+                { screen: 'marketplace', placement: 'marketplace_grid' },
+              );
               Alert.alert('Success', `You have successfully purchased ${product.title}!`);
             } catch (err: any) {
+              await track(
+                'redeem_fail',
+                { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
+                { screen: 'marketplace', placement: 'marketplace_grid' },
+              );
               Alert.alert('Error', err?.data?.detail || 'Failed to complete purchase.');
             }
           }
@@ -129,7 +175,14 @@ const MarketplaceScreen = () => {
               <TouchableOpacity 
                 key={product.id} 
                 style={[styles.productCard, { width: (width - (Spacing.lg * 3)) / 2 }]}
-                onPress={() => handleRedeem(product)}
+                onPress={() => {
+                  track(
+                    'offer_click',
+                    { item_id: product.id, placement: 'marketplace_grid' },
+                    { screen: 'marketplace', placement: 'marketplace_grid' },
+                  );
+                  handleRedeem(product);
+                }}
                 disabled={isRedeeming || !Number.isFinite(Number(product?.id))}
               >
                 <View style={styles.productImagePlaceholder}>
@@ -139,7 +192,7 @@ const MarketplaceScreen = () => {
                     resizeMode="cover"
                   />
                   <View style={styles.promoBadge}>
-                    <Text style={styles.promoText}>HOT</Text>
+                    <Text style={styles.promoText}>{cardCtaVariant === 'deal_badge' ? 'DEAL' : 'HOT'}</Text>
                   </View>
                 </View>
                 <View style={styles.productInfo}>

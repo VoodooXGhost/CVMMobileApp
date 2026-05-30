@@ -5,6 +5,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
+import { track } from '../services/analytics';
 
 interface ScanToPayModalProps {
   visible: boolean;
@@ -61,6 +62,11 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
     const payload = parsePayload(String(data || ''));
 
     if (!payload) {
+      track(
+        'wallet_action_fail',
+        { action: 'scan_pay', reason: 'invalid_qr_payload' },
+        { screen: 'wallet', source: 'scan_modal' },
+      );
       Alert.alert(
         'Invalid QR format',
         'Expected payload: {"item_id":123,"amount":50,"merchant_ref":"ABC-123"}',
@@ -82,11 +88,26 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
           text: 'Pay',
           onPress: async () => {
             try {
+              await track(
+                'wallet_action_start',
+                { action: 'scan_pay', item_id: payload.item_id, amount: payload.amount },
+                { screen: 'wallet', source: 'scan_modal' },
+              );
               await redeemOffer({ item_id: payload.item_id }).unwrap();
+              await track(
+                'wallet_action_success',
+                { action: 'scan_pay', item_id: payload.item_id, amount: payload.amount },
+                { screen: 'wallet', source: 'scan_modal' },
+              );
               Alert.alert('Success', 'Payment processed successfully.', [
                 { text: 'Done', onPress: onClose },
               ]);
             } catch (err: any) {
+              await track(
+                'wallet_action_fail',
+                { action: 'scan_pay', item_id: payload.item_id, reason: err?.status || 'unknown' },
+                { screen: 'wallet', source: 'scan_modal' },
+              );
               if (isUnsupportedError(err)) {
                 Alert.alert('Payment unavailable', statusCopy.unsupportedFeature);
               } else {

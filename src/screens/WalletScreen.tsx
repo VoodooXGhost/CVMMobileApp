@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import P2PTransferModal from '../components/P2PTransferModal';
 import ScanToPayModal from '../components/ScanToPayModal';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
+import { track } from '../services/analytics';
 
 /**
  * WalletScreen Component
@@ -23,6 +24,10 @@ const WalletScreen = () => {
   const [p2pVisible, setP2pVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
   const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
+
+  useEffect(() => {
+    track('screen_view', { name: 'wallet' }, { screen: 'wallet' });
+  }, []);
 
   if (isLoading) {
     return (
@@ -62,14 +67,29 @@ const WalletScreen = () => {
     const isFrozen = card.status === 'FROZEN';
     setFreezingId(card.id);
     try {
+      await track(
+        'wallet_action_start',
+        { action: 'toggle_freeze', card_id: card.id, freeze: !isFrozen },
+        { screen: 'wallet', source: 'card_controls' },
+      );
       await toggleFreeze({ freeze: !isFrozen }).unwrap();
       setFreezeRetryCard(null);
+      await track(
+        'wallet_action_success',
+        { action: 'toggle_freeze', card_id: card.id, freeze: !isFrozen },
+        { screen: 'wallet', source: 'card_controls' },
+      );
       Alert.alert(
         isFrozen ? 'Card Unfrozen' : 'Card Frozen',
         isFrozen ? 'Your card is now ready for use.' : 'No transactions will be allowed until you unfreeze it.'
       );
     } catch (err: any) {
       setFreezeRetryCard(card);
+      await track(
+        'wallet_action_fail',
+        { action: 'toggle_freeze', card_id: card.id, reason: err?.status || 'unknown' },
+        { screen: 'wallet', source: 'card_controls' },
+      );
       if (isUnsupportedError(err)) {
         Alert.alert('Feature unavailable', statusCopy.unsupportedFeature);
       } else {

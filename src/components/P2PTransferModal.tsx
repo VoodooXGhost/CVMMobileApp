@@ -4,6 +4,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X, Send } from 'lucide-react-native';
 import { useP2pTransferMutation } from '../services/apiSlice';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
+import { track } from '../services/analytics';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -27,12 +28,27 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
     }
 
     try {
+      await track(
+        'wallet_action_start',
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
+        { screen: 'wallet', source: 'p2p_modal' },
+      );
       await transfer({ receiver_msisdn: msisdn, amount: numAmount }).unwrap();
+      await track(
+        'wallet_action_success',
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
+        { screen: 'wallet', source: 'p2p_modal' },
+      );
       Alert.alert('Success', `Successfully transferred ${numAmount} YB to ${msisdn}.`);
       setMsisdn('');
       setAmount('');
       onClose();
     } catch (err: any) {
+      await track(
+        'wallet_action_fail',
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, reason: err?.status || 'unknown' },
+        { screen: 'wallet', source: 'p2p_modal' },
+      );
       if (isUnsupportedError(err)) {
         Alert.alert('Transfer unavailable', statusCopy.unsupportedFeature);
       } else {

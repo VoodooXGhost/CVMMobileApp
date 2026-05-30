@@ -1,55 +1,49 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
   Modal,
   Switch,
+  Share,
 } from 'react-native';
-import { 
-  LogOut, 
-  Smartphone, 
-  PieChart, 
-  FileText, 
-  ShieldCheck, 
-  Settings, 
-  HelpCircle, 
+import {
+  LogOut,
+  Smartphone,
+  PieChart,
+  Settings,
   ChevronRight,
   User as UserIcon,
   Activity,
-  History
+  History,
 } from 'lucide-react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
 import { platformStorage } from '../services/storage';
+import { exportEvents, getAnalyticsDiagnostics, track } from '../services/analytics';
 
-/**
- * My MTN Screen
- * 
- * High-fidelity profile management with real-time usage analytics and line management.
- */
+type ActiveModal = 'billing' | 'security' | 'notifications' | 'diagnostics' | null;
+
 const AccountScreen = () => {
   const { signOut, user } = useAuth();
   const { data: homeResponse } = useGetHomeDataQuery();
   const { data: usageResponse } = useGetUsageDataQuery();
-  const [activeModal, setActiveModal] = React.useState<'billing' | 'security' | 'notifications' | null>(null);
+  const [activeModal, setActiveModal] = React.useState<ActiveModal>(null);
   const [marketingEnabled, setMarketingEnabled] = React.useState(true);
   const [campaignEnabled, setCampaignEnabled] = React.useState(true);
+  const [diag, setDiag] = React.useState<any>(null);
 
   const profile = homeResponse?.data?.profile || {};
   const loyalty = homeResponse?.data?.loyalty || {};
   const usage = usageResponse?.data || { usage_history: [], linked_lines: [] };
 
-  const getInitials = () => {
-    if (profile.first_name && profile.last_name) {
-      return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
-    }
-    return 'U';
-  };
+  React.useEffect(() => {
+    track('screen_view', { name: 'account' }, { screen: 'account' });
+  }, []);
 
   React.useEffect(() => {
     const loadPreferences = async () => {
@@ -61,121 +55,119 @@ const AccountScreen = () => {
     loadPreferences();
   }, []);
 
+  React.useEffect(() => {
+    if (activeModal === 'diagnostics') {
+      getAnalyticsDiagnostics().then(setDiag);
+    }
+  }, [activeModal]);
+
   const saveToggle = async (key: string, value: boolean) => {
     await platformStorage.setItemAsync(key, String(value));
   };
 
-  // Calculate some aggregate stats for the header
+  const handleExport = async () => {
+    const payload = await exportEvents();
+    await Share.share({ title: 'Analytics Export', message: payload });
+  };
+
+  const getInitials = () => {
+    if (profile.first_name && profile.last_name) {
+      return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
+    }
+    return 'U';
+  };
+
   const totalData = usage.usage_history?.reduce((acc: number, curr: any) => acc + curr.data_mb, 0) || 0;
   const avgData = totalData > 0 ? (totalData / 1024 / 30).toFixed(1) : '0';
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* Profile Header */}
         <View style={styles.headerCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{getInitials()}</Text>
             </View>
             <View style={styles.avatarBadge}>
-               <UserIcon size={12} color="#fff" />
+              <UserIcon size={12} color="#fff" />
             </View>
           </View>
-          
+
           <Text style={[Typography.headline, { marginTop: Spacing.md }]}>
             {profile.first_name || 'MTN'} {profile.last_name || 'Customer'}
           </Text>
-          <Text style={[Typography.body, { color: Colors.on_surface, opacity: 0.6 }]}>
-            {user?.msisdn}
-          </Text>
+          <Text style={[Typography.body, { color: Colors.on_surface, opacity: 0.6 }]}>{user?.msisdn}</Text>
 
           <View style={styles.tierBadge}>
             <Text style={styles.tierBadgeText}>{loyalty.current_tier || 'BRONZE'} MEMBER</Text>
           </View>
         </View>
 
-        {/* Real-time Stats Dashboard */}
         <View style={styles.statsCard}>
-           <View style={styles.statsHeader}>
-              <Activity size={16} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.statsHeaderTitle}>30-DAY INSIGHTS</Text>
-           </View>
-           
-           <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                 <Text style={styles.statValue}>{usage.linked_lines?.length || 1}</Text>
-                 <Text style={styles.statLabel}>LINKED LINES</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                 <Text style={styles.statValue}>{avgData}GB</Text>
-                 <Text style={styles.statLabel}>AVG DATA/DAY</Text>
-              </View>
-           </View>
+          <View style={styles.statsHeader}>
+            <Activity size={16} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.statsHeaderTitle}>30-DAY INSIGHTS</Text>
+          </View>
 
-           {/* Minimal Usage Visualizer (Bar Chart Replacement) */}
-           <View style={styles.usageVisualizer}>
-              <View style={styles.visualizerBars}>
-                 {usage.usage_history?.slice(-15).map((day: any, i: number) => {
-                    const height = (day.data_mb / 1100) * 40; // Scale to 40px height
-                    return (
-                      <View 
-                        key={i} 
-                        style={[
-                          styles.usageBar, 
-                          { height: Math.max(4, height), backgroundColor: i === 14 ? Colors.primary : 'rgba(255,255,255,0.2)' }
-                        ]} 
-                      />
-                    );
-                 })}
-              </View>
-              <Text style={styles.visualizerLabel}>USAGE TREND (LAST 15 DAYS)</Text>
-           </View>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{usage.linked_lines?.length || 1}</Text>
+              <Text style={styles.statLabel}>LINKED LINES</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{avgData}GB</Text>
+              <Text style={styles.statLabel}>AVG DATA/DAY</Text>
+            </View>
+          </View>
+
+          <View style={styles.usageVisualizer}>
+            <View style={styles.visualizerBars}>
+              {usage.usage_history?.slice(-15).map((day: any, i: number) => {
+                const height = (day.data_mb / 1100) * 40;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.usageBar,
+                      { height: Math.max(4, height), backgroundColor: i === 14 ? Colors.primary : 'rgba(255,255,255,0.2)' },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            <Text style={styles.visualizerLabel}>USAGE TREND (LAST 15 DAYS)</Text>
+          </View>
         </View>
 
-        {/* Linked Lines Section */}
         <View style={styles.menuGroup}>
-           <Text style={styles.groupLabel}>ASSOCIATED LINES</Text>
-           <View style={styles.groupCard}>
-              {usage.linked_lines?.map((msisdn: string) => (
-                <TouchableOpacity key={msisdn} style={styles.lineRow}>
-                   <Smartphone size={20} color={Colors.primary} />
-                   <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[Typography.title, { fontSize: 16 }]}>{msisdn}</Text>
-                      <Text style={[Typography.label, { opacity: 0.5 }]}>Primary Line</Text>
-                   </View>
-                   <View style={styles.activeTag}>
-                      <Text style={styles.activeTagText}>ACTIVE</Text>
-                   </View>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={styles.addLineCta}>
-                 <Text style={[Typography.label, { color: Colors.primary }]}>+ LINK NEW NUMBER</Text>
+          <Text style={styles.groupLabel}>ASSOCIATED LINES</Text>
+          <View style={styles.groupCard}>
+            {usage.linked_lines?.map((msisdn: string) => (
+              <TouchableOpacity key={msisdn} style={styles.lineRow}>
+                <Smartphone size={20} color={Colors.primary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[Typography.title, { fontSize: 16 }]}>{msisdn}</Text>
+                  <Text style={[Typography.label, { opacity: 0.5 }]}>Primary Line</Text>
+                </View>
+                <View style={styles.activeTag}>
+                  <Text style={styles.activeTagText}>ACTIVE</Text>
+                </View>
               </TouchableOpacity>
-           </View>
+            ))}
+            <TouchableOpacity style={styles.addLineCta}>
+              <Text style={[Typography.label, { color: Colors.primary }]}>+ LINK NEW NUMBER</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Line Management Group */}
         <View style={styles.menuGroup}>
           <Text style={styles.groupLabel}>ACCOUNT SETTINGS</Text>
           <View style={styles.groupCard}>
-            <MenuRow 
-              icon={<History size={20} color={Colors.on_surface} />} 
-              label="Bill History & Invoices" 
-              onPress={() => setActiveModal('billing')}
-            />
-            <MenuRow 
-              icon={<PieChart size={20} color={Colors.on_surface} />} 
-              label="Security & Privacy" 
-              onPress={() => setActiveModal('security')}
-            />
-            <MenuRow 
-              icon={<Settings size={20} color={Colors.on_surface} />} 
-              label="Notification Preferences" 
-              onPress={() => setActiveModal('notifications')}
-            />
+            <MenuRow icon={<History size={20} color={Colors.on_surface} />} label="Bill History & Invoices" onPress={() => setActiveModal('billing')} />
+            <MenuRow icon={<PieChart size={20} color={Colors.on_surface} />} label="Security & Privacy" onPress={() => setActiveModal('security')} />
+            <MenuRow icon={<Settings size={20} color={Colors.on_surface} />} label="Notification Preferences" onPress={() => setActiveModal('notifications')} />
+            <MenuRow icon={<Activity size={20} color={Colors.on_surface} />} label="Analytics Diagnostics" onPress={() => setActiveModal('diagnostics')} />
           </View>
         </View>
 
@@ -186,16 +178,21 @@ const AccountScreen = () => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>MTN SUPER APP V4.5.0-PROD</Text>
-          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>
-            © 2024 MTN South Africa. All rights reserved.
-          </Text>
+          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>© 2024 MTN South Africa. All rights reserved.</Text>
         </View>
+
         <Modal visible={activeModal !== null} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={Typography.title}>
-                  {activeModal === 'billing' ? 'Bill History' : activeModal === 'security' ? 'Security & Privacy' : 'Notification Preferences'}
+                  {activeModal === 'billing'
+                    ? 'Bill History'
+                    : activeModal === 'security'
+                      ? 'Security & Privacy'
+                      : activeModal === 'notifications'
+                        ? 'Notification Preferences'
+                        : 'Analytics Diagnostics'}
                 </Text>
                 <TouchableOpacity onPress={() => setActiveModal(null)}>
                   <Text style={styles.link}>Close</Text>
@@ -222,12 +219,9 @@ const AccountScreen = () => {
                     <Text style={Typography.body}>Active session on this device</Text>
                   </View>
                   <View style={styles.modalRow}>
-                    <Text style={Typography.title}>Device ID</Text>
-                    <Text style={Typography.body}>DEVICE-S6-ENTERPRISE</Text>
+                    <Text style={Typography.title}>Sign-out all devices</Text>
+                    <Text style={Typography.body}>Pending backend support for remote session revocation.</Text>
                   </View>
-                  <Text style={styles.helperText}>
-                    Sign-out-all-devices will be enabled after backend session-revocation support is available.
-                  </Text>
                 </>
               ) : null}
 
@@ -255,10 +249,29 @@ const AccountScreen = () => {
                   </View>
                 </>
               ) : null}
+
+              {activeModal === 'diagnostics' ? (
+                <>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Queue depth</Text>
+                    <Text style={Typography.body}>{diag?.queue_depth ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Last export</Text>
+                    <Text style={Typography.body}>{diag?.last_export_ts || 'Never'}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>CTR</Text>
+                    <Text style={Typography.body}>{diag?.funnel_metrics?.click_through_rate ?? 0}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+                    <Text style={styles.exportButtonText}>Export Event JSON</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
             </View>
           </View>
         </Modal>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -266,9 +279,7 @@ const AccountScreen = () => {
 
 const MenuRow = ({ icon, label, onPress }: any) => (
   <TouchableOpacity style={styles.menuRow} onPress={onPress}>
-    <View style={styles.menuIconContainer}>
-      {icon}
-    </View>
+    <View style={styles.menuIconContainer}>{icon}</View>
     <Text style={[Typography.title, { flex: 1, fontSize: 16 }]}>{label}</Text>
     <ChevronRight size={20} color={Colors.on_surface} opacity={0.3} />
   </TouchableOpacity>
@@ -339,6 +350,14 @@ const styles = StyleSheet.create({
   },
   helperText: { ...Typography.body, color: Colors.on_surface_variant },
   link: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+  exportButton: {
+    backgroundColor: Colors.primary_container,
+    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  exportButtonText: { ...Typography.label, color: Colors.on_primary_fixed, fontWeight: '700' },
 });
 
 export default AccountScreen;

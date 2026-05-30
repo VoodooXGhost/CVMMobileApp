@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View,
   Text,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useGetHomeDataQuery, useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
+import { shouldTrackImpression, track } from '../services/analytics';
 
 const RewardsScreen = () => {
   const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
@@ -34,6 +35,22 @@ const RewardsScreen = () => {
   const offersData = offersResponse?.data || {};
   const { offers } = offersData;
   const safeOffers = Array.isArray(offers) ? offers : [];
+
+  useEffect(() => {
+    track('screen_view', { name: 'rewards' }, { screen: 'rewards' });
+  }, []);
+
+  useEffect(() => {
+    safeOffers.slice(0, 10).forEach((offer: any) => {
+      if (shouldTrackImpression(offer.id, 'rewards_featured')) {
+        track(
+          'offer_impression',
+          { item_id: offer.id, placement: 'rewards_featured', category: offer.category },
+          { screen: 'rewards', placement: 'rewards_featured' },
+        );
+      }
+    });
+  }, [safeOffers]);
 
   if (isHomeLoading || isOffersLoading) {
     return (
@@ -59,9 +76,24 @@ const RewardsScreen = () => {
           text: 'Redeem', 
           onPress: async () => {
             try {
+              await track(
+                'redeem_start',
+                { item_id: itemId, placement: 'rewards_featured' },
+                { screen: 'rewards', placement: 'rewards_featured' },
+              );
               await redeemOffer({ item_id: itemId }).unwrap();
+              await track(
+                'redeem_success',
+                { item_id: itemId, placement: 'rewards_featured' },
+                { screen: 'rewards', placement: 'rewards_featured' },
+              );
               Alert.alert('Success', `You have redeemed ${offer.title}!`);
             } catch (err: any) {
+              await track(
+                'redeem_fail',
+                { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
+                { screen: 'rewards', placement: 'rewards_featured' },
+              );
               Alert.alert('Error', err?.data?.detail || 'Failed to redeem offer.');
             }
           }
@@ -180,7 +212,14 @@ const RewardsScreen = () => {
               <TouchableOpacity 
                 key={offer.id} 
                 style={styles.redeemCard}
-                onPress={() => handleRedeem(offer)}
+                onPress={() => {
+                  track(
+                    'offer_click',
+                    { item_id: offer.id, placement: 'rewards_featured' },
+                    { screen: 'rewards', placement: 'rewards_featured' },
+                  );
+                  handleRedeem(offer);
+                }}
                 disabled={isRedeeming}
               >
                 <View style={styles.redeemImageContainer}>

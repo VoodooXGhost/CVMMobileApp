@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { platformStorage } from './storage';
 import axios from 'axios';
+import { setAnalyticsIdentity, track } from './analytics';
 
 interface AuthContextType {
   token: string | null;
@@ -43,7 +44,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isValidUser = savedUser && savedUser !== 'undefined' && savedUser !== 'null' && savedUser.startsWith('{');
           if (isValidUser) {
             try {
-              setUser(JSON.parse(savedUser!));
+              const parsedUser = JSON.parse(savedUser!);
+              setUser(parsedUser);
+              await setAnalyticsIdentity(
+                parsedUser?.msisdn ?? parsedUser?.username ?? parsedUser?.email ?? null,
+              );
             } catch (parseError) {
               console.error('Failed to parse saved user', parseError);
               setUser(null);
@@ -56,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await platformStorage.deleteItemAsync('refreshToken');
           setToken(null);
           setUser(null);
+          await setAnalyticsIdentity(null);
         }
       } catch (e) {
         console.error('Failed to load token', e);
@@ -124,6 +130,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setToken(token);
           setUser(userData ?? null);
+          await setAnalyticsIdentity(
+            userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
+          );
+          await track('login_success', {}, { screen: 'login' });
           return;
         } catch (error: any) {
           lastError = error;
@@ -135,9 +145,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      await track('login_fail', { reason: 'auth_failed' }, { screen: 'login' });
       throw lastError ?? new Error('Authentication failed');
     } catch (error: any) {
       console.error('Login failed', error);
+      await track('login_fail', { reason: 'network_or_unknown' }, { screen: 'login' });
       throw error;
     }
   };
@@ -148,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await platformStorage.deleteItemAsync('refreshToken');
     setToken(null);
     setUser(null);
+    await setAnalyticsIdentity(null);
   };
 
   return (

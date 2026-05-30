@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -30,6 +30,8 @@ import {
 } from 'lucide-react-native';
 import { useGetHomeDataQuery } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
+import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
+import { getExperimentAssignments } from '../services/experiments';
 
 /**
  * HomeScreen Component
@@ -43,6 +45,7 @@ const HomeScreen = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchVisible, setSearchVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [heroVariant, setHeroVariant] = useState('claim_now');
   // Safe width inside component - avoids module-level Dimensions crash in Release builds
   const { width } = useWindowDimensions();
 
@@ -73,6 +76,43 @@ const HomeScreen = () => {
     { id: 'n1', title: 'Welcome to EngageHub', body: 'Your personalized updates will appear here.' },
     { id: 'n2', title: 'Rewards tip', body: 'Visit Rewards Hub to redeem available offers.' },
   ];
+
+  useEffect(() => {
+    track('screen_view', { name: 'home' }, { screen: 'home' });
+  }, []);
+
+  useEffect(() => {
+    const loadVariant = async () => {
+      const assignments = await getExperimentAssignments(getAnalyticsIdentity());
+      setHeroVariant(assignments.home_hero_cta_variant || 'claim_now');
+    };
+    loadVariant();
+  }, []);
+
+  useEffect(() => {
+    safeOffers.slice(0, 3).forEach((offer: any) => {
+      if (shouldTrackImpression(offer.id, 'home_marketplace_picks')) {
+        track(
+          'offer_impression',
+          { item_id: offer.id, placement: 'home_marketplace_picks', category: offer.category },
+          { screen: 'home', placement: 'home_marketplace_picks' },
+        );
+      }
+    });
+  }, [activeCategory, safeOffers]);
+
+  useEffect(() => {
+    const banners = Array.isArray(hero_banners) ? hero_banners : [];
+    banners.forEach((banner: any) => {
+      if (shouldTrackImpression(banner.id, 'home_hero_banner')) {
+        track(
+          'offer_impression',
+          { item_id: banner.id, placement: 'home_hero_banner', category: 'hero' },
+          { screen: 'home', placement: 'home_hero_banner' },
+        );
+      }
+    });
+  }, [hero_banners]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -160,7 +200,18 @@ const HomeScreen = () => {
             style={styles.bannerRow}
           >
             {hero_banners?.map((banner: any) => (
-              <TouchableOpacity key={banner.id} style={[styles.bannerContainer, { width: width - (Spacing.lg * 2) }]} onPress={() => navigation.navigate('Marketplace')}>
+              <TouchableOpacity
+                key={banner.id}
+                style={[styles.bannerContainer, { width: width - (Spacing.lg * 2) }]}
+                onPress={() => {
+                  track(
+                    'offer_click',
+                    { item_id: banner.id, placement: 'home_hero_banner' },
+                    { screen: 'home', placement: 'home_hero_banner' },
+                  );
+                  navigation.navigate('Marketplace');
+                }}
+              >
                  <View style={styles.promoBanner}>
                     <Image 
                       source={{ uri: banner.image_url }} 
@@ -175,7 +226,9 @@ const HomeScreen = () => {
                       <Text style={styles.bannerTitle}>{banner.title}</Text>
                       <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
                       <View style={styles.bannerButton}>
-                        <Text style={styles.bannerButtonText}>CLAIM NOW</Text>
+                        <Text style={styles.bannerButtonText}>
+                          {heroVariant === 'unlock_offer' ? 'UNLOCK OFFER' : 'CLAIM NOW'}
+                        </Text>
                       </View>
                     </View>
                  </View>
@@ -228,7 +281,18 @@ const HomeScreen = () => {
            </ScrollView>
            <View style={styles.offersList}>
               {filteredOffers.slice(0, 3).map((offer: any) => (
-                <TouchableOpacity key={offer.id} style={styles.offerItem} onPress={() => navigation.navigate('Marketplace')}>
+                <TouchableOpacity
+                  key={offer.id}
+                  style={styles.offerItem}
+                  onPress={() => {
+                    track(
+                      'offer_click',
+                      { item_id: offer.id, placement: 'home_marketplace_picks' },
+                      { screen: 'home', placement: 'home_marketplace_picks' },
+                    );
+                    navigation.navigate('Marketplace');
+                  }}
+                >
                    <View style={styles.offerIconPlaceholder} />
                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={Typography.title} numberOfLines={1}>{offer.title}</Text>
