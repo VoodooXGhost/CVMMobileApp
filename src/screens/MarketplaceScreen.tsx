@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { Star, Store, Smartphone, Wifi, Zap } from 'lucide-react-native';
-import { useGetOffersDataQuery } from '../services/apiSlice';
+import { useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
 
 /**
@@ -13,7 +13,10 @@ import { useNavigation } from '@react-navigation/native';
  */
 const MarketplaceScreen = () => {
   const navigation = useNavigation<any>();
+  const { width } = useWindowDimensions();
   const { data: shopData, isLoading, error } = useGetOffersDataQuery();
+  const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
+  const [activeCategory, setActiveCategory] = React.useState('All');
 
   if (isLoading) {
     return (
@@ -32,6 +35,7 @@ const MarketplaceScreen = () => {
   }
 
   const { offers, categories } = shopData?.data || {};
+  const safeOffers = Array.isArray(offers) ? offers : [];
   
   // Custom categories with icons
   const categoryIcons: Record<string, any> = {
@@ -42,9 +46,37 @@ const MarketplaceScreen = () => {
     'All': Store
   };
 
-  const getCategoryIcon = (cat: string) => {
+  const getCategoryIcon = (cat: string, isActive?: boolean) => {
     const Icon = categoryIcons[cat] || Store;
-    return <Icon color={Colors.primary} size={24} />;
+    return <Icon color={isActive ? '#000000' : Colors.primary} size={24} />;
+  };
+
+  const handleRedeem = (product: any) => {
+    const itemId = Number(product?.id);
+    const price = Number(product?.price);
+    if (!Number.isFinite(itemId) || itemId <= 0 || !Number.isFinite(price) || price < 0) {
+      Alert.alert('Unavailable', 'This item is not redeemable right now.');
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Purchase',
+      `Are you sure you want to buy ${product.title} for ${product.price} YB?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Buy', 
+          onPress: async () => {
+            try {
+              await redeemOffer({ item_id: itemId }).unwrap();
+              Alert.alert('Success', `You have successfully purchased ${product.title}!`);
+            } catch (err: any) {
+              Alert.alert('Error', err?.data?.detail || 'Failed to complete purchase.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -57,35 +89,48 @@ const MarketplaceScreen = () => {
 
         {/* Categories Horizontal Scroll */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-          {['All', ...(categories || [])].map((cat: string) => (
-            <TouchableOpacity 
-              key={cat} 
-              style={styles.categoryItem}
-              onPress={() => console.log(`Filter by ${cat}`)}
-            >
-              <View style={styles.categoryIconCircle}>
-                {getCategoryIcon(cat)}
-              </View>
-              <Text style={[Typography.label, { marginTop: 8 }]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
+          {['All', ...(categories || [])].map((cat: string) => {
+            const isActive = activeCategory.toLowerCase() === cat.toLowerCase();
+            return (
+              <TouchableOpacity 
+                key={cat} 
+                style={styles.categoryItem}
+                onPress={() => setActiveCategory(cat)}
+              >
+                <View style={[
+                  styles.categoryIconCircle,
+                  isActive && { backgroundColor: Colors.primary }
+                ]}>
+                  {getCategoryIcon(cat, isActive)}
+                </View>
+                <Text style={[
+                  Typography.label, 
+                  { marginTop: 8, fontWeight: isActive ? '900' : 'normal' }
+                ]}>{cat}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Trending Deals Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>Trending Deals</Text>
+            <Text style={Typography.title}>{activeCategory === 'All' ? 'Trending' : activeCategory} Deals</Text>
             <TouchableOpacity>
               <Text style={[Typography.label, { color: Colors.primary }]}>See All</Text>
             </TouchableOpacity>
           </View>
           
           <View style={styles.productsRow}>
-            {offers?.slice(0, 2).map((product: any) => (
+            {(activeCategory === 'All' 
+                ? safeOffers 
+                : safeOffers?.filter((o: any) => o.category?.toLowerCase() === activeCategory.toLowerCase())
+            )?.map((product: any) => (
               <TouchableOpacity 
                 key={product.id} 
-                style={styles.productCard}
-                onPress={() => console.log(`Selected product: ${product.title}`)}
+                style={[styles.productCard, { width: (width - (Spacing.lg * 3)) / 2 }]}
+                onPress={() => handleRedeem(product)}
+                disabled={isRedeeming || !Number.isFinite(Number(product?.id))}
               >
                 <View style={styles.productImagePlaceholder}>
                   <Image 
@@ -99,7 +144,9 @@ const MarketplaceScreen = () => {
                 </View>
                 <View style={styles.productInfo}>
                   <Text style={[Typography.label, { fontWeight: '900' }]} numberOfLines={1}>{product.title}</Text>
-                  <Text style={[Typography.title, { fontSize: 16, color: Colors.primary }]}>{product.price} YB</Text>
+                  <Text style={[Typography.title, { fontSize: 16, color: Colors.primary }]}>
+                    {Number.isFinite(Number(product?.price)) ? `${product.price} YB` : 'N/A'}
+                  </Text>
                   <View style={styles.rewardTag}>
                     <Star color={Colors.secondary} size={10} fill={Colors.secondary} />
                     <Text style={[Typography.label, { marginLeft: 4, fontSize: 10, color: Colors.on_surface_variant }]}>
@@ -115,36 +162,35 @@ const MarketplaceScreen = () => {
         {/* Exclusive Bundles */}
         <View style={styles.section}>
           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Exclusive Bundles</Text>
-          
-          <TouchableOpacity style={styles.bundleCard}>
+          <View style={styles.bundleCard}>
             <View style={[styles.bundleIcon, { backgroundColor: Colors.primary + '20' }]}>
               <Smartphone color={Colors.primary} size={24} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[Typography.title, { fontSize: 16 }]}>MTN XtraTime Data</Text>
-              <Text style={[Typography.body, { fontSize: 12 }]}>15GB + 5GB Social (30 Days)</Text>
-              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>R 199.00</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>Catalog preview only</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>Pending live offer mapping</Text>
             </View>
             <View style={styles.earnBadge}>
               <Star color="#fff" size={12} fill="#fff" />
-              <Text style={[Typography.label, {color: '#fff', marginLeft: 4}]}>Earn 200</Text>
+              <Text style={[Typography.label, {color: '#fff', marginLeft: 4}]}>Preview</Text>
             </View>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity style={styles.bundleCard}>
+          <View style={styles.bundleCard}>
             <View style={[styles.bundleIcon, { backgroundColor: Colors.secondary + '20' }]}>
               <Wifi color={Colors.secondary} size={24} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[Typography.title, { fontSize: 16 }]}>Home Pro Fibre</Text>
-              <Text style={[Typography.body, { fontSize: 12 }]}>Uncapped @ 50Mbps</Text>
-              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>R 499.00</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>Catalog preview only</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>Pending live offer mapping</Text>
             </View>
             <View style={[styles.earnBadge, { backgroundColor: Colors.primary }]}>
               <Star color="#000" size={12} fill="#000" />
-              <Text style={[Typography.label, {color: '#000', marginLeft: 4}]}>Earn 500</Text>
+              <Text style={[Typography.label, {color: '#000', marginLeft: 4}]}>Preview</Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -172,9 +218,8 @@ const styles = StyleSheet.create({
   },
   section: { marginBottom: Spacing.xl },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  productsRow: { flexDirection: 'row', gap: Spacing.md },
+  productsRow: { flexDirection: 'row', gap: Spacing.md, flexWrap: 'wrap' },
   productCard: { 
-    flex: 1, 
     backgroundColor: Colors.surface_container_lowest, 
     borderRadius: BorderRadius.xl, 
     overflow: 'hidden',

@@ -6,9 +6,8 @@ import {
   SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
-  Alert,
-  Platform,
-  ActivityIndicator
+  Modal,
+  Switch,
 } from 'react-native';
 import { 
   LogOut, 
@@ -26,6 +25,7 @@ import {
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
+import { platformStorage } from '../services/storage';
 
 /**
  * My MTN Screen
@@ -35,7 +35,10 @@ import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice'
 const AccountScreen = () => {
   const { signOut, user } = useAuth();
   const { data: homeResponse } = useGetHomeDataQuery();
-  const { data: usageResponse, isLoading: usageLoading } = useGetUsageDataQuery();
+  const { data: usageResponse } = useGetUsageDataQuery();
+  const [activeModal, setActiveModal] = React.useState<'billing' | 'security' | 'notifications' | null>(null);
+  const [marketingEnabled, setMarketingEnabled] = React.useState(true);
+  const [campaignEnabled, setCampaignEnabled] = React.useState(true);
 
   const profile = homeResponse?.data?.profile || {};
   const loyalty = homeResponse?.data?.loyalty || {};
@@ -48,8 +51,18 @@ const AccountScreen = () => {
     return 'U';
   };
 
-  const menuAlert = (title: string) => {
-    Alert.alert("Feature Coming Soon", `The ${title} management feature is currently being finalized.`);
+  React.useEffect(() => {
+    const loadPreferences = async () => {
+      const marketing = await platformStorage.getItemAsync('notif_marketing_enabled');
+      const campaign = await platformStorage.getItemAsync('notif_campaign_enabled');
+      if (marketing != null) setMarketingEnabled(marketing === 'true');
+      if (campaign != null) setCampaignEnabled(campaign === 'true');
+    };
+    loadPreferences();
+  }, []);
+
+  const saveToggle = async (key: string, value: boolean) => {
+    await platformStorage.setItemAsync(key, String(value));
   };
 
   // Calculate some aggregate stats for the header
@@ -127,7 +140,7 @@ const AccountScreen = () => {
            <Text style={styles.groupLabel}>ASSOCIATED LINES</Text>
            <View style={styles.groupCard}>
               {usage.linked_lines?.map((msisdn: string) => (
-                <TouchableOpacity key={msisdn} style={styles.lineRow} onPress={() => menuAlert("Line Switch")}>
+                <TouchableOpacity key={msisdn} style={styles.lineRow}>
                    <Smartphone size={20} color={Colors.primary} />
                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={[Typography.title, { fontSize: 16 }]}>{msisdn}</Text>
@@ -138,7 +151,7 @@ const AccountScreen = () => {
                    </View>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity style={styles.addLineCta} onPress={() => menuAlert("Add Line")}>
+              <TouchableOpacity style={styles.addLineCta}>
                  <Text style={[Typography.label, { color: Colors.primary }]}>+ LINK NEW NUMBER</Text>
               </TouchableOpacity>
            </View>
@@ -151,17 +164,17 @@ const AccountScreen = () => {
             <MenuRow 
               icon={<History size={20} color={Colors.on_surface} />} 
               label="Bill History & Invoices" 
-              onPress={() => menuAlert("Billing")}
+              onPress={() => setActiveModal('billing')}
             />
             <MenuRow 
               icon={<PieChart size={20} color={Colors.on_surface} />} 
               label="Security & Privacy" 
-              onPress={() => menuAlert("Security")}
+              onPress={() => setActiveModal('security')}
             />
             <MenuRow 
               icon={<Settings size={20} color={Colors.on_surface} />} 
               label="Notification Preferences" 
-              onPress={() => menuAlert("Settings")}
+              onPress={() => setActiveModal('notifications')}
             />
           </View>
         </View>
@@ -177,6 +190,74 @@ const AccountScreen = () => {
             © 2024 MTN South Africa. All rights reserved.
           </Text>
         </View>
+        <Modal visible={activeModal !== null} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={Typography.title}>
+                  {activeModal === 'billing' ? 'Bill History' : activeModal === 'security' ? 'Security & Privacy' : 'Notification Preferences'}
+                </Text>
+                <TouchableOpacity onPress={() => setActiveModal(null)}>
+                  <Text style={styles.link}>Close</Text>
+                </TouchableOpacity>
+              </View>
+
+              {activeModal === 'billing' ? (
+                usage.usage_history?.length ? (
+                  usage.usage_history.slice(-10).map((item: any, index: number) => (
+                    <View key={`bill-${index}`} style={styles.modalRow}>
+                      <Text style={Typography.title}>{new Date(item.date ?? Date.now()).toLocaleDateString()}</Text>
+                      <Text style={Typography.body}>Data used: {Math.round((item.data_mb ?? 0) / 1024)} GB</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.helperText}>No bill history is available yet.</Text>
+                )
+              ) : null}
+
+              {activeModal === 'security' ? (
+                <>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Session state</Text>
+                    <Text style={Typography.body}>Active session on this device</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Device ID</Text>
+                    <Text style={Typography.body}>DEVICE-S6-ENTERPRISE</Text>
+                  </View>
+                  <Text style={styles.helperText}>
+                    Sign-out-all-devices will be enabled after backend session-revocation support is available.
+                  </Text>
+                </>
+              ) : null}
+
+              {activeModal === 'notifications' ? (
+                <>
+                  <View style={styles.toggleRow}>
+                    <Text style={Typography.title}>Marketing updates</Text>
+                    <Switch
+                      value={marketingEnabled}
+                      onValueChange={(value) => {
+                        setMarketingEnabled(value);
+                        saveToggle('notif_marketing_enabled', value);
+                      }}
+                    />
+                  </View>
+                  <View style={styles.toggleRow}>
+                    <Text style={Typography.title}>Campaign alerts</Text>
+                    <Switch
+                      value={campaignEnabled}
+                      onValueChange={(value) => {
+                        setCampaignEnabled(value);
+                        saveToggle('notif_campaign_enabled', value);
+                      }}
+                    />
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
 
       </ScrollView>
     </SafeAreaView>
@@ -228,6 +309,36 @@ const styles = StyleSheet.create({
   signOutText: { ...Typography.title, color: '#C00000', fontWeight: '900' },
   footer: { alignItems: 'center', paddingBottom: 40 },
   footerText: { ...Typography.label, color: Colors.on_surface, opacity: 0.3, textAlign: 'center' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    maxHeight: '70%',
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  modalRow: {
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  toggleRow: {
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  helperText: { ...Typography.body, color: Colors.on_surface_variant },
+  link: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
 });
 
 export default AccountScreen;

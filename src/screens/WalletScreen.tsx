@@ -6,6 +6,7 @@ import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import P2PTransferModal from '../components/P2PTransferModal';
 import ScanToPayModal from '../components/ScanToPayModal';
+import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 
 /**
  * WalletScreen Component
@@ -21,6 +22,7 @@ const WalletScreen = () => {
   const [freezingId, setFreezingId] = useState<string | null>(null);
   const [p2pVisible, setP2pVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
+  const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
 
   if (isLoading) {
     return (
@@ -61,12 +63,18 @@ const WalletScreen = () => {
     setFreezingId(card.id);
     try {
       await toggleFreeze({ freeze: !isFrozen }).unwrap();
+      setFreezeRetryCard(null);
       Alert.alert(
         isFrozen ? 'Card Unfrozen' : 'Card Frozen',
         isFrozen ? 'Your card is now ready for use.' : 'No transactions will be allowed until you unfreeze it.'
       );
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update card status.');
+    } catch (err: any) {
+      setFreezeRetryCard(card);
+      if (isUnsupportedError(err)) {
+        Alert.alert('Feature unavailable', statusCopy.unsupportedFeature);
+      } else {
+        Alert.alert('Request failed', statusCopy.networkError);
+      }
     } finally {
       setFreezingId(null);
     }
@@ -228,6 +236,11 @@ const WalletScreen = () => {
 
         <P2PTransferModal visible={p2pVisible} onClose={() => setP2pVisible(false)} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
+        {freezeRetryCard ? (
+          <TouchableOpacity style={styles.retryBanner} onPress={() => handleToggleFreeze(freezeRetryCard)}>
+            <Text style={styles.retryBannerText}>Retry card status update</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -304,6 +317,17 @@ const styles = StyleSheet.create({
   },
   txIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   emptyState: { padding: 40, alignItems: 'center' },
+  retryBanner: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  retryBannerText: {
+    ...Typography.label,
+    color: Colors.error,
+    fontWeight: '700',
+  },
 });
 
 export default WalletScreen;

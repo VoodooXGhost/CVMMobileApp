@@ -6,10 +6,10 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
-  Platform,
   Image,
+  Modal,
 } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
@@ -29,8 +29,7 @@ import {
   Smartphone 
 } from 'lucide-react-native';
 import { useGetHomeDataQuery } from '../services/apiSlice';
-
-const { width } = Dimensions.get('window');
+import { useNavigation } from '@react-navigation/native';
 
 /**
  * HomeScreen Component
@@ -39,7 +38,13 @@ const { width } = Dimensions.get('window');
  */
 const HomeScreen = () => {
   const { user } = useAuth();
+  const navigation = useNavigation<any>();
   const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  // Safe width inside component - avoids module-level Dimensions crash in Release builds
+  const { width } = useWindowDimensions();
 
   if (isLoading) {
     return (
@@ -58,7 +63,16 @@ const HomeScreen = () => {
   }
 
   const homeData = response?.data || {};
-  const { profile, loyalty, gamification, hero_banners, offers } = homeData;
+  const { profile, loyalty, gamification, hero_banners, offers, categories } = homeData;
+  const safeOffers = Array.isArray(offers) ? offers : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const filteredOffers = safeOffers.filter(
+    (offer: any) => activeCategory === 'All' || offer.category === activeCategory,
+  );
+  const notificationItems = [
+    { id: 'n1', title: 'Welcome to EngageHub', body: 'Your personalized updates will appear here.' },
+    { id: 'n2', title: 'Rewards tip', body: 'Visit Rewards Hub to redeem available offers.' },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,10 +83,10 @@ const HomeScreen = () => {
           <Text style={[Typography.title, { fontSize: 18, fontWeight: '900' }]}>EngageHub</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setSearchVisible(true)}>
             <Search size={20} color={Colors.on_surface} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setNotificationsVisible(true)}>
             <Bell size={20} color={Colors.on_surface} />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
@@ -115,7 +129,7 @@ const HomeScreen = () => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.rechargeCta}>
+          <TouchableOpacity style={styles.rechargeCta} onPress={() => navigation.navigate('Wallet')}>
             <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>QUICK RECHARGE</Text>
             <ChevronRight size={16} color="#000" />
           </TouchableOpacity>
@@ -131,7 +145,7 @@ const HomeScreen = () => {
                 <Text style={[Typography.title, { fontSize: 16 }]}>{gamification.current_streak} Day Streak!</Text>
                 <Text style={[Typography.label, { opacity: 0.6 }]}>{gamification.milestone_target - gamification.current_streak} days to next reward</Text>
              </View>
-             <TouchableOpacity style={styles.playButton}>
+             <TouchableOpacity style={styles.playButton} onPress={() => navigation.navigate('Rewards')}>
                 <Text style={[Typography.label, { color: '#fff' }]}>PLAY</Text>
              </TouchableOpacity>
           </View>
@@ -146,7 +160,7 @@ const HomeScreen = () => {
             style={styles.bannerRow}
           >
             {hero_banners?.map((banner: any) => (
-              <TouchableOpacity key={banner.id} style={styles.bannerContainer}>
+              <TouchableOpacity key={banner.id} style={[styles.bannerContainer, { width: width - (Spacing.lg * 2) }]} onPress={() => navigation.navigate('Marketplace')}>
                  <View style={styles.promoBanner}>
                     <Image 
                       source={{ uri: banner.image_url }} 
@@ -174,10 +188,10 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Quick Actions</Text>
           <View style={styles.quickActionRow}>
-            <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" />
-            <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" />
-            <ActionIcon Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" />
-            <ActionIcon Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" />
+            <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
+            <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
+            <ActionIcon Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" onPress={() => navigation.navigate('Rewards')} />
+            <ActionIcon Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" onPress={() => navigation.navigate('Rewards')} />
           </View>
         </View>
 
@@ -201,9 +215,20 @@ const HomeScreen = () => {
         {/* Market Sneak Peek */}
         <View style={styles.section}>
            <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Marketplace Picks</Text>
+           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+              {['All', ...safeCategories].map((cat: string) => (
+                <TouchableOpacity 
+                  key={cat} 
+                  style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
+                  onPress={() => setActiveCategory(cat)}
+                >
+                  <Text style={[Typography.label, activeCategory === cat && { color: Colors.primary }]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+           </ScrollView>
            <View style={styles.offersList}>
-              {offers?.slice(0, 3).map((offer: any) => (
-                <TouchableOpacity key={offer.id} style={styles.offerItem}>
+              {filteredOffers.slice(0, 3).map((offer: any) => (
+                <TouchableOpacity key={offer.id} style={styles.offerItem} onPress={() => navigation.navigate('Marketplace')}>
                    <View style={styles.offerIconPlaceholder} />
                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={Typography.title} numberOfLines={1}>{offer.title}</Text>
@@ -215,12 +240,68 @@ const HomeScreen = () => {
            </View>
         </View>
       </ScrollView>
+      <Modal visible={searchVisible} transparent animationType="slide" onRequestClose={() => setSearchVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={Typography.title}>Search Offers</Text>
+              <TouchableOpacity onPress={() => setSearchVisible(false)}>
+                <Text style={styles.modalLink}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+              {['All', ...safeCategories].map((cat: string) => (
+                <TouchableOpacity
+                  key={`search-${cat}`}
+                  style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
+                  onPress={() => setActiveCategory(cat)}
+                >
+                  <Text style={[Typography.label, activeCategory === cat && { color: Colors.primary }]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {filteredOffers.length === 0 ? (
+              <Text style={styles.emptyText}>No offers match this category yet.</Text>
+            ) : (
+              filteredOffers.slice(0, 6).map((offer: any) => (
+                <View key={`filtered-${offer.id}`} style={styles.modalRow}>
+                  <Text style={Typography.title}>{offer.title}</Text>
+                  <Text style={[Typography.label, { color: Colors.primary }]}>{offer.price} YB</Text>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={notificationsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNotificationsVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={Typography.title}>Notifications</Text>
+              <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                <Text style={styles.modalLink}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            {notificationItems.map((item) => (
+              <View key={item.id} style={styles.modalRow}>
+                <Text style={Typography.title}>{item.title}</Text>
+                <Text style={Typography.body}>{item.body}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
-const ActionIcon = ({ Icon, label, color, iconColor }: any) => (
-  <TouchableOpacity style={styles.actionIconItem}>
+const ActionIcon = ({ Icon, label, color, iconColor, onPress }: any) => (
+  <TouchableOpacity style={styles.actionIconItem} onPress={onPress}>
      <View style={[styles.iconCircle, { backgroundColor: color }]}>
         <Icon color={iconColor} size={24} />
      </View>
@@ -275,7 +356,7 @@ const styles = StyleSheet.create({
   playButton: { backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   section: { marginBottom: Spacing.xl },
   bannerRow: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
-  bannerContainer: { width: width - (Spacing.lg * 2), marginRight: 12 },
+  bannerContainer: { marginRight: 12 },
   promoBanner: { height: 180, borderRadius: BorderRadius.xl, overflow: 'hidden', backgroundColor: '#333' },
   bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', padding: 20, justifyContent: 'flex-end' },
   bannerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
@@ -299,6 +380,53 @@ const styles = StyleSheet.create({
   offersList: { gap: Spacing.md },
   offerItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface_container_lowest, padding: 12, borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.outline_variant },
   offerIconPlaceholder: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.surface_container_high },
+  categoryItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surface_container_high,
+    marginRight: 8,
+    opacity: 0.6,
+  },
+  categoryItemActive: {
+    backgroundColor: Colors.primary_container,
+    opacity: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  modalLink: {
+    ...Typography.label,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  modalRow: {
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.outline_variant,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  emptyText: {
+    ...Typography.body,
+    color: Colors.on_surface_variant,
+  },
 });
 
 export default HomeScreen;
