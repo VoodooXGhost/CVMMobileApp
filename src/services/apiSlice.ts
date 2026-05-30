@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { platformStorage } from './storage';
+import { logger } from './logger';
 
 /**
  * Enterprise API Slice using RTK Query.
@@ -225,7 +226,7 @@ export const apiSlice = createApi({
 
     // If we get a 401, the token is likely stale or invalid
     if (result.error && result.error.status === 401) {
-      console.warn('Unauthorized request. Clearing stale session.');
+      logger.warn('Unauthorized request. Clearing stale session.');
       await platformStorage.deleteItemAsync('userToken');
       await platformStorage.deleteItemAsync('userData');
 

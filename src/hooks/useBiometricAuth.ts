@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { logger } from '../services/logger';
 
 /**
  * useBiometricAuth Hook (Mocked)
@@ -12,10 +12,10 @@ export const useBiometricAuth = () => {
 
     const authenticate = useCallback(async (
         promptMessage: string = 'Authenticate to continue',
-        fallbackLabel: string = 'Use Passcode'
+        _fallbackLabel: string = 'Use Passcode'
     ): Promise<boolean> => {
         // Mocking success for demo purposes
-        console.log(`[Mock Auth] ${promptMessage}`);
+        logger.log('Mock biometric auth accepted', { promptMessage });
         return true;
     }, []);
 

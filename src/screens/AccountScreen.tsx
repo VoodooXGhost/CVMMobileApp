@@ -261,6 +261,30 @@ const AccountScreen = () => {
                     <Text style={Typography.body}>{diag?.last_export_ts || 'Never'}</Text>
                   </View>
                   <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Last upload</Text>
+                    <Text style={Typography.body}>{diag?.last_upload_ts || 'Never'}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Last upload error</Text>
+                    <Text style={Typography.body}>{diag?.last_upload_error || 'None'}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Upload attempts</Text>
+                    <Text style={Typography.body}>{diag?.upload_attempt_count ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Upload success</Text>
+                    <Text style={Typography.body}>{diag?.upload_success_count ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Upload failures</Text>
+                    <Text style={Typography.body}>{diag?.upload_failure_count ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Dropped events</Text>
+                    <Text style={Typography.body}>{diag?.queue_drop_count ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
                     <Text style={Typography.title}>CTR</Text>
                     <Text style={Typography.body}>{diag?.funnel_metrics?.click_through_rate ?? 0}</Text>
                   </View>

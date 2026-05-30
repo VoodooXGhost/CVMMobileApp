@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { AppState } from 'react-native';
 import { platformStorage } from './storage';
 import axios from 'axios';
-import { setAnalyticsIdentity, track } from './analytics';
+import { flushToBackend, setAnalyticsIdentity, track } from './analytics';
+import { logger } from './logger';
 
 interface AuthContextType {
   token: string | null;
@@ -50,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 parsedUser?.msisdn ?? parsedUser?.username ?? parsedUser?.email ?? null,
               );
             } catch (parseError) {
-              console.error('Failed to parse saved user', parseError);
+              logger.warn('Failed to parse saved user from storage', parseError);
               setUser(null);
             }
           }
@@ -64,12 +66,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await setAnalyticsIdentity(null);
         }
       } catch (e) {
-        console.error('Failed to load token', e);
+        logger.error('Failed to load stored auth session', e);
       } finally {
         setIsLoading(false);
       }
     };
     loadToken();
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        flushToBackend();
+      }
+    });
+
+    const interval = setInterval(() => {
+      flushToBackend();
+    }, 60_000);
+
+    return () => {
+      subscription.remove();
+      clearInterval(interval);
+    };
   }, []);
 
   const mapAuthPayload = (data: any) => {
@@ -134,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
           );
           await track('login_success', {}, { screen: 'login' });
+          await flushToBackend();
           return;
         } catch (error: any) {
           lastError = error;
@@ -148,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await track('login_fail', { reason: 'auth_failed' }, { screen: 'login' });
       throw lastError ?? new Error('Authentication failed');
     } catch (error: any) {
-      console.error('Login failed', error);
+      logger.warn('Login failed', { status: error?.response?.status });
       await track('login_fail', { reason: 'network_or_unknown' }, { screen: 'login' });
       throw error;
     }
