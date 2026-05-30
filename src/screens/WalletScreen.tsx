@@ -8,6 +8,7 @@ import P2PTransferModal from '../components/P2PTransferModal';
 import ScanToPayModal from '../components/ScanToPayModal';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
+import { runtimeConfig } from '../config/runtime';
 
 /**
  * WalletScreen Component
@@ -64,6 +65,10 @@ const WalletScreen = () => {
   };
 
   const handleToggleFreeze = async (card: any) => {
+    if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
+      Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+      return;
+    }
     const isFrozen = card.status === 'FROZEN';
     setFreezingId(card.id);
     try {
@@ -124,13 +129,31 @@ const WalletScreen = () => {
 
         {/* Action Grid */}
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionItem} onPress={() => setScanVisible(true)}>
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => {
+              if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
+                Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+                return;
+              }
+              setScanVisible(true);
+            }}
+          >
             <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
               <Scan color="#fff" size={24} />
             </View>
             <Text style={styles.actionLabel}>Scan to Pay</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem} onPress={() => setP2pVisible(true)}>
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => {
+              if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
+                Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+                return;
+              }
+              setP2pVisible(true);
+            }}
+          >
             <View style={[styles.actionIcon, { backgroundColor: Colors.secondary }]}>
               <ArrowUpRight color="#fff" size={24} />
             </View>
@@ -200,7 +223,7 @@ const WalletScreen = () => {
                   <TouchableOpacity 
                     style={styles.controlButton} 
                     onPress={() => handleToggleFreeze(card)}
-                    disabled={freezingId === card.id}
+                    disabled={freezingId === card.id || !runtimeConfig.flags.walletHighRiskActionsEnabled}
                   >
                     {isFrozen ? (
                       <Unlock size={20} color={Colors.secondary} />

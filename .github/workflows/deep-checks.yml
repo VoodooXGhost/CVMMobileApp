@@ -4,6 +4,14 @@ on:
 jobs:
   deep-checks:
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_RUNTIME_PROFILE: staging
+      EXPO_PUBLIC_API_URL: https://staging.api.mtn.example
+      EXPO_PUBLIC_API_CONTRACT_VERSION: mobile-v1
+      EXPO_PUBLIC_RELEASE_VERSION: deep-check
+      EXPO_PUBLIC_ANALYTICS_UPLOAD_ENABLED: "true"
+      EXPO_PUBLIC_EXPERIMENTS_ENABLED: "true"
+      EXPO_PUBLIC_WALLET_HIGH_RISK_ACTIONS_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -11,4 +19,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run ci:check
+      - run: npm run manifest:generate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-release-manifest-deep
+          path: artifacts/release-manifest.json

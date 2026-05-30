@@ -1,6 +1,8 @@
 import { platformStorage } from './storage';
 import { getExperimentAssignments } from './experiments';
 import axios from 'axios';
+import { runtimeConfig } from '../config/runtime';
+import { getHealthSnapshot } from './health';
 
 export interface AnalyticsContext {
   screen?: string;
@@ -28,6 +30,7 @@ const ANALYTICS_UPLOAD_SUCCESS_COUNT_KEY = 'analytics_upload_success_count';
 const ANALYTICS_UPLOAD_FAILURE_COUNT_KEY = 'analytics_upload_failure_count';
 const ANALYTICS_UPLOAD_ATTEMPT_COUNT_KEY = 'analytics_upload_attempt_count';
 const ANALYTICS_QUEUE_DROP_COUNT_KEY = 'analytics_queue_drop_count';
+const ANALYTICS_UPLOAD_RETRY_STREAK_KEY = 'analytics_upload_retry_streak';
 const DEVICE_ID_KEY = 'analytics_device_id';
 const QUEUE_LIMIT = 1000;
 const BATCH_SIZE = 100;
@@ -130,7 +133,7 @@ export const track = async (
   };
   queue.push(event);
   await persistQueue(queue);
-  if (queue.length % 20 === 0) {
+  if (runtimeConfig.flags.analyticsUploadEnabled && queue.length % 20 === 0) {
     flushToBackend();
   }
   return event;
@@ -148,6 +151,10 @@ const analyticsEndpoint = () => {
 };
 
 export const flushToBackend = async () => {
+  if (!runtimeConfig.flags.analyticsUploadEnabled) {
+    return flushLocal();
+  }
+
   const queue = await safeParseQueue();
   const attemptCount = Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_ATTEMPT_COUNT_KEY)) || '0');
   await platformStorage.setItemAsync(ANALYTICS_UPLOAD_ATTEMPT_COUNT_KEY, String(attemptCount + 1));
@@ -173,12 +180,15 @@ export const flushToBackend = async () => {
     await persistQueue(remaining);
     await platformStorage.setItemAsync(ANALYTICS_UPLOAD_TS_KEY, new Date().toISOString());
     await platformStorage.deleteItemAsync(ANALYTICS_UPLOAD_ERR_KEY);
+    await platformStorage.setItemAsync(ANALYTICS_UPLOAD_RETRY_STREAK_KEY, '0');
     const successCount = Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_SUCCESS_COUNT_KEY)) || '0');
     await platformStorage.setItemAsync(ANALYTICS_UPLOAD_SUCCESS_COUNT_KEY, String(successCount + 1));
     return { uploaded, queue_depth: remaining.length };
   } catch (error: any) {
     const failureCount = Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_FAILURE_COUNT_KEY)) || '0');
+    const retryStreak = Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_RETRY_STREAK_KEY)) || '0');
     await platformStorage.setItemAsync(ANALYTICS_UPLOAD_FAILURE_COUNT_KEY, String(failureCount + 1));
+    await platformStorage.setItemAsync(ANALYTICS_UPLOAD_RETRY_STREAK_KEY, String(retryStreak + 1));
     await platformStorage.setItemAsync(
       ANALYTICS_UPLOAD_ERR_KEY,
       String(error?.response?.status || error?.message || 'upload_failed'),
@@ -213,14 +223,28 @@ export const getAnalyticsDiagnostics = async () => {
 
   const ratio = (num: number, den: number) => (den > 0 ? Number((num / den).toFixed(4)) : 0);
 
+  const lastUploadTs = await platformStorage.getItemAsync(ANALYTICS_UPLOAD_TS_KEY);
+  const uploadRetryStreak = Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_RETRY_STREAK_KEY)) || '0');
+  const syncAgeSeconds = lastUploadTs ? Math.max(0, Math.round((Date.now() - Date.parse(lastUploadTs)) / 1000)) : null;
+  const queuePressure = queue.length >= 800 ? 'high' : queue.length >= 400 ? 'medium' : 'low';
+
   return {
     queue_depth: queue.length,
     last_export_ts: await platformStorage.getItemAsync(ANALYTICS_EXPORT_TS_KEY),
-    last_upload_ts: await platformStorage.getItemAsync(ANALYTICS_UPLOAD_TS_KEY),
+    last_upload_ts: lastUploadTs,
     last_upload_error: await platformStorage.getItemAsync(ANALYTICS_UPLOAD_ERR_KEY),
     upload_attempt_count: Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_ATTEMPT_COUNT_KEY)) || '0'),
     upload_success_count: Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_SUCCESS_COUNT_KEY)) || '0'),
     upload_failure_count: Number((await platformStorage.getItemAsync(ANALYTICS_UPLOAD_FAILURE_COUNT_KEY)) || '0'),
+    retry_streak: uploadRetryStreak,
+    sync_age_seconds: syncAgeSeconds,
+    queue_pressure: queuePressure,
+    kill_switch_state: {
+      analytics_upload_enabled: runtimeConfig.flags.analyticsUploadEnabled,
+      experiments_enabled: runtimeConfig.flags.experimentsEnabled,
+      wallet_high_risk_actions_enabled: runtimeConfig.flags.walletHighRiskActionsEnabled,
+    },
+    health: await getHealthSnapshot(),
     queue_drop_count: Number((await platformStorage.getItemAsync(ANALYTICS_QUEUE_DROP_COUNT_KEY)) || '0'),
     top_event_counts,
     assignments: await resolveAssignments(),

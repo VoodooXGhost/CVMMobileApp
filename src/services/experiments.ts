@@ -1,4 +1,5 @@
 import { platformStorage } from './storage';
+import { runtimeConfig } from '../config/runtime';
 
 export interface ExperimentDefinition {
   key: string;
@@ -37,6 +38,14 @@ const buildAssignments = (seed: string): Record<string, string> => {
 };
 
 export const getExperimentAssignments = async (seed: string) => {
+  if (!runtimeConfig.flags.experimentsEnabled) {
+    const disabledAssignments: Record<string, string> = {};
+    for (const experiment of EXPERIMENTS) {
+      disabledAssignments[experiment.key] = 'disabled';
+    }
+    return disabledAssignments;
+  }
+
   try {
     const cached = await platformStorage.getItemAsync(ASSIGNMENTS_KEY);
     if (cached) {

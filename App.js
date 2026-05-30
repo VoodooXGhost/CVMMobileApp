@@ -1,58 +1,55 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
 import * as SplashScreen from 'expo-splash-screen';
-import { 
-  useFonts,
-  WorkSans_700Bold,
-  WorkSans_600SemiBold 
-} from '@expo-google-fonts/work-sans';
-import { 
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium 
-} from '@expo-google-fonts/plus-jakarta-sans';
 
 import { store } from './src/store';
 import { AuthProvider, useAuth } from './src/services/auth.context';
 import LoginScreen from './src/screens/LoginScreen';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Colors } from './src/theme/tokens';
+import { validateRuntimeConfig } from './src/config/runtime';
+import { logger } from './src/services/logger';
+import { initHealthMonitoring } from './src/services/health';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+validateRuntimeConfig();
+initHealthMonitoring();
 
 const AppContent = () => {
   const { token, isLoading: isAuthLoading } = useAuth();
-  const [fontsLoaded] = useFonts({
-    'WorkSans-Bold': WorkSans_700Bold,
-    'WorkSans-SemiBold': WorkSans_600SemiBold,
-    'PlusJakartaSans-Regular': PlusJakartaSans_400Regular,
-    'PlusJakartaSans-Medium': PlusJakartaSans_500Medium,
-  });
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded && !isAuthLoading) {
-      // This tells the splash screen to hide immediately!
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, isAuthLoading]);
+  // Defensive, production-grade splash screen lifecycles.
+  useEffect(() => {
+    const manageSplash = async () => {
+      if (!isAuthLoading) {
+        try {
+          await SplashScreen.hideAsync();
+        } catch (e) {
+          logger.warn('Failed to hide splash screen', e);
+        }
+      }
+    };
+    manageSplash();
+  }, [isAuthLoading]);
 
-  if (!fontsLoaded || isAuthLoading) {
-    return null; // Keep splash screen visible
+  if (isAuthLoading) {
+    return null; // Keep splash screen visible ONLY while initial auth is loading
   }
 
   if (!token) {
     return (
-      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1 }}>
         <LoginScreen />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    <View style={{ flex: 1 }}>
       <NavigationContainer>
         <AppNavigator />
         <StatusBar style="auto" />

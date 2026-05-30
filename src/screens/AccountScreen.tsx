@@ -281,8 +281,32 @@ const AccountScreen = () => {
                     <Text style={Typography.body}>{diag?.upload_failure_count ?? 0}</Text>
                   </View>
                   <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Retry streak</Text>
+                    <Text style={Typography.body}>{diag?.retry_streak ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Sync age (seconds)</Text>
+                    <Text style={Typography.body}>{diag?.sync_age_seconds ?? 'N/A'}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Queue pressure</Text>
+                    <Text style={Typography.body}>{diag?.queue_pressure ?? 'low'}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
                     <Text style={Typography.title}>Dropped events</Text>
                     <Text style={Typography.body}>{diag?.queue_drop_count ?? 0}</Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Kill switches</Text>
+                    <Text style={Typography.body}>
+                      {diag?.kill_switch_state
+                        ? `A:${diag.kill_switch_state.analytics_upload_enabled ? 'on' : 'off'} E:${diag.kill_switch_state.experiments_enabled ? 'on' : 'off'} W:${diag.kill_switch_state.wallet_high_risk_actions_enabled ? 'on' : 'off'}`
+                        : 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.modalRow}>
+                    <Text style={Typography.title}>Crash-free session rate</Text>
+                    <Text style={Typography.body}>{diag?.health?.crash_free_session_rate ?? 'N/A'}</Text>
                   </View>
                   <View style={styles.modalRow}>
                     <Text style={Typography.title}>CTR</Text>
