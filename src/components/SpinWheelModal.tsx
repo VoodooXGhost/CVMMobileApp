@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Easing, useW
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X, Star, Zap, Gift } from 'lucide-react-native';
 import { usePlayGameMutation } from '../services/apiSlice';
+import { useI18n } from '../services/i18n';
 
-// SpinWheelModal: Gamified slot-spin interface for YelloBucks reward draws.
+// SpinWheelModal: Gamified slot-spin interface for YelloMola reward draws.
 interface SpinWheelModalProps {
   visible: boolean;
   onClose: () => void;
@@ -12,6 +13,7 @@ interface SpinWheelModalProps {
 }
 
 const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
+  const { t } = useI18n();
   // Safe width inside component - avoids module-level Dimensions crash in Release builds
   const { width } = useWindowDimensions();
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -70,9 +72,9 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
             <X size={24} color={Colors.on_surface} />
           </TouchableOpacity>
 
-          <Text style={[Typography.headline, { textAlign: 'center' }]}>Spin & Win</Text>
+          <Text style={[Typography.headline, { textAlign: 'center' }]}>{t('spin.title', 'Spin & Win')}</Text>
           <Text style={[Typography.body, { textAlign: 'center', marginBottom: 40 }]}>
-            Use 50 YelloBucks to spin for a prize!
+            {t('spin.subtitle', 'Use 50 YelloMola to spin for a prize!')}
           </Text>
 
           <View style={styles.wheelContainer}>
@@ -94,10 +96,10 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
 
           {result ? (
             <View style={styles.resultContainer}>
-               <Text style={[Typography.headline, { color: Colors.secondary }]}>CONGRATULATIONS!</Text>
-               <Text style={Typography.title}>You won {result.prize?.label || 'a prize'}!</Text>
+               <Text style={[Typography.headline, { color: Colors.secondary }]}>{t('spin.congratulations', 'CONGRATULATIONS!')}</Text>
+               <Text style={Typography.title}>{t('spin.wonPrize', 'You won {prize}!').replace('{prize}', String(result.prize?.label || 'a prize'))}</Text>
                <TouchableOpacity style={styles.claimButton} onPress={onClose}>
-                  <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>COLLECT</Text>
+                  <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>{t('spin.collect', 'COLLECT')}</Text>
                </TouchableOpacity>
             </View>
           ) : (
@@ -106,7 +108,7 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
               onPress={startSpin}
               disabled={isSpinning || isLoading}
             >
-              <Text style={styles.spinButtonText}>{isSpinning ? 'SPINNING...' : 'SPIN NOW'}</Text>
+              <Text style={styles.spinButtonText}>{isSpinning ? t('spin.spinning', 'SPINNING...') : t('spin.spinNow', 'SPIN NOW')}</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -19,6 +19,7 @@ import { Colors } from './src/theme/tokens';
 import { validateRuntimeConfig } from './src/config/runtime';
 import { logger } from './src/services/logger';
 import { initHealthMonitoring } from './src/services/health';
+import { I18nProvider } from './src/services/i18n';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -73,9 +74,11 @@ const AppContent = () => {
 export default function App() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </I18nProvider>
     </Provider>
   );
 }

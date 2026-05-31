@@ -10,10 +10,12 @@ import RewardsScreen from '../screens/RewardsScreen';
 import AccountScreen from '../screens/AccountScreen';
 
 import GlassTabBar from '../components/GlassTabBar';
+import { useI18n } from '../services/i18n';
 
 const Tab = createBottomTabNavigator();
 
 const AppNavigator = () => {
+  const { t } = useI18n();
   return (
     <Tab.Navigator
       id="main"
@@ -22,11 +24,11 @@ const AppNavigator = () => {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
-      <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
-      <Tab.Screen name="Rewards" component={RewardsScreen} />
-      <Tab.Screen name="My MTN" component={AccountScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('nav.home', 'Home') }} />
+      <Tab.Screen name="Wallet" component={WalletScreen} options={{ title: t('nav.wallet', 'Wallet') }} />
+      <Tab.Screen name="Marketplace" component={MarketplaceScreen} options={{ title: t('nav.marketplace', 'Marketplace') }} />
+      <Tab.Screen name="Rewards" component={RewardsScreen} options={{ title: t('nav.rewards', 'Rewards') }} />
+      <Tab.Screen name="Account" component={AccountScreen} options={{ title: t('nav.myAccount', 'My Account') }} />
     </Tab.Navigator>
   );
 };

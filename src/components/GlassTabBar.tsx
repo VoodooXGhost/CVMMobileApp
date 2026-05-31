@@ -2,11 +2,13 @@ import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Text, Platform } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
 import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
+import { useI18n } from '../services/i18n';
 
 // GlassTabBar: Custom floating pill-shaped tab bar with icon highlighting.
 // useWindowDimensions hook (not Dimensions.get) is used here intentionally:
 // module-level Dimensions calls fail in Release APK builds before the JS bridge is ready.
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
+  const { t } = useI18n();
   return (
     <View style={styles.container}>
       <View style={styles.tabBarPill}>
@@ -28,11 +30,11 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
 
           const renderIcon = (color: string) => {
             const iconSize = 22;
-            if (route.name === 'Home') return <Home size={iconSize} color={color} />;
-            if (route.name === 'Wallet') return <Wallet size={iconSize} color={color} />;
-            if (route.name === 'Marketplace') return <Store size={iconSize} color={color} />;
-            if (route.name === 'Rewards') return <Gift size={iconSize} color={color} />;
-            if (route.name === 'My MTN') return <User size={iconSize} color={color} />;
+            if (index === 0) return <Home size={iconSize} color={color} />;
+            if (index === 1) return <Wallet size={iconSize} color={color} />;
+            if (index === 2) return <Store size={iconSize} color={color} />;
+            if (index === 3) return <Gift size={iconSize} color={color} />;
+            if (index === 4) return <User size={iconSize} color={color} />;
             return null;
           };
 
@@ -51,7 +53,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
               </View>
               {isFocused && (
                 <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10, textTransform: 'uppercase' }]}>
-                  {route.name === 'My MTN' ? 'Account' : route.name === 'Marketplace' ? 'Store' : route.name}
+                  {index === 4 ? t('nav.account', 'Account') : index === 2 ? t('nav.store', 'Store') : (options.title || route.name)}
                 </Text>
               )}
             </TouchableOpacity>

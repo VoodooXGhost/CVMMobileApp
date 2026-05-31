@@ -9,6 +9,7 @@ import {
   Modal,
   Switch,
   Share,
+  Image,
 } from 'react-native';
 import {
   LogOut,
@@ -25,10 +26,12 @@ import { useAuth } from '../services/auth.context';
 import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
 import { platformStorage } from '../services/storage';
 import { exportEvents, getAnalyticsDiagnostics, track } from '../services/analytics';
+import { useI18n } from '../services/i18n';
 
-type ActiveModal = 'billing' | 'security' | 'notifications' | 'diagnostics' | null;
+type ActiveModal = 'billing' | 'security' | 'notifications' | 'diagnostics' | 'language' | null;
 
 const AccountScreen = () => {
+  const { language, setLanguage, t } = useI18n();
   const { signOut, user } = useAuth();
   const { data: homeResponse } = useGetHomeDataQuery();
   const { data: usageResponse } = useGetUsageDataQuery();
@@ -83,6 +86,9 @@ const AccountScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.brandHeader}>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+        </View>
         <View style={styles.headerCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
@@ -94,7 +100,7 @@ const AccountScreen = () => {
           </View>
 
           <Text style={[Typography.headline, { marginTop: Spacing.md }]}>
-            {profile.first_name || 'MTN'} {profile.last_name || 'Customer'}
+            {profile.first_name || 'Tmcel'} {profile.last_name || 'Customer'}
           </Text>
           <Text style={[Typography.body, { color: Colors.on_surface, opacity: 0.6 }]}>{user?.msisdn}</Text>
 
@@ -141,44 +147,45 @@ const AccountScreen = () => {
         </View>
 
         <View style={styles.menuGroup}>
-          <Text style={styles.groupLabel}>ASSOCIATED LINES</Text>
+          <Text style={styles.groupLabel}>{t('account.associatedLines', 'ASSOCIATED LINES')}</Text>
           <View style={styles.groupCard}>
             {usage.linked_lines?.map((msisdn: string) => (
               <TouchableOpacity key={msisdn} style={styles.lineRow}>
                 <Smartphone size={20} color={Colors.primary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[Typography.title, { fontSize: 16 }]}>{msisdn}</Text>
-                  <Text style={[Typography.label, { opacity: 0.5 }]}>Primary Line</Text>
+                  <Text style={[Typography.label, { opacity: 0.5 }]}>{t('account.primaryLine', 'Primary Line')}</Text>
                 </View>
                 <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>ACTIVE</Text>
+                  <Text style={styles.activeTagText}>{t('account.active', 'ACTIVE')}</Text>
                 </View>
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.addLineCta}>
-              <Text style={[Typography.label, { color: Colors.primary }]}>+ LINK NEW NUMBER</Text>
+              <Text style={[Typography.label, { color: Colors.primary }]}>{t('account.linkNewNumber', '+ LINK NEW NUMBER')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.menuGroup}>
-          <Text style={styles.groupLabel}>ACCOUNT SETTINGS</Text>
+          <Text style={styles.groupLabel}>{t('account.accountSettings', 'ACCOUNT SETTINGS')}</Text>
           <View style={styles.groupCard}>
-            <MenuRow icon={<History size={20} color={Colors.on_surface} />} label="Bill History & Invoices" onPress={() => setActiveModal('billing')} />
-            <MenuRow icon={<PieChart size={20} color={Colors.on_surface} />} label="Security & Privacy" onPress={() => setActiveModal('security')} />
-            <MenuRow icon={<Settings size={20} color={Colors.on_surface} />} label="Notification Preferences" onPress={() => setActiveModal('notifications')} />
-            <MenuRow icon={<Activity size={20} color={Colors.on_surface} />} label="Analytics Diagnostics" onPress={() => setActiveModal('diagnostics')} />
+            <MenuRow icon={<History size={20} color={Colors.on_surface} />} label={t('account.billHistoryInvoices', 'Bill History & Invoices')} onPress={() => setActiveModal('billing')} />
+            <MenuRow icon={<PieChart size={20} color={Colors.on_surface} />} label={t('account.securityPrivacy', 'Security & Privacy')} onPress={() => setActiveModal('security')} />
+            <MenuRow icon={<Settings size={20} color={Colors.on_surface} />} label={t('account.notificationPreferences', 'Notification Preferences')} onPress={() => setActiveModal('notifications')} />
+            <MenuRow icon={<Settings size={20} color={Colors.on_surface} />} label={t('account.languageSettings', 'Language Settings')} onPress={() => setActiveModal('language')} />
+            <MenuRow icon={<Activity size={20} color={Colors.on_surface} />} label={t('account.analyticsDiagnostics', 'Analytics Diagnostics')} onPress={() => setActiveModal('diagnostics')} />
           </View>
         </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
           <LogOut size={20} color="#C00000" />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('account.signOut', 'Sign Out')}</Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>MTN SUPER APP V4.5.0-PROD</Text>
-          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>© 2024 MTN South Africa. All rights reserved.</Text>
+          <Text style={styles.footerText}>TMCEL SUPER APP V4.5.0-PROD</Text>
+          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>© 2026 Tmcel Mozambique. All rights reserved.</Text>
         </View>
 
         <Modal visible={activeModal !== null} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
@@ -187,15 +194,17 @@ const AccountScreen = () => {
               <View style={styles.modalHeader}>
                 <Text style={Typography.title}>
                   {activeModal === 'billing'
-                    ? 'Bill History'
+                    ? t('account.billHistory', 'Bill History')
                     : activeModal === 'security'
-                      ? 'Security & Privacy'
+                      ? t('account.securityPrivacy', 'Security & Privacy')
                       : activeModal === 'notifications'
-                        ? 'Notification Preferences'
-                        : 'Analytics Diagnostics'}
+                        ? t('account.notificationPreferences', 'Notification Preferences')
+                        : activeModal === 'language'
+                          ? t('account.languageSettings', 'Language Settings')
+                        : t('account.analyticsDiagnostics', 'Analytics Diagnostics')}
                 </Text>
                 <TouchableOpacity onPress={() => setActiveModal(null)}>
-                  <Text style={styles.link}>Close</Text>
+                  <Text style={styles.link}>{t('common.close', 'Close')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -208,19 +217,19 @@ const AccountScreen = () => {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.helperText}>No bill history is available yet.</Text>
+                  <Text style={styles.helperText}>{t('account.noBillHistory', 'No bill history is available yet.')}</Text>
                 )
               ) : null}
 
               {activeModal === 'security' ? (
                 <>
                   <View style={styles.modalRow}>
-                    <Text style={Typography.title}>Session state</Text>
-                    <Text style={Typography.body}>Active session on this device</Text>
+                    <Text style={Typography.title}>{t('account.sessionState', 'Session state')}</Text>
+                    <Text style={Typography.body}>{t('account.activeSession', 'Active session on this device')}</Text>
                   </View>
                   <View style={styles.modalRow}>
-                    <Text style={Typography.title}>Sign-out all devices</Text>
-                    <Text style={Typography.body}>Pending backend support for remote session revocation.</Text>
+                    <Text style={Typography.title}>{t('account.signOutAllDevices', 'Sign-out all devices')}</Text>
+                    <Text style={Typography.body}>{t('account.pendingRemoteRevoke', 'Pending backend support for remote session revocation.')}</Text>
                   </View>
                 </>
               ) : null}
@@ -228,7 +237,7 @@ const AccountScreen = () => {
               {activeModal === 'notifications' ? (
                 <>
                   <View style={styles.toggleRow}>
-                    <Text style={Typography.title}>Marketing updates</Text>
+                    <Text style={Typography.title}>{t('account.marketingUpdates', 'Marketing updates')}</Text>
                     <Switch
                       value={marketingEnabled}
                       onValueChange={(value) => {
@@ -238,7 +247,7 @@ const AccountScreen = () => {
                     />
                   </View>
                   <View style={styles.toggleRow}>
-                    <Text style={Typography.title}>Campaign alerts</Text>
+                    <Text style={Typography.title}>{t('account.campaignAlerts', 'Campaign alerts')}</Text>
                     <Switch
                       value={campaignEnabled}
                       onValueChange={(value) => {
@@ -313,7 +322,19 @@ const AccountScreen = () => {
                     <Text style={Typography.body}>{diag?.funnel_metrics?.click_through_rate ?? 0}</Text>
                   </View>
                   <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-                    <Text style={styles.exportButtonText}>Export Event JSON</Text>
+                    <Text style={styles.exportButtonText}>{t('account.exportEventJson', 'Export Event JSON')}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {activeModal === 'language' ? (
+                <>
+                  <TouchableOpacity style={styles.modalRow} onPress={() => setLanguage('en')}>
+                    <Text style={Typography.title}>English</Text>
+                    <Text style={Typography.body}>{language === 'en' ? t('account.selected', 'Selected') : t('account.tapToSelect', 'Tap to select')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalRow} onPress={() => setLanguage('pt')}>
+                    <Text style={Typography.title}>Portuguese</Text>
+                    <Text style={Typography.body}>{language === 'pt' ? t('account.selected', 'Selected') : t('account.tapToSelect', 'Tap to select')}</Text>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -336,6 +357,8 @@ const MenuRow = ({ icon, label, onPress }: any) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  brandHeader: { marginBottom: Spacing.sm },
+  tmcelLogo: { width: 160, height: 64, alignSelf: 'flex-start' },
   headerCard: { alignItems: 'center', paddingVertical: Spacing.xl },
   avatarContainer: { position: 'relative' },
   avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: Colors.primary_container, justifyContent: 'center', alignItems: 'center' },

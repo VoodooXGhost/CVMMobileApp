@@ -136,7 +136,7 @@ const normalizeWalletData = (raw: any) => {
 
   return {
     balance: source.balance ?? 0,
-    totalBalance: source.totalBalance ?? source.total_balance ?? 'R 0.00',
+    totalBalance: source.totalBalance ?? source.total_balance ?? 'MZN 0.00',
     cards,
     transactions,
   };
@@ -168,6 +168,29 @@ const normalizeUsageData = (raw: any) => {
   };
 };
 
+const normalizeNotificationsData = (raw: any) => {
+  const source = raw?.data ?? raw ?? {};
+  const notifications = toArray(source.notifications).map((item: any, index: number) => ({
+    id: String(item?.id ?? `notif-${index + 1}`),
+    title: item?.title ?? 'Notification',
+    body: item?.body ?? '',
+    category: item?.category ?? 'campaign',
+    created_at: item?.created_at ?? new Date().toISOString(),
+    deep_link: item?.deep_link,
+    is_read: Boolean(item?.is_read),
+    priority: item?.priority ?? 'normal',
+  }));
+
+  return {
+    notifications,
+    unread_count:
+      Number.isFinite(Number(source.unread_count))
+        ? Number(source.unread_count)
+        : notifications.filter((item: any) => !item.is_read).length,
+    next_cursor: source.next_cursor ?? null,
+  };
+};
+
 const normalizeEndpointData = (endpointName: string, raw: any) => {
   switch (endpointName) {
     case 'getHomeData':
@@ -178,6 +201,8 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
       return normalizeOffersData(raw);
     case 'getUsageData':
       return normalizeUsageData(raw);
+    case 'getNotifications':
+      return normalizeNotificationsData(raw);
     default:
       return raw?.data ?? raw;
   }
@@ -238,7 +263,7 @@ export const apiSlice = createApi({
 
     return result;
   },
-  tagTypes: ['Home', 'Wallet', 'Shop'],
+  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -327,6 +352,39 @@ export const apiSlice = createApi({
           'getUsageData',
         ),
     }),
+    getNotifications: builder.query<any, { limit?: number; cursor?: string | null; unread_only?: boolean } | void>({
+      queryFn: (arg, api, extraOptions) => {
+        const limit = arg?.limit ?? 20;
+        const cursor = arg?.cursor ? `&cursor=${encodeURIComponent(arg.cursor)}` : '';
+        const unreadOnly =
+          typeof arg?.unread_only === 'boolean' ? `&unread_only=${arg.unread_only ? 'true' : 'false'}` : '';
+        return queryWithFallback(
+          [`/api/v1/mobile/v1/notifications?limit=${limit}${cursor}${unreadOnly}`],
+          api,
+          extraOptions,
+          'getNotifications',
+        );
+      },
+      providesTags: ['Notifications'],
+    }),
+    markNotificationsRead: builder.mutation<any, { ids: string[] }>({
+      queryFn: (body, api, extraOptions) =>
+        mutationWithFallback(
+          [{ url: '/api/v1/mobile/v1/notifications/read', method: 'POST', body }],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Notifications'],
+    }),
+    markAllNotificationsRead: builder.mutation<any, void>({
+      queryFn: (_body, api, extraOptions) =>
+        mutationWithFallback(
+          [{ url: '/api/v1/mobile/v1/notifications/read-all', method: 'POST', body: {} }],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Notifications'],
+    }),
   }),
 });
 
@@ -338,5 +396,8 @@ export const {
   useP2pTransferMutation,
   usePlayGameMutation,
   useGetUsageDataQuery,
-  useRedeemOfferMutation
+  useRedeemOfferMutation,
+  useGetNotificationsQuery,
+  useMarkNotificationsReadMutation,
+  useMarkAllNotificationsReadMutation,
 } = apiSlice;

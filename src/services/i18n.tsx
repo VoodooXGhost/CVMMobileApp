@@ -1,0 +1,487 @@
+import React from 'react';
+import { platformStorage } from './storage';
+
+export type AppLanguage = 'en' | 'pt';
+
+const LANGUAGE_KEY = 'app_language';
+
+const translations = {
+  en: {
+    common: {
+      close: 'Close',
+      cancel: 'Cancel',
+      success: 'Success',
+      error: 'Error',
+      notifications: 'Notifications',
+      refresh: 'Refresh',
+      customer: 'Customer',
+      all: 'All',
+      noOffers: 'No offers match this category yet.',
+      done: 'Done',
+    },
+    home: {
+      greetingPrefix: 'Ola',
+      dayAtGlance: 'Your day at a glance',
+      myBalances: 'MY BALANCES',
+      airtime: 'Airtime',
+      data: 'Data',
+      quickRecharge: 'QUICK RECHARGE',
+      dayStreak: 'Day Streak!',
+      daysToNextReward: 'days to next reward',
+      play: 'PLAY',
+      quickActions: 'Quick Actions',
+      currentTier: 'CURRENT TIER',
+      pointsNeededFor: 'points needed for',
+      marketplacePicks: 'Marketplace Picks',
+      searchOffers: 'Search Offers',
+      notificationsTitle: 'Notifications',
+      noOffersCategory: 'No offers match this category yet.',
+      welcomeNotification: 'Welcome to Tmcel',
+      welcomeBody: 'Your personalized updates will appear here.',
+      rewardsTip: 'Rewards tip',
+      rewardsBody: 'Visit Rewards Hub to redeem available offers.',
+      markAllRead: 'Mark all as read',
+      notificationsLoading: 'Loading notifications...',
+      notificationsEmpty: 'No notifications available right now.',
+      notificationsLoadError: 'Unable to load notifications right now.',
+      notificationsMarkReadError: 'Unable to mark notifications as read.',
+      retry: 'Retry',
+      loadMore: 'Load more',
+    },
+    nav: {
+      home: 'Home',
+      wallet: 'Wallet',
+      marketplace: 'Marketplace',
+      rewards: 'Rewards',
+      myAccount: 'My Account',
+      account: 'Account',
+      store: 'Store',
+    },
+    brand: {
+      tagline: 'The Digital Pulse',
+      poweredBy: 'Powered by EngageHub and CVM Intelligence',
+    },
+    currency: {
+      yelloMola: 'YelloMola',
+      ym: 'YM',
+    },
+    login: {
+      signInRequired: 'Sign in required',
+      enterCredentials: 'Enter both MSISDN and PIN to continue.',
+      signInFailed: 'Sign in failed',
+      checkCredentials: 'Check your credentials and try again.',
+      serverUnavailable: 'Cannot reach authentication server.',
+      title: 'The Digital Pulse',
+      subtitle: 'Premium telecom experiences built for your lifestyle.',
+      welcomeBack: 'Welcome back',
+      msisdn: 'MSISDN',
+      securePin: 'Secure PIN',
+      phonePlaceholder: 'Enter your phone number',
+      pinPlaceholder: 'Enter your PIN',
+      signIn: 'Sign In',
+      needHelp: 'Need help?',
+      resetPassword: 'Reset Password',
+      support: 'Support',
+      supportMessage: 'Password reset is available through support channels.',
+    },
+    rewards: {
+      title: 'Rewards Hub',
+      unavailable: 'Unavailable',
+      notRedeemable: 'This reward is not redeemable right now.',
+      confirmRedemption: 'Confirm Redemption',
+      redeemPrompt: 'Redeem {title} for {amount} and use YM?',
+      redeemed: 'You have redeemed {title}!',
+      redeemFail: 'Failed to redeem offer.',
+      referTitle: 'Refer a Friend & Earn 500 YM',
+      referBody: "Share your referral code with friends. Once they register and complete their first spin, you'll both receive 500 YelloMola!",
+      shareInvite: 'Share Invitation',
+      dayStreak: 'Day Streak',
+      multiplier: 'YelloMola multiplier: 1.2x',
+      spinTitle: 'Daily Spin',
+      spinSubtitle: 'Win up to 500 YelloMola!',
+      spinNow: 'SPIN NOW',
+      featured: 'Featured Rewards',
+      viewAll: 'VIEW ALL',
+      dailyQuests: 'Daily Quests',
+      referFriend: 'Refer a Friend',
+      earnPerReferral: 'Earn 500 YM per referral',
+    },
+    marketplace: {
+      title: 'Marketplace',
+      subtitle: 'Exclusive Tmcel deals tailored for you.',
+      loadError: 'Error loading marketplace. Please try again.',
+      unavailable: 'Unavailable',
+      notRedeemable: 'This item is not redeemable right now.',
+      confirmPurchase: 'Confirm Purchase',
+      purchasePrompt: 'Are you sure you want to buy {title} for {amount} and redeem YM?',
+      buy: 'Buy',
+      purchaseSuccess: 'You have successfully purchased {title}!',
+      purchaseFail: 'Failed to complete purchase.',
+      seeAll: 'See All',
+      trendingDeals: 'Trending Deals',
+      exclusiveBundles: 'Exclusive Bundles',
+      preview: 'Preview',
+      catalogPreviewOnly: 'Catalog preview only',
+      pendingMapping: 'Pending live offer mapping',
+      earnYm: 'Earn {amount} YM',
+    },
+    wallet: {
+      title: 'Wallet',
+      loadError: 'Error loading wallet. Please try again.',
+      availableBalance: 'Available Balance',
+      thisMonth: 'this month',
+      actionDisabled: 'Action disabled',
+      highRiskDisabled: 'Wallet high-risk actions are temporarily disabled during rollout.',
+      scanToPay: 'Scan to Pay',
+      sendMoney: 'Send Money',
+      virtualCard: 'Virtual Card',
+      myCards: 'My Virtual Cards',
+      hide: 'Hide',
+      reveal: 'Reveal',
+      unfreeze: 'Unfreeze',
+      freeze: 'Freeze',
+      recentActivity: 'Recent Activity',
+      noTransactions: 'No recent transactions',
+      retryCardStatus: 'Retry card status update',
+      cardUnfrozen: 'Card Unfrozen',
+      cardFrozen: 'Card Frozen',
+      cardReady: 'Your card is now ready for use.',
+      cardBlocked: 'No transactions will be allowed until you unfreeze it.',
+      featureUnavailable: 'Feature unavailable',
+      requestFailed: 'Request failed',
+      expiry: 'EXPIRY',
+      cvv: 'CVV',
+    },
+    account: {
+      associatedLines: 'ASSOCIATED LINES',
+      primaryLine: 'Primary Line',
+      active: 'ACTIVE',
+      linkNewNumber: '+ LINK NEW NUMBER',
+      accountSettings: 'ACCOUNT SETTINGS',
+      billHistoryInvoices: 'Bill History & Invoices',
+      securityPrivacy: 'Security & Privacy',
+      notificationPreferences: 'Notification Preferences',
+      languageSettings: 'Language Settings',
+      analyticsDiagnostics: 'Analytics Diagnostics',
+      signOut: 'Sign Out',
+      billHistory: 'Bill History',
+      noBillHistory: 'No bill history is available yet.',
+      sessionState: 'Session state',
+      activeSession: 'Active session on this device',
+      signOutAllDevices: 'Sign-out all devices',
+      pendingRemoteRevoke: 'Pending backend support for remote session revocation.',
+      marketingUpdates: 'Marketing updates',
+      campaignAlerts: 'Campaign alerts',
+      selected: 'Selected',
+      tapToSelect: 'Tap to select',
+      exportEventJson: 'Export Event JSON',
+    },
+    spin: {
+      title: 'Spin & Win',
+      subtitle: 'Use 50 YelloMola to spin for a prize!',
+      congratulations: 'CONGRATULATIONS!',
+      wonPrize: 'You won {prize}!',
+      collect: 'COLLECT',
+      spinning: 'SPINNING...',
+      spinNow: 'SPIN NOW',
+    },
+    p2p: {
+      invalidInput: 'Invalid Input',
+      validMsisdn: 'Please enter a valid MSISDN.',
+      validAmount: 'Please enter a valid amount.',
+      transferSuccess: 'Successfully transferred {amount} YM to {msisdn}.',
+      transferUnavailable: 'Transfer unavailable',
+      transferFailed: 'Transfer failed',
+      title: 'Send Money',
+      subtitle: 'Send YelloMola instantly to any Tmcel subscriber.',
+      recipientNumber: 'Recipient Number',
+      amountYm: 'Amount (YM)',
+      sendYelloMola: 'SEND YELLOMOLA',
+    },
+    scan: {
+      invalidQr: 'Invalid QR format',
+      invalidQrExpected: 'Expected payload: {"item_id":123,"amount":50,"merchant_ref":"ABC-123"}',
+      scanAgain: 'Scan Again',
+      paymentScanned: 'Payment Scanned',
+      payPrompt: 'Pay {amount} YM to {merchant}?',
+      pay: 'Pay',
+      paymentSuccess: 'Payment processed successfully.',
+      paymentUnavailable: 'Payment unavailable',
+      paymentFailed: 'Payment failed',
+      cameraPermission: 'We need your permission to show the camera.',
+      grantPermission: 'Grant Permission',
+      processingPayment: 'Processing Payment...',
+      title: 'Scan to Pay',
+    },
+  },
+  pt: {
+    common: {
+      close: 'Fechar',
+      cancel: 'Cancelar',
+      success: 'Sucesso',
+      error: 'Erro',
+      notifications: 'Notificacoes',
+      refresh: 'Atualizar',
+      customer: 'Cliente',
+      all: 'Todos',
+      noOffers: 'Ainda nao existem ofertas para esta categoria.',
+      done: 'Concluir',
+    },
+    home: {
+      greetingPrefix: 'Ola',
+      dayAtGlance: 'O seu dia em resumo',
+      myBalances: 'MEUS SALDOS',
+      airtime: 'Recarga',
+      data: 'Dados',
+      quickRecharge: 'RECARGA RAPIDA',
+      dayStreak: 'Dias consecutivos!',
+      daysToNextReward: 'dias para a proxima recompensa',
+      play: 'JOGAR',
+      quickActions: 'Acoes Rapidas',
+      currentTier: 'NIVEL ATUAL',
+      pointsNeededFor: 'pontos necessarios para',
+      marketplacePicks: 'Ofertas do Mercado',
+      searchOffers: 'Pesquisar Ofertas',
+      notificationsTitle: 'Notificacoes',
+      noOffersCategory: 'Ainda nao existem ofertas para esta categoria.',
+      welcomeNotification: 'Bem-vindo a Tmcel',
+      welcomeBody: 'As suas atualizacoes personalizadas aparecerao aqui.',
+      rewardsTip: 'Dica de premios',
+      rewardsBody: 'Visite Premios para resgatar ofertas disponiveis.',
+      markAllRead: 'Marcar todas como lidas',
+      notificationsLoading: 'A carregar notificacoes...',
+      notificationsEmpty: 'Nao existem notificacoes neste momento.',
+      notificationsLoadError: 'Nao foi possivel carregar as notificacoes.',
+      notificationsMarkReadError: 'Nao foi possivel marcar notificacoes como lidas.',
+      retry: 'Tentar novamente',
+      loadMore: 'Carregar mais',
+    },
+    nav: {
+      home: 'Inicio',
+      wallet: 'Carteira',
+      marketplace: 'Mercado',
+      rewards: 'Premios',
+      myAccount: 'Minha Conta',
+      account: 'Conta',
+      store: 'Loja',
+    },
+    brand: {
+      tagline: 'O Pulso Digital',
+      poweredBy: 'Tecnologia EngageHub e Inteligencia CVM',
+    },
+    currency: {
+      yelloMola: 'YelloMola',
+      ym: 'YM',
+    },
+    login: {
+      signInRequired: 'Inicio de sessao necessario',
+      enterCredentials: 'Introduza MSISDN e PIN para continuar.',
+      signInFailed: 'Falha no inicio de sessao',
+      checkCredentials: 'Verifique as credenciais e tente novamente.',
+      serverUnavailable: 'Nao foi possivel contactar o servidor de autenticacao.',
+      title: 'O Pulso Digital',
+      subtitle: 'Experiencias premium de telecomunicacoes para o seu estilo de vida.',
+      welcomeBack: 'Bem-vindo de volta',
+      msisdn: 'MSISDN',
+      securePin: 'PIN Seguro',
+      phonePlaceholder: 'Introduza o numero de telefone',
+      pinPlaceholder: 'Introduza o PIN',
+      signIn: 'Entrar',
+      needHelp: 'Precisa de ajuda?',
+      resetPassword: 'Repor Palavra-passe',
+      support: 'Suporte',
+      supportMessage: 'A reposicao de palavra-passe esta disponivel via suporte.',
+    },
+    rewards: {
+      title: 'Centro de Premios',
+      unavailable: 'Indisponivel',
+      notRedeemable: 'Este premio nao pode ser resgatado agora.',
+      confirmRedemption: 'Confirmar Resgate',
+      redeemPrompt: 'Resgatar {title} por {amount} e usar YM?',
+      redeemed: 'Resgatou {title} com sucesso!',
+      redeemFail: 'Falha ao resgatar oferta.',
+      referTitle: 'Convide um Amigo e Ganhe 500 YM',
+      referBody: 'Partilhe o seu codigo com amigos. Quando registarem e concluirem o primeiro giro, ambos recebem 500 YelloMola!',
+      shareInvite: 'Partilhar Convite',
+      dayStreak: 'Dias consecutivos',
+      multiplier: 'Multiplicador YelloMola: 1.2x',
+      spinTitle: 'Giro Diario',
+      spinSubtitle: 'Ganhe ate 500 YelloMola!',
+      spinNow: 'GIRAR AGORA',
+      featured: 'Premios em Destaque',
+      viewAll: 'VER TODOS',
+      dailyQuests: 'Missoes Diarias',
+      referFriend: 'Convide um Amigo',
+      earnPerReferral: 'Ganhe 500 YM por convite',
+    },
+    marketplace: {
+      title: 'Mercado',
+      subtitle: 'Ofertas exclusivas da Tmcel para si.',
+      loadError: 'Erro ao carregar mercado. Tente novamente.',
+      unavailable: 'Indisponivel',
+      notRedeemable: 'Este item nao pode ser resgatado agora.',
+      confirmPurchase: 'Confirmar Compra',
+      purchasePrompt: 'Tem certeza que quer comprar {title} por {amount} e resgatar YM?',
+      buy: 'Comprar',
+      purchaseSuccess: 'Comprou {title} com sucesso!',
+      purchaseFail: 'Falha ao concluir compra.',
+      seeAll: 'Ver Todos',
+      trendingDeals: 'Ofertas em Alta',
+      exclusiveBundles: 'Pacotes Exclusivos',
+      preview: 'Previa',
+      catalogPreviewOnly: 'Apenas previa de catalogo',
+      pendingMapping: 'Mapeamento de oferta pendente',
+      earnYm: 'Ganhe {amount} YM',
+    },
+    wallet: {
+      title: 'Carteira',
+      loadError: 'Erro ao carregar carteira. Tente novamente.',
+      availableBalance: 'Saldo Disponivel',
+      thisMonth: 'este mes',
+      actionDisabled: 'Acao desativada',
+      highRiskDisabled: 'Acoes de alto risco da carteira estao temporariamente desativadas.',
+      scanToPay: 'Ler para Pagar',
+      sendMoney: 'Enviar Dinheiro',
+      virtualCard: 'Cartao Virtual',
+      myCards: 'Meus Cartoes Virtuais',
+      hide: 'Ocultar',
+      reveal: 'Mostrar',
+      unfreeze: 'Desbloquear',
+      freeze: 'Bloquear',
+      recentActivity: 'Atividade Recente',
+      noTransactions: 'Sem transacoes recentes',
+      retryCardStatus: 'Tentar novamente atualizacao do cartao',
+      cardUnfrozen: 'Cartao desbloqueado',
+      cardFrozen: 'Cartao bloqueado',
+      cardReady: 'O seu cartao esta pronto para uso.',
+      cardBlocked: 'Nenhuma transacao sera permitida ate desbloquear.',
+      featureUnavailable: 'Funcionalidade indisponivel',
+      requestFailed: 'Pedido falhou',
+      expiry: 'VALIDADE',
+      cvv: 'CVV',
+    },
+    account: {
+      associatedLines: 'LINHAS ASSOCIADAS',
+      primaryLine: 'Linha Principal',
+      active: 'ATIVO',
+      linkNewNumber: '+ LIGAR NOVO NUMERO',
+      accountSettings: 'CONFIGURACOES DA CONTA',
+      billHistoryInvoices: 'Historico de Faturas',
+      securityPrivacy: 'Seguranca e Privacidade',
+      notificationPreferences: 'Preferencias de Notificacao',
+      languageSettings: 'Definicoes de Idioma',
+      analyticsDiagnostics: 'Diagnostico Analitico',
+      signOut: 'Terminar Sessao',
+      billHistory: 'Historico de Faturas',
+      noBillHistory: 'Nao existe historico de faturas ainda.',
+      sessionState: 'Estado da sessao',
+      activeSession: 'Sessao ativa neste dispositivo',
+      signOutAllDevices: 'Terminar sessao em todos os dispositivos',
+      pendingRemoteRevoke: 'Suporte backend pendente para revogacao remota.',
+      marketingUpdates: 'Atualizacoes de marketing',
+      campaignAlerts: 'Alertas de campanha',
+      selected: 'Selecionado',
+      tapToSelect: 'Toque para selecionar',
+      exportEventJson: 'Exportar JSON de Eventos',
+    },
+    spin: {
+      title: 'Gire e Ganhe',
+      subtitle: 'Use 50 YelloMola para girar e ganhar um premio!',
+      congratulations: 'PARABENS!',
+      wonPrize: 'Ganhou {prize}!',
+      collect: 'RECOLHER',
+      spinning: 'A GIRAR...',
+      spinNow: 'GIRAR AGORA',
+    },
+    p2p: {
+      invalidInput: 'Entrada invalida',
+      validMsisdn: 'Introduza um MSISDN valido.',
+      validAmount: 'Introduza um valor valido.',
+      transferSuccess: 'Transferencia de {amount} YM para {msisdn} concluida.',
+      transferUnavailable: 'Transferencia indisponivel',
+      transferFailed: 'Falha na transferencia',
+      title: 'Enviar Dinheiro',
+      subtitle: 'Envie YelloMola instantaneamente para qualquer assinante Tmcel.',
+      recipientNumber: 'Numero do Destinatario',
+      amountYm: 'Valor (YM)',
+      sendYelloMola: 'ENVIAR YELLOMOLA',
+    },
+    scan: {
+      invalidQr: 'Formato QR invalido',
+      invalidQrExpected: 'Carga esperada: {"item_id":123,"amount":50,"merchant_ref":"ABC-123"}',
+      scanAgain: 'Ler Novamente',
+      paymentScanned: 'Pagamento Lido',
+      payPrompt: 'Pagar {amount} YM para {merchant}?',
+      pay: 'Pagar',
+      paymentSuccess: 'Pagamento processado com sucesso.',
+      paymentUnavailable: 'Pagamento indisponivel',
+      paymentFailed: 'Falha no pagamento',
+      cameraPermission: 'Precisamos da sua permissao para usar a camera.',
+      grantPermission: 'Conceder Permissao',
+      processingPayment: 'A processar pagamento...',
+      title: 'Ler para Pagar',
+    },
+  },
+} as const;
+
+type TranslationTree = typeof translations.en;
+
+const resolvePath = (obj: Record<string, any>, path: string) => {
+  return path.split('.').reduce((acc: any, curr) => (acc && acc[curr] != null ? acc[curr] : undefined), obj);
+};
+
+interface I18nContextType {
+  language: AppLanguage;
+  setLanguage: (lang: AppLanguage) => Promise<void>;
+  t: (key: string, fallback?: string) => string;
+  isLoading: boolean;
+}
+
+const I18nContext = React.createContext<I18nContextType | undefined>(undefined);
+
+export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [language, setLanguageState] = React.useState<AppLanguage>('en');
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadLanguage = async () => {
+      try {
+        const stored = await platformStorage.getItemAsync(LANGUAGE_KEY);
+        if (stored === 'en' || stored === 'pt') {
+          setLanguageState(stored);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadLanguage();
+  }, []);
+
+  const setLanguage = async (lang: AppLanguage) => {
+    setLanguageState(lang);
+    await platformStorage.setItemAsync(LANGUAGE_KEY, lang);
+  };
+
+  const t = (key: string, fallback?: string) => {
+    const langTree = translations[language] as TranslationTree;
+    const value = resolvePath(langTree as unknown as Record<string, any>, key);
+    if (typeof value === 'string') return value;
+    const englishValue = resolvePath(translations.en as unknown as Record<string, any>, key);
+    if (typeof englishValue === 'string') return englishValue;
+    return fallback ?? key;
+  };
+
+  return (
+    <I18nContext.Provider value={{ language, setLanguage, t, isLoading }}>
+      {children}
+    </I18nContext.Provider>
+  );
+};
+
+export const useI18n = () => {
+  const context = React.useContext(I18nContext);
+  if (!context) {
+    throw new Error('useI18n must be used within an I18nProvider');
+  }
+  return context;
+};

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
 import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
@@ -9,6 +9,8 @@ import ScanToPayModal from '../components/ScanToPayModal';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
 import { runtimeConfig } from '../config/runtime';
+import { useI18n } from '../services/i18n';
+import { formatMznCurrency } from '../services/formatters';
 
 /**
  * WalletScreen Component
@@ -17,6 +19,7 @@ import { runtimeConfig } from '../config/runtime';
  * and transaction history with secure controls.
  */
 const WalletScreen = () => {
+  const { language, t } = useI18n();
   const { data: response, isLoading, error } = useGetWalletDataQuery();
   const [toggleFreeze] = useToggleCardFreezeMutation();
   const { authenticate } = useBiometricAuth();
@@ -41,7 +44,7 @@ const WalletScreen = () => {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={Typography.body}>Error loading wallet. Please try again.</Text>
+        <Text style={Typography.body}>{t('wallet.loadError', 'Error loading wallet. Please try again.')}</Text>
       </View>
     );
   }
@@ -66,7 +69,7 @@ const WalletScreen = () => {
 
   const handleToggleFreeze = async (card: any) => {
     if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-      Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+      Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
       return;
     }
     const isFrozen = card.status === 'FROZEN';
@@ -85,8 +88,8 @@ const WalletScreen = () => {
         { screen: 'wallet', source: 'card_controls' },
       );
       Alert.alert(
-        isFrozen ? 'Card Unfrozen' : 'Card Frozen',
-        isFrozen ? 'Your card is now ready for use.' : 'No transactions will be allowed until you unfreeze it.'
+        isFrozen ? t('wallet.cardUnfrozen', 'Card Unfrozen') : t('wallet.cardFrozen', 'Card Frozen'),
+        isFrozen ? t('wallet.cardReady', 'Your card is now ready for use.') : t('wallet.cardBlocked', 'No transactions will be allowed until you unfreeze it.')
       );
     } catch (err: any) {
       setFreezeRetryCard(card);
@@ -96,9 +99,9 @@ const WalletScreen = () => {
         { screen: 'wallet', source: 'card_controls' },
       );
       if (isUnsupportedError(err)) {
-        Alert.alert('Feature unavailable', statusCopy.unsupportedFeature);
+        Alert.alert(t('wallet.featureUnavailable', 'Feature unavailable'), statusCopy.unsupportedFeature);
       } else {
-        Alert.alert('Request failed', statusCopy.networkError);
+        Alert.alert(t('wallet.requestFailed', 'Request failed'), statusCopy.networkError);
       }
     } finally {
       setFreezingId(null);
@@ -108,21 +111,24 @@ const WalletScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.brandHeader}>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+        </View>
         <View style={styles.header}>
-          <Text style={Typography.headline}>Wallet</Text>
+          <Text style={Typography.headline}>{t('wallet.title', 'Wallet')}</Text>
           <TouchableOpacity style={styles.tokenBadge}>
-            <Text style={[Typography.label, { color: Colors.primary }]}>{balance?.toLocaleString()} YB</Text>
+            <Text style={[Typography.label, { color: Colors.primary }]}>{Number(balance || 0).toLocaleString()} YM</Text>
           </TouchableOpacity>
         </View>
         
         {/* Total Balance Card */}
         <View style={styles.balanceSection}>
-          <Text style={[Typography.label, { opacity: 0.6 }]}>Available Balance</Text>
-          <Text style={[Typography.display, { fontSize: 36, marginTop: 4 }]}>{totalBalance}</Text>
+          <Text style={[Typography.label, { opacity: 0.6 }]}>{t('wallet.availableBalance', 'Available Balance')}</Text>
+          <Text style={[Typography.display, { fontSize: 36, marginTop: 4 }]}>{formatMznCurrency(totalBalance, language)}</Text>
           <View style={styles.balanceFooter}>
             <View style={styles.trendUp}>
               <ArrowUpRight size={14} color={Colors.secondary} />
-              <Text style={[Typography.label, { color: Colors.secondary, marginLeft: 4 }]}>+R 1,240 this month</Text>
+              <Text style={[Typography.label, { color: Colors.secondary, marginLeft: 4 }]}>+{formatMznCurrency(1240, language)} {t('wallet.thisMonth', 'this month')}</Text>
             </View>
           </View>
         </View>
@@ -133,7 +139,7 @@ const WalletScreen = () => {
             style={styles.actionItem}
             onPress={() => {
               if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-                Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+                Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
                 return;
               }
               setScanVisible(true);
@@ -142,13 +148,13 @@ const WalletScreen = () => {
             <View style={[styles.actionIcon, { backgroundColor: Colors.primary_container }]}>
               <Scan color="#fff" size={24} />
             </View>
-            <Text style={styles.actionLabel}>Scan to Pay</Text>
+            <Text style={styles.actionLabel}>{t('wallet.scanToPay', 'Scan to Pay')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => {
               if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-                Alert.alert('Action disabled', 'Wallet high-risk actions are temporarily disabled during rollout.');
+                Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
                 return;
               }
               setP2pVisible(true);
@@ -157,19 +163,19 @@ const WalletScreen = () => {
             <View style={[styles.actionIcon, { backgroundColor: Colors.secondary }]}>
               <ArrowUpRight color="#fff" size={24} />
             </View>
-            <Text style={styles.actionLabel}>Send Money</Text>
+            <Text style={styles.actionLabel}>{t('wallet.sendMoney', 'Send Money')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem}>
             <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
               <CreditCard color="#fff" size={24} />
             </View>
-            <Text style={styles.actionLabel}>Virtual Card</Text>
+            <Text style={styles.actionLabel}>{t('wallet.virtualCard', 'Virtual Card')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Virtual Card Section */}
         <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>My Virtual Cards</Text>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('wallet.myCards', 'My Virtual Cards')}</Text>
           {safeCards.map((card: any) => {
             const isRevealed = revealedCards[card.id];
             const isFrozen = card.status === 'FROZEN';
@@ -195,12 +201,12 @@ const WalletScreen = () => {
                   
                   <View style={styles.cardFooter}>
                     <View>
-                      <Text style={styles.cardLabel}>EXPIRY</Text>
+                      <Text style={styles.cardLabel}>{t('wallet.expiry', 'EXPIRY')}</Text>
                       <Text style={styles.cardValue}>{card.expiry}</Text>
                     </View>
                     {isRevealed && (
                       <View>
-                        <Text style={styles.cardLabel}>CVV</Text>
+                        <Text style={styles.cardLabel}>{t('wallet.cvv', 'CVV')}</Text>
                         <Text style={styles.cardValue}>•••</Text>
                       </View>
                     )}
@@ -215,7 +221,7 @@ const WalletScreen = () => {
                     onPress={() => handleReveal(card.id)}
                   >
                     {isRevealed ? <EyeOff size={20} color={Colors.on_surface} /> : <Eye size={20} color={Colors.on_surface} />}
-                    <Text style={styles.controlText}>{isRevealed ? 'Hide' : 'Reveal'}</Text>
+                    <Text style={styles.controlText}>{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
                   </TouchableOpacity>
                   
                   <View style={styles.controlDivider} />
@@ -231,7 +237,7 @@ const WalletScreen = () => {
                       <Lock size={20} color={Colors.error} />
                     )}
                     <Text style={[styles.controlText, isFrozen && { color: Colors.secondary }]}>
-                      {isFrozen ? 'Unfreeze' : 'Freeze'}
+                      {isFrozen ? t('wallet.unfreeze', 'Unfreeze') : t('wallet.freeze', 'Freeze')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -243,7 +249,7 @@ const WalletScreen = () => {
         {/* Transaction History */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>Recent Activity</Text>
+            <Text style={Typography.title}>{t('wallet.recentActivity', 'Recent Activity')}</Text>
             <TouchableOpacity>
               <ChevronRight size={20} color={Colors.on_surface_variant} />
             </TouchableOpacity>
@@ -266,12 +272,12 @@ const WalletScreen = () => {
                   </Text>
                 </View>
                 <Text style={[Typography.title, { color: tx.amount < 0 ? Colors.on_surface : Colors.secondary }]}>
-                  {tx.amount < 0 ? '' : '+'}{Number(tx.amount || 0).toLocaleString()} YB
+                  {tx.amount < 0 ? '' : '+'}{formatMznCurrency(Math.abs(Number(tx.amount || 0)), language)} • YM
                 </Text>
               </View>
             )) : (
               <View style={styles.emptyState}>
-                <Text style={Typography.body}>No recent transactions</Text>
+                <Text style={Typography.body}>{t('wallet.noTransactions', 'No recent transactions')}</Text>
               </View>
             )}
           </View>
@@ -281,7 +287,7 @@ const WalletScreen = () => {
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
         {freezeRetryCard ? (
           <TouchableOpacity style={styles.retryBanner} onPress={() => handleToggleFreeze(freezeRetryCard)}>
-            <Text style={styles.retryBannerText}>Retry card status update</Text>
+            <Text style={styles.retryBannerText}>{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
@@ -293,6 +299,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  brandHeader: { marginBottom: Spacing.md },
+  tmcelLogo: { width: 160, height: 64, alignSelf: 'flex-start' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
   tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   balanceSection: { 

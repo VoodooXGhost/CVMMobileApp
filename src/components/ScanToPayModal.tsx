@@ -6,6 +6,7 @@ import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
+import { useI18n } from '../services/i18n';
 
 interface ScanToPayModalProps {
   visible: boolean;
@@ -19,6 +20,7 @@ interface ScanPayload {
 }
 
 const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
+  const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
@@ -68,16 +70,19 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
         { screen: 'wallet', source: 'scan_modal' },
       );
       Alert.alert(
-        'Invalid QR format',
-        'Expected payload: {"item_id":123,"amount":50,"merchant_ref":"ABC-123"}',
-        [{ text: 'Scan Again', onPress: () => setScanned(false) }],
+        t('scan.invalidQr', 'Invalid QR format'),
+        t('scan.invalidQrExpected', 'Expected payload: {"item_id":123,"amount":50,"merchant_ref":"ABC-123"}'),
+        [{ text: t('scan.scanAgain', 'Scan Again'), onPress: () => setScanned(false) }],
       );
       return;
     }
 
+    const payPrompt = t('scan.payPrompt', 'Pay {amount} YM to {merchant}?')
+      .replace('{amount}', String(payload.amount))
+      .replace('{merchant}', payload.merchant_ref);
     Alert.alert(
-      'Payment Scanned',
-      `Pay ${payload.amount} YB to ${payload.merchant_ref}?`,
+      t('scan.paymentScanned', 'Payment Scanned'),
+      payPrompt,
       [
         {
           text: 'Cancel',
@@ -85,7 +90,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
           onPress: () => setScanned(false),
         },
         {
-          text: 'Pay',
+          text: t('scan.pay', 'Pay'),
           onPress: async () => {
             try {
               await track(
@@ -99,8 +104,8 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
                 { action: 'scan_pay', item_id: payload.item_id, amount: payload.amount },
                 { screen: 'wallet', source: 'scan_modal' },
               );
-              Alert.alert('Success', 'Payment processed successfully.', [
-                { text: 'Done', onPress: onClose },
+              Alert.alert(t('common.success', 'Success'), t('scan.paymentSuccess', 'Payment processed successfully.'), [
+                { text: t('common.done', 'Done'), onPress: onClose },
               ]);
             } catch (err: any) {
               await track(
@@ -109,9 +114,9 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
                 { screen: 'wallet', source: 'scan_modal' },
               );
               if (isUnsupportedError(err)) {
-                Alert.alert('Payment unavailable', statusCopy.unsupportedFeature);
+                Alert.alert(t('scan.paymentUnavailable', 'Payment unavailable'), statusCopy.unsupportedFeature);
               } else {
-                Alert.alert('Payment failed', err?.data?.detail || statusCopy.networkError);
+                Alert.alert(t('scan.paymentFailed', 'Payment failed'), err?.data?.detail || statusCopy.networkError);
               }
               setScanned(false);
             }
@@ -130,9 +135,9 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
-          <Text style={Typography.body}>We need your permission to show the camera.</Text>
+          <Text style={Typography.body}>{t('scan.cameraPermission', 'We need your permission to show the camera.')}</Text>
           <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
-            <Text style={styles.grantText}>Grant Permission</Text>
+            <Text style={styles.grantText}>{t('scan.grantPermission', 'Grant Permission')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -143,7 +148,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
         {isLoading ? (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={[Typography.title, { color: '#fff', marginTop: 16 }]}>Processing Payment...</Text>
+            <Text style={[Typography.title, { color: '#fff', marginTop: 16 }]}>{t('scan.processingPayment', 'Processing Payment...')}</Text>
           </View>
         ) : (
           <CameraView
@@ -167,7 +172,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={Typography.headline}>Scan to Pay</Text>
+          <Text style={Typography.headline}>{t('scan.title', 'Scan to Pay')}</Text>
           <TouchableOpacity onPress={closeAndReset} style={styles.closeBtn}>
             <X size={24} color={Colors.on_surface} />
           </TouchableOpacity>

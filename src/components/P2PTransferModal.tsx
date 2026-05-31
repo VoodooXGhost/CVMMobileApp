@@ -5,6 +5,7 @@ import { X, Send } from 'lucide-react-native';
 import { useP2pTransferMutation } from '../services/apiSlice';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
+import { useI18n } from '../services/i18n';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -12,18 +13,19 @@ interface P2PTransferModalProps {
 }
 
 const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
+  const { t } = useI18n();
   const [msisdn, setMsisdn] = useState('');
   const [amount, setAmount] = useState('');
   const [transfer, { isLoading }] = useP2pTransferMutation();
 
   const handleSend = async () => {
     if (!msisdn || msisdn.length < 10) {
-      Alert.alert('Invalid Input', 'Please enter a valid MSISDN.');
+      Alert.alert(t('p2p.invalidInput', 'Invalid Input'), t('p2p.validMsisdn', 'Please enter a valid MSISDN.'));
       return;
     }
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid amount.');
+      Alert.alert(t('p2p.invalidInput', 'Invalid Input'), t('p2p.validAmount', 'Please enter a valid amount.'));
       return;
     }
 
@@ -39,7 +41,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
         { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
         { screen: 'wallet', source: 'p2p_modal' },
       );
-      Alert.alert('Success', `Successfully transferred ${numAmount} YB to ${msisdn}.`);
+      Alert.alert(t('common.success', 'Success'), t('p2p.transferSuccess', 'Successfully transferred {amount} YM to {msisdn}.').replace('{amount}', String(numAmount)).replace('{msisdn}', String(msisdn)));
       setMsisdn('');
       setAmount('');
       onClose();
@@ -50,9 +52,9 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
         { screen: 'wallet', source: 'p2p_modal' },
       );
       if (isUnsupportedError(err)) {
-        Alert.alert('Transfer unavailable', statusCopy.unsupportedFeature);
+        Alert.alert(t('p2p.transferUnavailable', 'Transfer unavailable'), statusCopy.unsupportedFeature);
       } else {
-        Alert.alert('Transfer failed', err?.data?.detail || statusCopy.networkError);
+        Alert.alert(t('p2p.transferFailed', 'Transfer failed'), err?.data?.detail || statusCopy.networkError);
       }
     }
   };
@@ -65,18 +67,18 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
       >
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={Typography.headline}>Send Money</Text>
+            <Text style={Typography.headline}>{t('p2p.title', 'Send Money')}</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={Colors.on_surface} />
             </TouchableOpacity>
           </View>
           
           <Text style={[Typography.body, { marginBottom: Spacing.xl }]}>
-            Send YelloBucks instantly to any MTN subscriber.
+            {t('p2p.subtitle', 'Send YelloMola instantly to any Tmcel subscriber.')}
           </Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Recipient Number</Text>
+            <Text style={styles.label}>{t('p2p.recipientNumber', 'Recipient Number')}</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 0831234567"
@@ -89,7 +91,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Amount (YB)</Text>
+            <Text style={styles.label}>{t('p2p.amountYm', 'Amount (YM)')}</Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -111,7 +113,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
             ) : (
               <>
                 <Send size={20} color="#000" />
-                <Text style={styles.submitButtonText}>SEND YELLOBUCKS</Text>
+                <Text style={styles.submitButtonText}>{t('p2p.sendYelloMola', 'SEND YELLOMOLA')}</Text>
               </>
             )}
           </TouchableOpacity>

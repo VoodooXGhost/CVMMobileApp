@@ -1,6 +1,6 @@
-# MTN CVM Mobile App
+# Tmcel CVM Mobile App
 
-Production-oriented React Native (Expo) mobile channel for MTN/Tmcel Customer Value Management (CVM).
+Production-oriented React Native (Expo) mobile channel for Tmcel Customer Value Management (CVM).
 
 This app delivers core CVM journeys: authentication, personalized offers, rewards redemption, wallet interactions, and account controls, with analytics instrumentation and rollout safety controls.
 
@@ -160,4 +160,4 @@ Workspace-level:
 
 ## 13) License / Ownership
 
-Internal enterprise project for MTN/Tmcel CVM delivery. Treat implementation and data contracts as controlled organizational assets.
+Internal enterprise project for Tmcel CVM delivery. Treat implementation and data contracts as controlled organizational assets.

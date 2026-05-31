@@ -23,8 +23,11 @@ import {
 import { useGetHomeDataQuery, useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
 import { shouldTrackImpression, track } from '../services/analytics';
+import { useI18n } from '../services/i18n';
+import { formatMznCurrency } from '../services/formatters';
 
 const RewardsScreen = () => {
+  const { language, t } = useI18n();
   const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
   const { data: offersResponse, isLoading: isOffersLoading } = useGetOffersDataQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
@@ -63,13 +66,16 @@ const RewardsScreen = () => {
   const handleRedeem = (offer: any) => {
     const itemId = Number(offer?.id);
     if (!Number.isFinite(itemId) || itemId <= 0) {
-      Alert.alert('Unavailable', 'This reward is not redeemable right now.');
+      Alert.alert(t('rewards.unavailable', 'Unavailable'), t('rewards.notRedeemable', 'This reward is not redeemable right now.'));
       return;
     }
 
+    const prompt = t('rewards.redeemPrompt', 'Redeem {title} for {amount} and use YM?')
+      .replace('{title}', String(offer.title))
+      .replace('{amount}', formatMznCurrency(offer.price, language));
     Alert.alert(
-      'Confirm Redemption',
-      `Redeem ${offer.title} for ${offer.price} YB?`,
+      t('rewards.confirmRedemption', 'Confirm Redemption'),
+      prompt,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -87,14 +93,14 @@ const RewardsScreen = () => {
                 { item_id: itemId, placement: 'rewards_featured' },
                 { screen: 'rewards', placement: 'rewards_featured' },
               );
-              Alert.alert('Success', `You have redeemed ${offer.title}!`);
+              Alert.alert(t('common.success', 'Success'), t('rewards.redeemed', 'You have redeemed {title}!').replace('{title}', String(offer.title)));
             } catch (err: any) {
               await track(
                 'redeem_fail',
                 { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
                 { screen: 'rewards', placement: 'rewards_featured' },
               );
-              Alert.alert('Error', err?.data?.detail || 'Failed to redeem offer.');
+              Alert.alert(t('common.error', 'Error'), err?.data?.detail || t('rewards.redeemFail', 'Failed to redeem offer.'));
             }
           }
         }
@@ -103,21 +109,21 @@ const RewardsScreen = () => {
   };
 
   const handleReferral = async () => {
-    const referralCode = `MTN-PULSE-7851`;
-    const referralText = `Hey! Join me on MTN Pulse Rewards, use my referral code ${referralCode} to get 500 YelloBucks instantly on sign up! Download here: https://mtn.co.za/pulse`;
+    const referralCode = `TMCEL-PULSE-7851`;
+    const referralText = `Hey! Join me on Tmcel Pulse Rewards, use my referral code ${referralCode} to get 500 YelloMola instantly on sign up! Download here: https://www.tmcel.co.mz/`;
     
     Alert.alert(
-      'Refer a Friend & Earn 500 YB',
-      `Share your referral code with friends. Once they register and complete their first spin, you'll both receive 500 YelloBucks!\n\nYour Code: ${referralCode}`,
+      t('rewards.referTitle', 'Refer a Friend & Earn 500 YM'),
+      `${t('rewards.referBody', "Share your referral code with friends. Once they register and complete their first spin, you'll both receive 500 YelloMola!")}\n\nYour Code: ${referralCode}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Share Invitation', 
+          text: t('rewards.shareInvite', 'Share Invitation'), 
           onPress: async () => {
             try {
               await Share.share({
                 message: referralText,
-                title: 'MTN Pulse Referral'
+                title: 'Tmcel Pulse Referral'
               });
             } catch (_error: any) {}
           } 
@@ -129,12 +135,15 @@ const RewardsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.brandHeader}>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+        </View>
         <View style={styles.header}>
-          <Text style={Typography.headline}>Rewards Hub</Text>
+          <Text style={Typography.headline}>{t('rewards.title', 'Rewards Hub')}</Text>
           <View style={styles.pointsBadge}>
             <Star size={14} color={Colors.on_primary_fixed} fill={Colors.on_primary_fixed} />
             <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900' }]}>
-              {loyalty?.yello_bucks_balance?.toLocaleString() || 0} YB
+              {loyalty?.yello_bucks_balance?.toLocaleString() || 0} YM
             </Text>
           </View>
         </View>
@@ -145,8 +154,8 @@ const RewardsScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Flame size={24} color={Colors.secondary} fill={Colors.secondary} />
               <View style={{ marginLeft: 12 }}>
-                <Text style={Typography.title}>{gamification?.current_streak || 0} Day Streak</Text>
-                <Text style={[Typography.label, { opacity: 0.6 }]}>YelloBucks multiplier: 1.2x</Text>
+                <Text style={Typography.title}>{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
+                <Text style={[Typography.label, { opacity: 0.6 }]}>{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
               </View>
             </View>
             <Award size={24} color={Colors.primary} />
@@ -184,12 +193,12 @@ const RewardsScreen = () => {
         {/* Spin-the-Wheel Hero Section */}
         <TouchableOpacity style={styles.spinHero} onPress={() => setSpinVisible(true)}>
           <View style={styles.spinContent}>
-            <Text style={[Typography.headline, { color: Colors.on_primary_fixed, fontSize: 24 }]}>Daily Spin</Text>
+            <Text style={[Typography.headline, { color: Colors.on_primary_fixed, fontSize: 24 }]}>{t('rewards.spinTitle', 'Daily Spin')}</Text>
             <Text style={[Typography.body, { color: Colors.on_primary_fixed, opacity: 0.8 }]}>
-              Win up to 500 YelloBucks!
+              {t('rewards.spinSubtitle', 'Win up to 500 YelloMola!')}
             </Text>
             <View style={styles.spinCta}>
-              <Text style={[Typography.title, { color: '#000', fontWeight: '900' }]}>SPIN NOW</Text>
+              <Text style={[Typography.title, { color: '#000', fontWeight: '900' }]}>{t('rewards.spinNow', 'SPIN NOW')}</Text>
             </View>
           </View>
           <View style={styles.spinIconContainer}>
@@ -200,9 +209,9 @@ const RewardsScreen = () => {
         {/* Redemption Catalog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>Featured Rewards</Text>
+            <Text style={Typography.title}>{t('rewards.featured', 'Featured Rewards')}</Text>
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-               <Text style={[Typography.label, { color: Colors.primary }]}>VIEW ALL</Text>
+               <Text style={[Typography.label, { color: Colors.primary }]}>{t('rewards.viewAll', 'VIEW ALL')}</Text>
                <ChevronRight size={16} color={Colors.primary} />
             </TouchableOpacity>
           </View>
@@ -236,7 +245,7 @@ const RewardsScreen = () => {
                   <View style={styles.priceRow}>
                     <Star size={10} color={Colors.secondary} fill={Colors.secondary} />
                     <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900', color: Colors.secondary }]}>
-                       {offer.price} YB
+                       {formatMznCurrency(offer.price, language)}
                     </Text>
                   </View>
                 </View>
@@ -247,14 +256,14 @@ const RewardsScreen = () => {
 
         {/* Gamified Quests Placeholder */}
         <View style={styles.section}>
-           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Daily Quests</Text>
+           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('rewards.dailyQuests', 'Daily Quests')}</Text>
            <TouchableOpacity style={styles.questCard} onPress={handleReferral}>
               <View style={styles.questIcon}>
                 <Gift size={20} color={Colors.secondary} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                 <Text style={Typography.title}>Refer a Friend</Text>
-                 <Text style={[Typography.label, { opacity: 0.6 }]}>Earn 500 YB per referral</Text>
+                 <Text style={Typography.title}>{t('rewards.referFriend', 'Refer a Friend')}</Text>
+                 <Text style={[Typography.label, { opacity: 0.6 }]}>{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
               </View>
               <ChevronRight size={20} color={Colors.outline} />
            </TouchableOpacity>
@@ -274,6 +283,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  brandHeader: {
+    marginBottom: Spacing.md,
+  },
+  tmcelLogo: {
+    width: 160,
+    height: 64,
+    alignSelf: 'flex-start',
+  },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 

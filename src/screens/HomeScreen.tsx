@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
@@ -28,10 +29,18 @@ import {
   Gamepad2, 
   Smartphone 
 } from 'lucide-react-native';
-import { useGetHomeDataQuery } from '../services/apiSlice';
+import {
+  useGetHomeDataQuery,
+  useGetNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationsReadMutation,
+} from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
 import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
 import { getExperimentAssignments } from '../services/experiments';
+import { useI18n } from '../services/i18n';
+import { formatMznCurrency } from '../services/formatters';
+import { platformStorage } from '../services/storage';
 
 /**
  * HomeScreen Component
@@ -39,6 +48,7 @@ import { getExperimentAssignments } from '../services/experiments';
  * Production-ready dashboard with real-time balances and MAB-optimized CVM banners.
  */
 const HomeScreen = () => {
+  const { language, t } = useI18n();
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
@@ -46,8 +56,23 @@ const HomeScreen = () => {
   const [searchVisible, setSearchVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [heroVariant, setHeroVariant] = useState('claim_now');
+  const [marketingEnabled, setMarketingEnabled] = useState(true);
+  const [campaignEnabled, setCampaignEnabled] = useState(true);
+  const [notifCursor, setNotifCursor] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [isNotifRefreshing, setIsNotifRefreshing] = useState(false);
+  const [isNotifLoading, setIsNotifLoading] = useState(false);
+  const [notifImpressionIds, setNotifImpressionIds] = useState<Record<string, boolean>>({});
   // Safe width inside component - avoids module-level Dimensions crash in Release builds
   const { width } = useWindowDimensions();
+  const {
+    data: notificationResponse,
+    isFetching: isFetchingNotifications,
+    refetch: refetchNotifications,
+  } = useGetNotificationsQuery({ limit: 20, cursor: notifCursor, unread_only: false });
+  const [markNotificationsRead, { isLoading: isMarkingRead }] = useMarkNotificationsReadMutation();
+  const [markAllNotificationsRead, { isLoading: isMarkingAllRead }] = useMarkAllNotificationsReadMutation();
 
   useEffect(() => {
     track('screen_view', { name: 'home' }, { screen: 'home' });
@@ -65,13 +90,23 @@ const HomeScreen = () => {
   const { profile, loyalty, gamification, hero_banners, offers, categories } = homeData;
   const safeOffers = Array.isArray(offers) ? offers : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
+  const allCategoryLabel = t('common.all', 'All');
   const filteredOffers = safeOffers.filter(
-    (offer: any) => activeCategory === 'All' || offer.category === activeCategory,
+    (offer: any) => activeCategory === allCategoryLabel || offer.category === activeCategory,
   );
-  const notificationItems = [
-    { id: 'n1', title: 'Welcome to EngageHub', body: 'Your personalized updates will appear here.' },
-    { id: 'n2', title: 'Rewards tip', body: 'Visit Rewards Hub to redeem available offers.' },
-  ];
+  const loadNotificationPreferences = async () => {
+    const marketing = await platformStorage.getItemAsync('notif_marketing_enabled');
+    const campaign = await platformStorage.getItemAsync('notif_campaign_enabled');
+    if (marketing != null) setMarketingEnabled(marketing === 'true');
+    if (campaign != null) setCampaignEnabled(campaign === 'true');
+  };
+
+  const persistNotificationCursorAndSeen = async (nextCursor?: string | null) => {
+    await platformStorage.setItemAsync('notifications_last_seen_at', new Date().toISOString());
+    if (nextCursor != null) {
+      await platformStorage.setItemAsync('notifications_last_cursor', String(nextCursor));
+    }
+  };
 
   useEffect(() => {
     safeOffers.slice(0, 3).forEach((offer: any) => {
@@ -98,6 +133,27 @@ const HomeScreen = () => {
     });
   }, [hero_banners]);
 
+  useEffect(() => {
+    loadNotificationPreferences();
+  }, []);
+
+  useEffect(() => {
+    if (!notificationResponse?.data) return;
+    const payload = notificationResponse.data;
+    const incoming = Array.isArray(payload.notifications) ? payload.notifications : [];
+    setNotifications((prev) => {
+      const merged = notifCursor ? [...prev, ...incoming] : incoming;
+      const dedupMap = new Map<string, any>();
+      merged.forEach((item: any) => dedupMap.set(String(item.id), item));
+      return Array.from(dedupMap.values()).sort(
+        (a: any, b: any) =>
+          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+      );
+    });
+    setNotificationError(null);
+    persistNotificationCursorAndSeen(payload.next_cursor ?? null);
+  }, [notificationResponse, notifCursor]);
+
   if (isLoading) {
     return (
       <View style={styles.center}>
@@ -114,23 +170,112 @@ const HomeScreen = () => {
     );
   }
 
+  const filteredNotifications = notifications.filter((item: any) => {
+    if (item.category === 'marketing' && !marketingEnabled) return false;
+    if (item.category === 'campaign' && !campaignEnabled) return false;
+    return true;
+  });
+
+  const unreadVisibleCount = filteredNotifications.filter((item: any) => !item.is_read).length;
+
+  const handleOpenNotifications = async () => {
+    track('notification_bell_open', {}, { screen: 'home', placement: 'header_bell' });
+    setNotificationsVisible(true);
+    setNotifCursor(null);
+    setNotifications([]);
+    setNotificationError(null);
+    setIsNotifLoading(true);
+    try {
+      await refetchNotifications().unwrap();
+    } catch (_error) {
+      setNotificationError(t('home.notificationsLoadError', 'Unable to load notifications right now.'));
+    } finally {
+      setIsNotifLoading(false);
+    }
+  };
+
+  const handleRefreshNotifications = async () => {
+    setIsNotifRefreshing(true);
+    setNotifCursor(null);
+    setNotifications([]);
+    setNotificationError(null);
+    try {
+      await refetchNotifications().unwrap();
+    } catch (_error) {
+      setNotificationError(t('home.notificationsLoadError', 'Unable to load notifications right now.'));
+    } finally {
+      setIsNotifRefreshing(false);
+    }
+  };
+
+  const handleLoadMoreNotifications = async () => {
+    if (isFetchingNotifications || !notificationResponse?.data?.next_cursor) return;
+    setNotifCursor(String(notificationResponse.data.next_cursor));
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await markAllNotificationsRead().unwrap();
+      setNotifications((prev) => prev.map((item: any) => ({ ...item, is_read: true })));
+      track('notification_mark_all_read', {}, { screen: 'home', placement: 'notification_modal' });
+    } catch (_error) {
+      setNotificationError(t('home.notificationsMarkReadError', 'Unable to mark notifications as read.'));
+    }
+  };
+
+  const handleNotificationPress = async (item: any) => {
+    track(
+      'notification_click',
+      { item_id: item.id, category: item.category, deep_link: item.deep_link ?? null },
+      { screen: 'home', placement: 'notification_modal' },
+    );
+    if (!item.is_read) {
+      try {
+        await markNotificationsRead({ ids: [String(item.id)] }).unwrap();
+        setNotifications((prev) =>
+          prev.map((current: any) =>
+            String(current.id) === String(item.id) ? { ...current, is_read: true } : current,
+          ),
+        );
+        track(
+          'notification_mark_read',
+          { item_id: item.id, category: item.category },
+          { screen: 'home', placement: 'notification_modal' },
+        );
+      } catch (_error) {
+        setNotificationError(t('home.notificationsMarkReadError', 'Unable to mark notifications as read.'));
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!notificationsVisible) return;
+    filteredNotifications.forEach((item: any) => {
+      if (!notifImpressionIds[item.id]) {
+        track(
+          'notification_impression',
+          { item_id: item.id, category: item.category, is_read: item.is_read },
+          { screen: 'home', placement: 'notification_modal' },
+        );
+        setNotifImpressionIds((prev) => ({ ...prev, [item.id]: true }));
+      }
+    });
+  }, [notificationsVisible, filteredNotifications, notifImpressionIds]);
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Custom Header */}
       <View style={styles.navHeader}>
         <View style={styles.headerLeft}>
-          <View style={styles.mtnLogoSmall}>
-            <Text style={styles.brandPillText}>MTN</Text>
-          </View>
-          <Text style={[Typography.title, { fontSize: 18, fontWeight: '900' }]}>EngageHub</Text>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setSearchVisible(true)}>
             <Search size={20} color={Colors.on_surface} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setNotificationsVisible(true)}>
+          <TouchableOpacity style={styles.headerIcon} onPress={handleOpenNotifications}>
             <Bell size={20} color={Colors.on_surface} />
-            <View style={styles.notificationDot} />
+            {unreadVisibleCount > 0 ? <View style={styles.notificationDot} /> : null}
           </TouchableOpacity>
         </View>
       </View>
@@ -141,38 +286,38 @@ const HomeScreen = () => {
       >
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Text style={[Typography.body, { opacity: 0.6 }]}>Yello, {profile?.first_name || 'Customer'}</Text>
-          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4 }]}>Your day at a glance</Text>
+          <Text style={[Typography.body, { opacity: 0.6, fontSize: 18, lineHeight: 26 }]}>{t('home.greetingPrefix', 'Ola')}, {profile?.first_name || t('common.customer', 'Customer')}</Text>
+          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4 }]}>{t('home.dayAtGlance', 'Your day at a glance')}</Text>
         </View>
 
         {/* FR-1.1 Glance Card (Balances) */}
         <View style={styles.glanceCard}>
           <View style={styles.glanceHeader}>
-            <Text style={[Typography.label, { fontWeight: '900', color: Colors.on_surface_variant }]}>MY BALANCES</Text>
+            <Text style={[Typography.label, { fontWeight: '900', color: Colors.on_surface_variant }]}>{t('home.myBalances', 'MY BALANCES')}</Text>
             <TouchableOpacity onPress={() => refetch()}>
-              <Text style={[Typography.label, { color: Colors.primary }]}>Refresh</Text>
+              <Text style={[Typography.label, { color: Colors.primary }]}>{t('common.refresh', 'Refresh')}</Text>
             </TouchableOpacity>
           </View>
           
           <View style={styles.balancesContainer}>
             <View style={styles.balanceItem}>
-              <Text style={styles.balanceValue}>R {profile?.balances?.airtime || '0.00'}</Text>
-              <Text style={styles.balanceLabel}>Airtime</Text>
+              <Text style={styles.balanceValue}>{formatMznCurrency(profile?.balances?.airtime, language)}</Text>
+              <Text style={styles.balanceLabel}>{t('home.airtime', 'Airtime')}</Text>
             </View>
             <View style={styles.balanceDivider} />
             <View style={styles.balanceItem}>
               <Text style={styles.balanceValue}>{profile?.balances?.data || '0GB'}</Text>
-              <Text style={styles.balanceLabel}>Data</Text>
+              <Text style={styles.balanceLabel}>{t('home.data', 'Data')}</Text>
             </View>
             <View style={styles.balanceDivider} />
             <View style={styles.balanceItem}>
               <Text style={[styles.balanceValue, { color: Colors.secondary }]}>{loyalty?.yello_bucks_balance?.toLocaleString() || '0'}</Text>
-              <Text style={styles.balanceLabel}>YB</Text>
+              <Text style={styles.balanceLabel}>YM</Text>
             </View>
           </View>
 
           <TouchableOpacity style={styles.rechargeCta} onPress={() => navigation.navigate('Wallet')}>
-            <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>QUICK RECHARGE</Text>
+            <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>{t('home.quickRecharge', 'QUICK RECHARGE')}</Text>
             <ChevronRight size={16} color="#000" />
           </TouchableOpacity>
         </View>
@@ -184,11 +329,11 @@ const HomeScreen = () => {
                 <Flame size={20} color={Colors.secondary} fill={Colors.secondary} />
              </View>
              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[Typography.title, { fontSize: 16 }]}>{gamification.current_streak} Day Streak!</Text>
-                <Text style={[Typography.label, { opacity: 0.6 }]}>{gamification.milestone_target - gamification.current_streak} days to next reward</Text>
+                <Text style={[Typography.title, { fontSize: 16 }]}>{gamification.current_streak} {t('home.dayStreak', 'Day Streak!')}</Text>
+                <Text style={[Typography.label, { opacity: 0.6 }]}>{gamification.milestone_target - gamification.current_streak} {t('home.daysToNextReward', 'days to next reward')}</Text>
              </View>
              <TouchableOpacity style={styles.playButton} onPress={() => navigation.navigate('Rewards')}>
-                <Text style={[Typography.label, { color: '#fff' }]}>PLAY</Text>
+                <Text style={[Typography.label, { color: '#fff' }]}>{t('home.play', 'PLAY')}</Text>
              </TouchableOpacity>
           </View>
         )}
@@ -241,7 +386,7 @@ const HomeScreen = () => {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Quick Actions</Text>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('home.quickActions', 'Quick Actions')}</Text>
           <View style={styles.quickActionRow}>
             <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
             <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
@@ -254,24 +399,24 @@ const HomeScreen = () => {
         <View style={styles.loyaltyCard}>
            <View style={styles.tierHeader}>
               <View>
-                <Text style={styles.tierLabel}>CURRENT TIER</Text>
+                <Text style={styles.tierLabel}>{t('home.currentTier', 'CURRENT TIER')}</Text>
                 <Text style={styles.tierName}>{loyalty?.current_tier || 'Bronze'}</Text>
               </View>
-              <Text style={styles.tierPoints}>{loyalty?.yello_bucks_balance?.toLocaleString()} YB</Text>
+              <Text style={styles.tierPoints}>{loyalty?.yello_bucks_balance?.toLocaleString()} YM</Text>
            </View>
            <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
            </View>
            <Text style={styles.progressText}>
-              {loyalty?.points_to_next?.toLocaleString()} points needed for {loyalty?.next_tier || 'Silver'}
+              {loyalty?.points_to_next?.toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
            </Text>
         </View>
 
         {/* Market Sneak Peek */}
         <View style={styles.section}>
-           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Marketplace Picks</Text>
+           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('home.marketplacePicks', 'Marketplace Picks')}</Text>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-              {['All', ...safeCategories].map((cat: string) => (
+              {[allCategoryLabel, ...safeCategories].map((cat: string) => (
                 <TouchableOpacity 
                   key={cat} 
                   style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
@@ -298,7 +443,7 @@ const HomeScreen = () => {
                    <View style={styles.offerIconPlaceholder} />
                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={Typography.title} numberOfLines={1}>{offer.title}</Text>
-                      <Text style={[Typography.label, { color: Colors.primary }]}>{offer.price} YB</Text>
+                      <Text style={[Typography.label, { color: Colors.primary }]}>{formatMznCurrency(offer.price, language)} • YM</Text>
                    </View>
                    <ChevronRight size={20} color={Colors.outline} />
                 </TouchableOpacity>
@@ -310,13 +455,13 @@ const HomeScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={Typography.title}>Search Offers</Text>
+              <Text style={Typography.title}>{t('home.searchOffers', 'Search Offers')}</Text>
               <TouchableOpacity onPress={() => setSearchVisible(false)}>
                 <Text style={styles.modalLink}>Close</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-              {['All', ...safeCategories].map((cat: string) => (
+              {[allCategoryLabel, ...safeCategories].map((cat: string) => (
                 <TouchableOpacity
                   key={`search-${cat}`}
                   style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
@@ -327,12 +472,12 @@ const HomeScreen = () => {
               ))}
             </ScrollView>
             {filteredOffers.length === 0 ? (
-              <Text style={styles.emptyText}>No offers match this category yet.</Text>
+              <Text style={styles.emptyText}>{t('home.noOffersCategory', 'No offers match this category yet.')}</Text>
             ) : (
               filteredOffers.slice(0, 6).map((offer: any) => (
                 <View key={`filtered-${offer.id}`} style={styles.modalRow}>
                   <Text style={Typography.title}>{offer.title}</Text>
-                  <Text style={[Typography.label, { color: Colors.primary }]}>{offer.price} YB</Text>
+                  <Text style={[Typography.label, { color: Colors.primary }]}>{formatMznCurrency(offer.price, language)} • YM</Text>
                 </View>
               ))
             )}
@@ -348,17 +493,72 @@ const HomeScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={Typography.title}>Notifications</Text>
-              <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                <Text style={styles.modalLink}>Close</Text>
-              </TouchableOpacity>
-            </View>
-            {notificationItems.map((item) => (
-              <View key={item.id} style={styles.modalRow}>
-                <Text style={Typography.title}>{item.title}</Text>
-                <Text style={Typography.body}>{item.body}</Text>
+              <Text style={Typography.title}>{t('home.notificationsTitle', 'Notifications')}</Text>
+              <View style={styles.notificationHeaderActions}>
+                <TouchableOpacity
+                  onPress={handleMarkAllNotificationsRead}
+                  disabled={isMarkingAllRead || unreadVisibleCount === 0}
+                >
+                  <Text style={[styles.modalLink, unreadVisibleCount === 0 && { opacity: 0.4 }]}>
+                    {t('home.markAllRead', 'Mark all as read')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                  <Text style={styles.modalLink}>Close</Text>
+                </TouchableOpacity>
               </View>
-            ))}
+            </View>
+            {isNotifLoading || isFetchingNotifications ? (
+              <View style={styles.notificationStateContainer}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={[Typography.body, { marginTop: 8 }]}>
+                  {t('home.notificationsLoading', 'Loading notifications...')}
+                </Text>
+              </View>
+            ) : notificationError ? (
+              <View style={styles.notificationStateContainer}>
+                <Text style={Typography.body}>{notificationError}</Text>
+                <TouchableOpacity style={styles.notificationRetryButton} onPress={handleRefreshNotifications}>
+                  <Text style={styles.notificationRetryText}>{t('home.retry', 'Retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : filteredNotifications.length === 0 ? (
+              <View style={styles.notificationStateContainer}>
+                <Text style={Typography.body}>
+                  {t('home.notificationsEmpty', 'No notifications available right now.')}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isNotifRefreshing}
+                    onRefresh={handleRefreshNotifications}
+                    tintColor={Colors.primary}
+                  />
+                }
+              >
+                {filteredNotifications.map((item: any) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.modalRow}
+                    onPress={() => handleNotificationPress(item)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.notificationRowHeader}>
+                      <Text style={Typography.title}>{item.title}</Text>
+                      {!item.is_read ? <View style={styles.unreadIndicator} /> : null}
+                    </View>
+                    <Text style={Typography.body}>{item.body}</Text>
+                  </TouchableOpacity>
+                ))}
+                {notificationResponse?.data?.next_cursor ? (
+                  <TouchableOpacity style={styles.notificationRetryButton} onPress={handleLoadMoreNotifications}>
+                    <Text style={styles.notificationRetryText}>{t('home.loadMore', 'Load more')}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -387,19 +587,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mtnLogoSmall: {
-    minWidth: 44,
-    height: 26,
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-  },
-  brandPillText: {
-    ...Typography.label,
-    color: Colors.on_primary_fixed,
-    fontSize: 10,
+  tmcelLogo: {
+    width: 160,
+    height: 64,
   },
   headerRight: { flexDirection: 'row', gap: 16 },
   headerIcon: { position: 'relative' },
@@ -487,6 +677,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  notificationHeaderActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
   modalLink: {
     ...Typography.label,
     color: Colors.primary,
@@ -498,6 +693,34 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     ...Elevation.ambientSoft,
+  },
+  notificationRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  unreadIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
+  },
+  notificationStateContainer: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  notificationRetryButton: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.primary_container,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+  },
+  notificationRetryText: {
+    ...Typography.label,
+    color: Colors.on_primary_fixed,
+    fontWeight: '700',
   },
   emptyText: {
     ...Typography.body,

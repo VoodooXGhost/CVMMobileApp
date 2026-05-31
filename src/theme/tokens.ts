@@ -5,11 +5,11 @@
  */
 export const Colors = {
   // Base surfaces
-  surface: '#f9f9f9',
+  surface: '#ffffff',
   surface_container_lowest: '#ffffff',
-  surface_container_low: '#f3f3f3',
-  surface_container_high: '#e8e8e8',
-  surface_container_highest: '#e0e0e0',
+  surface_container_low: '#fafafa',
+  surface_container_high: '#f3f3f3',
+  surface_container_highest: '#ebebeb',
 
   // Brand + contrast
   primary: '#111316',
@@ -68,33 +68,33 @@ export const BorderRadius = {
 
 export const Typography = {
   display: {
-    fontFamily: 'WorkSans_700Bold',
-    fontSize: 56,
-    lineHeight: 64,
-    letterSpacing: -0.8,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 18,
+    lineHeight: 26,
+    letterSpacing: 0,
   },
   headline: {
-    fontFamily: 'WorkSans_700Bold',
-    fontSize: 28,
-    lineHeight: 36,
-    letterSpacing: -0.4,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 18,
+    lineHeight: 26,
+    letterSpacing: 0,
   },
   title: {
-    fontFamily: 'PlusJakartaSans_700Bold',
+    fontFamily: 'PlusJakartaSans_500Medium',
     fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.1,
+    lineHeight: 26,
+    letterSpacing: 0,
   },
   body: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 18,
+    lineHeight: 26,
   },
   label: {
-    fontFamily: 'PlusJakartaSans_600SemiBold',
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: 0.2,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 18,
+    lineHeight: 26,
+    letterSpacing: 0,
   },
 };
 

@@ -117,6 +117,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         },
         {
+          url: `${API_URL}/api/v1/mobile/auth/login`,
+          body: {
+            username: msisdn,
+            password: pin,
+            device_id: 'DEVICE-S6-ENTERPRISE',
+            platform: 'android',
+          },
+          headers: { 'Content-Type': 'application/json' },
+        },
+        {
           url: `${API_URL}/auth/login`,
           body: {
             username: msisdn,
@@ -132,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const response = await axios.post(attempt.url, attempt.body, {
             headers: attempt.headers,
+            timeout: 10000,
           });
           const { token, refreshToken, userData } = mapAuthPayload(response.data);
 

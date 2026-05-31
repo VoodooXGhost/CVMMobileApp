@@ -6,6 +6,8 @@ import { useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSl
 import { useNavigation } from '@react-navigation/native';
 import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
 import { getExperimentAssignments } from '../services/experiments';
+import { useI18n } from '../services/i18n';
+import { formatMznCurrency } from '../services/formatters';
 
 /**
  * MarketplaceScreen Component (Formerly ShopScreen)
@@ -14,12 +16,20 @@ import { getExperimentAssignments } from '../services/experiments';
  * Dynamically displays products and categories from the seeded BFF data.
  */
 const MarketplaceScreen = () => {
+  const { language, t } = useI18n();
   const navigation = useNavigation<any>();
   const { width } = useWindowDimensions();
   const { data: shopData, isLoading, error } = useGetOffersDataQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
-  const [activeCategory, setActiveCategory] = React.useState('All');
+  const allCategory = t('common.all', 'All');
+  const [activeCategory, setActiveCategory] = React.useState(allCategory);
   const [cardCtaVariant, setCardCtaVariant] = React.useState('hot_badge');
+
+  useEffect(() => {
+    if (!activeCategory || activeCategory.toLowerCase() === 'all' || activeCategory.toLowerCase() === 'todos') {
+      setActiveCategory(allCategory);
+    }
+  }, [allCategory]);
 
   if (isLoading) {
     return (
@@ -32,7 +42,7 @@ const MarketplaceScreen = () => {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={Typography.body}>Error loading marketplace. Please try again.</Text>
+        <Text style={Typography.body}>{t('marketplace.loadError', 'Error loading marketplace. Please try again.')}</Text>
       </View>
     );
   }
@@ -54,7 +64,7 @@ const MarketplaceScreen = () => {
 
   useEffect(() => {
     const subset =
-      activeCategory === 'All'
+      activeCategory === allCategory
         ? safeOffers
         : safeOffers.filter((offer: any) => offer.category?.toLowerCase() === activeCategory.toLowerCase());
     subset.slice(0, 8).forEach((product: any) => {
@@ -86,17 +96,20 @@ const MarketplaceScreen = () => {
     const itemId = Number(product?.id);
     const price = Number(product?.price);
     if (!Number.isFinite(itemId) || itemId <= 0 || !Number.isFinite(price) || price < 0) {
-      Alert.alert('Unavailable', 'This item is not redeemable right now.');
+      Alert.alert(t('marketplace.unavailable', 'Unavailable'), t('marketplace.notRedeemable', 'This item is not redeemable right now.'));
       return;
     }
 
+    const prompt = t('marketplace.purchasePrompt', 'Are you sure you want to buy {title} for {amount} and redeem YM?')
+      .replace('{title}', String(product.title))
+      .replace('{amount}', formatMznCurrency(product.price, language));
     Alert.alert(
-      'Confirm Purchase',
-      `Are you sure you want to buy ${product.title} for ${product.price} YB?`,
+      t('marketplace.confirmPurchase', 'Confirm Purchase'),
+      prompt,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Buy', 
+          text: t('marketplace.buy', 'Buy'), 
           onPress: async () => {
             try {
               await track(
@@ -110,14 +123,14 @@ const MarketplaceScreen = () => {
                 { item_id: itemId, placement: 'marketplace_grid' },
                 { screen: 'marketplace', placement: 'marketplace_grid' },
               );
-              Alert.alert('Success', `You have successfully purchased ${product.title}!`);
+              Alert.alert(t('common.success', 'Success'), t('marketplace.purchaseSuccess', 'You have successfully purchased {title}!').replace('{title}', String(product.title)));
             } catch (err: any) {
               await track(
                 'redeem_fail',
                 { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
                 { screen: 'marketplace', placement: 'marketplace_grid' },
               );
-              Alert.alert('Error', err?.data?.detail || 'Failed to complete purchase.');
+              Alert.alert(t('common.error', 'Error'), err?.data?.detail || t('marketplace.purchaseFail', 'Failed to complete purchase.'));
             }
           }
         }
@@ -128,14 +141,17 @@ const MarketplaceScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={Typography.headline}>Marketplace</Text>
+        <View style={styles.brandHeader}>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+        </View>
+        <Text style={Typography.headline}>{t('marketplace.title', 'Marketplace')}</Text>
         <Text style={[Typography.body, { marginBottom: Spacing.lg, opacity: 0.7 }]}>
-          Exclusive MTN deals tailored for you.
+          {t('marketplace.subtitle', 'Exclusive Tmcel deals tailored for you.')}
         </Text>
 
         {/* Categories Horizontal Scroll */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-          {['All', ...(categories || [])].map((cat: string) => {
+          {[allCategory, ...(categories || [])].map((cat: string) => {
             const isActive = activeCategory.toLowerCase() === cat.toLowerCase();
             return (
               <TouchableOpacity 
@@ -161,14 +177,14 @@ const MarketplaceScreen = () => {
         {/* Trending Deals Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>{activeCategory === 'All' ? 'Trending' : activeCategory} Deals</Text>
+            <Text style={Typography.title}>{activeCategory === allCategory ? t('marketplace.trendingDeals', 'Trending Deals') : `${activeCategory} ${t('marketplace.trendingDeals', 'Trending Deals')}`}</Text>
             <TouchableOpacity>
-              <Text style={[Typography.label, { color: Colors.primary }]}>See All</Text>
+              <Text style={[Typography.label, { color: Colors.primary }]}>{t('marketplace.seeAll', 'See All')}</Text>
             </TouchableOpacity>
           </View>
           
           <View style={styles.productsRow}>
-            {(activeCategory === 'All' 
+            {(activeCategory === allCategory
                 ? safeOffers 
                 : safeOffers?.filter((o: any) => o.category?.toLowerCase() === activeCategory.toLowerCase())
             )?.map((product: any) => (
@@ -198,12 +214,12 @@ const MarketplaceScreen = () => {
                 <View style={styles.productInfo}>
                   <Text style={[Typography.label, { fontWeight: '900' }]} numberOfLines={1}>{product.title}</Text>
                   <Text style={[Typography.title, { fontSize: 16, color: Colors.primary }]}>
-                    {Number.isFinite(Number(product?.price)) ? `${product.price} YB` : 'N/A'}
+                    {Number.isFinite(Number(product?.price)) ? formatMznCurrency(product.price, language) : 'N/A'}
                   </Text>
                   <View style={styles.rewardTag}>
                     <Star color={Colors.secondary} size={10} fill={Colors.secondary} />
                     <Text style={[Typography.label, { marginLeft: 4, fontSize: 10, color: Colors.on_surface_variant }]}>
-                      Earn {Math.round(product.price * 0.1)} YB
+                      {t('marketplace.earnYm', 'Earn {amount} YM').replace('{amount}', String(Math.round(product.price * 0.1)))}
                     </Text>
                   </View>
                 </View>
@@ -214,19 +230,19 @@ const MarketplaceScreen = () => {
 
         {/* Exclusive Bundles */}
         <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>Exclusive Bundles</Text>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('marketplace.exclusiveBundles', 'Exclusive Bundles')}</Text>
           <View style={styles.bundleCard}>
             <View style={[styles.bundleIcon, { backgroundColor: Colors.primary + '20' }]}>
               <Smartphone color={Colors.primary} size={24} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[Typography.title, { fontSize: 16 }]}>MTN XtraTime Data</Text>
-              <Text style={[Typography.body, { fontSize: 12 }]}>Catalog preview only</Text>
-              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>Pending live offer mapping</Text>
+              <Text style={[Typography.title, { fontSize: 16 }]}>Tmcel XtraTime Data</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
             </View>
             <View style={styles.earnBadge}>
               <Star color="#fff" size={12} fill="#fff" />
-              <Text style={[Typography.label, {color: '#fff', marginLeft: 4}]}>Preview</Text>
+              <Text style={[Typography.label, {color: '#fff', marginLeft: 4}]}>{t('marketplace.preview', 'Preview')}</Text>
             </View>
           </View>
 
@@ -236,12 +252,12 @@ const MarketplaceScreen = () => {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[Typography.title, { fontSize: 16 }]}>Home Pro Fibre</Text>
-              <Text style={[Typography.body, { fontSize: 12 }]}>Catalog preview only</Text>
-              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>Pending live offer mapping</Text>
+              <Text style={[Typography.body, { fontSize: 12 }]}>{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
+              <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
             </View>
             <View style={[styles.earnBadge, { backgroundColor: Colors.primary }]}>
               <Star color="#000" size={12} fill="#000" />
-              <Text style={[Typography.label, {color: '#000', marginLeft: 4}]}>Preview</Text>
+              <Text style={[Typography.label, {color: '#000', marginLeft: 4}]}>{t('marketplace.preview', 'Preview')}</Text>
             </View>
           </View>
         </View>
@@ -254,6 +270,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  brandHeader: { marginBottom: Spacing.md },
+  tmcelLogo: { width: 160, height: 64, alignSelf: 'flex-start' },
   categoryScroll: { marginBottom: Spacing.xl },
   categoryItem: { alignItems: 'center', marginRight: 20 },
   categoryIconCircle: { 

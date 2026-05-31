@@ -6,6 +6,8 @@ import { Star } from 'lucide-react-native';
 // Fixed: useGetShopDataQuery was renamed to useGetOffersDataQuery in apiSlice.ts
 import { useGetOffersDataQuery } from '../services/apiSlice';
 import { ActivityIndicator } from 'react-native';
+import { useI18n } from '../services/i18n';
+import { formatMznCurrency } from '../services/formatters';
 
 /**
  * ShopScreen Component
@@ -16,6 +18,7 @@ import { ActivityIndicator } from 'react-native';
  * @returns {JSX.Element} The rendered Shop Screen.
  */
 const ShopScreen = () => {
+  const { language } = useI18n();
   // Updated hook name to match the renamed apiSlice endpoint
   const { data: shopData, isLoading, error } = useGetOffersDataQuery();
 
@@ -38,7 +41,7 @@ const ShopScreen = () => {
   // The offers endpoint wraps data in a { data: { offers, categories } } envelope
   const { offers, categories } = shopData?.data || {};
   // Map offers to the shape this screen expects
-  const trending = offers?.map((o: any) => ({ ...o, price: `${o.price} YB`, reward: Math.round(o.price * 0.1) }));
+  const trending = offers?.map((o: any) => ({ ...o, price: formatMznCurrency(o.price, language), reward: Math.round(o.price * 0.1) }));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,7 +71,7 @@ const ShopScreen = () => {
                   <Text style={Typography.body}>{product.price}</Text>
                   <View style={styles.rewardTag}>
                     <Star color={Colors.primary} size={12} fill={Colors.primary} />
-                    <Text style={[Typography.label, { marginLeft: 4, color: Colors.primary }]}>+{product.reward} YelloBucks</Text>
+                    <Text style={[Typography.label, { marginLeft: 4, color: Colors.primary }]}>+{product.reward} YelloMola</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -83,7 +86,7 @@ const ShopScreen = () => {
             <View style={styles.bundleIcon} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={Typography.title}>Monthly Data 10GB</Text>
-              <Text style={Typography.body}>R 299.00</Text>
+              <Text style={Typography.body}>MZN 299.00</Text>
             </View>
             <View style={styles.earnBadge}>
               <Text style={[Typography.label, {color: '#fff'}]}>Earn 50</Text>

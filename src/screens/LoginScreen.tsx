@@ -8,12 +8,16 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { BorderRadius, Colors, Spacing, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 import { AppButton, AppCard, AppInput } from '../components/Primitives';
+import { runtimeConfig } from '../config/runtime';
+import { useI18n } from '../services/i18n';
 
 const LoginScreen = () => {
+  const { t } = useI18n();
   const [msisdn, setMsisdn] = useState('');
   const [pin, setPin] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -21,15 +25,23 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!msisdn || !pin) {
-      Alert.alert('Sign in required', 'Enter both MSISDN and PIN to continue.');
+      Alert.alert(t('login.signInRequired', 'Sign in required'), t('login.enterCredentials', 'Enter both MSISDN and PIN to continue.'));
       return;
     }
 
     setIsLoggingIn(true);
     try {
       await signIn(msisdn, pin);
-    } catch (_error) {
-      Alert.alert('Sign in failed', 'Check your credentials and try again.');
+    } catch (error: any) {
+      const statusCode = error?.response?.status;
+      if (!statusCode) {
+        Alert.alert(
+          t('login.signInFailed', 'Sign in failed'),
+          `Cannot reach authentication server at ${runtimeConfig.apiUrl}. Verify backend availability and network access.`,
+        );
+      } else {
+        Alert.alert(t('login.signInFailed', 'Sign in failed'), t('login.checkCredentials', 'Check your credentials and try again.'));
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -39,20 +51,18 @@ const LoginScreen = () => {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <View style={styles.header}>
-          <View style={styles.brandPill}>
-            <Text style={styles.brandPillText}>MTN CVM</Text>
-          </View>
-          <Text style={Typography.headline}>The Digital Pulse</Text>
-          <Text style={[Typography.body, styles.subtitle]}>Premium telecom experiences built for your lifestyle.</Text>
+          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+          <Text style={Typography.headline}>{t('login.title', 'The Digital Pulse')}</Text>
+          <Text style={[Typography.body, styles.subtitle]}>{t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}</Text>
         </View>
 
         <AppCard style={styles.loginCard} variant="nested">
-          <Text style={[Typography.title, { marginBottom: Spacing.lg }]}>Welcome back</Text>
+          <Text style={[Typography.title, { marginBottom: Spacing.lg }]}>{t('login.welcomeBack', 'Welcome back')}</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={[Typography.label, styles.inputLabel]}>MSISDN</Text>
+            <Text style={[Typography.label, styles.inputLabel]}>{t('login.msisdn', 'MSISDN')}</Text>
             <AppInput
-              placeholder="Enter your phone number (+27...)"
+              placeholder={t('login.phonePlaceholder', 'Enter your phone number')}
               value={msisdn}
               onChangeText={setMsisdn}
               autoCapitalize="none"
@@ -61,9 +71,9 @@ const LoginScreen = () => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={[Typography.label, styles.inputLabel]}>Secure PIN</Text>
+            <Text style={[Typography.label, styles.inputLabel]}>{t('login.securePin', 'Secure PIN')}</Text>
             <AppInput
-              placeholder="Enter your PIN"
+              placeholder={t('login.pinPlaceholder', 'Enter your PIN')}
               value={pin}
               onChangeText={setPin}
               secureTextEntry
@@ -75,12 +85,12 @@ const LoginScreen = () => {
               <ActivityIndicator color={Colors.cta_primary_text} />
             </View>
           ) : (
-            <AppButton label="Sign In" onPress={handleLogin} />
+            <AppButton label={t('login.signIn', 'Sign In')} onPress={handleLogin} />
           )}
 
           <View style={styles.footerRow}>
-            <Text style={[Typography.body, { color: Colors.on_surface_variant }]}>Need help?</Text>
-            <AppButton label="Reset Password" onPress={() => Alert.alert('Support', 'Password reset is available through support channels.')} variant="ghost" />
+            <Text style={[Typography.body, { color: Colors.on_surface_variant }]}>{t('login.needHelp', 'Need help?')}</Text>
+            <AppButton label={t('login.resetPassword', 'Reset Password')} onPress={() => Alert.alert(t('login.support', 'Support'), t('login.supportMessage', 'Password reset is available through support channels.'))} variant="ghost" />
           </View>
         </AppCard>
 
@@ -107,17 +117,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     gap: Spacing.sm,
   },
-  brandPill: {
+  tmcelLogo: {
+    width: 120,
+    height: 42,
     alignSelf: 'flex-start',
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  brandPillText: {
-    ...Typography.label,
-    color: Colors.on_primary_fixed,
-    fontSize: 11,
   },
   subtitle: {
     color: Colors.on_surface_variant,
