@@ -1,0 +1,8 @@
+{
+  "app": "mobile-app",
+  "app_version": "1.0.0",
+  "api_contract_version": "mobile-v1",
+  "runtime_profile": "staging",
+  "git_sha": "5c83357",
+  "build_time_utc": "2026-05-30T19:30:35.539Z"
+}

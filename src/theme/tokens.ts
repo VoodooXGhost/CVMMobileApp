@@ -8,6 +8,7 @@ export const Colors = {
   // Base Layer
   surface: '#f9f9f9',
   on_surface: '#1a1c1c',
+  on_surface_variant: '#5c5f5f',
 
   // Primary Containers
   primary: '#745b00',
@@ -25,7 +26,9 @@ export const Colors = {
   tertiary_container: '#00e7fe', // High-energy badges
 
   // Border Fallbacks (20% opacity as per DESIGN.md)
+  outline: 'rgba(26, 28, 28, 0.4)',
   outline_variant: 'rgba(26, 28, 28, 0.2)',
+  error: '#ba1a1a',
 };
 
 export const Spacing = {
@@ -46,31 +49,26 @@ export const BorderRadius = {
 };
 
 export const Typography = {
-  // Headlines (Work Sans)
+  // Headlines (Work Sans fallback)
   display: {
     fontSize: 56, // 3.5rem
-    fontFamily: 'WorkSans-Bold',
     lineHeight: 64,
   },
   headline: {
     fontSize: 28, // 1.75rem
-    fontFamily: 'WorkSans-SemiBold',
     lineHeight: 36,
   },
-  // Body (Plus Jakarta Sans)
+  // Body (Plus Jakarta Sans fallback)
   title: {
     fontSize: 18, // 1.125rem
-    fontFamily: 'PlusJakartaSans-Medium',
     lineHeight: 24,
   },
   body: {
     fontSize: 14, // 0.875rem
-    fontFamily: 'PlusJakartaSans-Regular',
     lineHeight: 20,
   },
   label: {
     fontSize: 12,
-    fontFamily: 'PlusJakartaSans-Medium',
     lineHeight: 16,
   },
 };

@@ -1,11 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Dimensions, Platform } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, useWindowDimensions, Platform } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
 import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
-
+// GlassTabBar: Custom floating pill-shaped tab bar with icon highlighting.
+// useWindowDimensions hook (not Dimensions.get) is used here intentionally:
+// module-level Dimensions calls fail in Release APK builds before the JS bridge is ready.
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
+  // Safely get window width inside the component lifecycle
+  const { width } = useWindowDimensions();
   return (
     <View style={styles.container}>
       <View style={styles.tabBarPill}>
@@ -73,7 +76,7 @@ const styles = StyleSheet.create({
   },
   tabBarPill: {
     flexDirection: 'row',
-    width: width * 0.9,
+    width: '90%',
     height: 64,
     backgroundColor: 'rgba(255, 255, 255, 0.85)', // Semi-transparent for glass effect
     borderRadius: BorderRadius.full,

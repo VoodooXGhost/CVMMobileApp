@@ -1,11 +1,10 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Easing, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Easing, useWindowDimensions, Platform } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X, Star, Zap, Gift } from 'lucide-react-native';
 import { usePlayGameMutation } from '../services/apiSlice';
 
-const { width } = Dimensions.get('window');
-
+// SpinWheelModal: Gamified slot-spin interface for YelloBucks reward draws.
 interface SpinWheelModalProps {
   visible: boolean;
   onClose: () => void;
@@ -13,6 +12,8 @@ interface SpinWheelModalProps {
 }
 
 const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
+  // Safe width inside component - avoids module-level Dimensions crash in Release builds
+  const { width } = useWindowDimensions();
   const spinValue = useRef(new Animated.Value(0)).current;
   const [playGame, { isLoading }] = usePlayGameMutation();
   const [result, setResult] = React.useState<any>(null);
@@ -117,7 +118,7 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
   container: { 
-    width: width * 0.9, 
+    width: '90%', 
     backgroundColor: Colors.surface, 
     borderRadius: BorderRadius.xl, 
     padding: Spacing.xl,

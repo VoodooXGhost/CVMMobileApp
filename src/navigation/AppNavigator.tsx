@@ -16,6 +16,7 @@ const Tab = createBottomTabNavigator();
 const AppNavigator = () => {
   return (
     <Tab.Navigator
+      id="main"
       tabBar={(props) => <GlassTabBar {...props} />}
       screenOptions={{
         headerShown: false,
