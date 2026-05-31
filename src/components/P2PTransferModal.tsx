@@ -72,7 +72,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
           </View>
           
           <Text style={[Typography.body, { marginBottom: Spacing.xl }]}>
-            Send wallet value instantly to any subscriber.
+            Send YelloBucks instantly to any MTN subscriber.
           </Text>
 
           <View style={styles.formGroup}>

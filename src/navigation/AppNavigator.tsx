@@ -26,7 +26,7 @@ const AppNavigator = () => {
       <Tab.Screen name="Wallet" component={WalletScreen} />
       <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
       <Tab.Screen name="Rewards" component={RewardsScreen} />
-      <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen name="My MTN" component={AccountScreen} />
     </Tab.Navigator>
   );
 };
