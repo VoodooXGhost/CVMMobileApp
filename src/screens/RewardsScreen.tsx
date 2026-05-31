@@ -11,7 +11,7 @@ import {
   Alert,
   Share
 } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
 import { 
   Flame, 
   ChevronRight, 
@@ -160,12 +160,12 @@ const RewardsScreen = () => {
                 <View key={day} style={styles.dayContainer}>
                   <View style={[
                     styles.dayCircle,
-                    active && { backgroundColor: Colors.primary },
+                    active && { backgroundColor: Colors.primary_container },
                     isToday && { borderWidth: 2, borderColor: Colors.secondary }
                   ]}>
                     <Text style={[
                       Typography.label,
-                      active ? { color: '#000', fontWeight: '900' } : { opacity: 0.5 }
+                      active ? { color: Colors.on_primary_fixed, fontWeight: '900' } : { opacity: 0.5 }
                     ]}>{day}</Text>
                   </View>
                   <Text style={[styles.dayLabel, active && { color: Colors.primary }]}>D{day}</Text>
@@ -338,11 +338,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     marginBottom: Spacing.xl,
-    elevation: 4,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    ...Elevation.ambientLift,
   },
   spinContent: {
     flex: 1,
@@ -351,7 +347,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   spinCta: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.full,
@@ -378,8 +374,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
   },
   redeemImageContainer: {
     width: 150,
@@ -398,8 +393,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
   },
   questIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.secondary + '10', justifyContent: 'center', alignItems: 'center' },
 });

@@ -4,6 +4,12 @@ import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, WorkSans_700Bold } from '@expo-google-fonts/work-sans';
+import {
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 
 import { store } from './src/store';
 import { AuthProvider, useAuth } from './src/services/auth.context';
@@ -21,11 +27,17 @@ initHealthMonitoring();
 
 const AppContent = () => {
   const { token, isLoading: isAuthLoading } = useAuth();
+  const [fontsLoaded] = useFonts({
+    WorkSans_700Bold,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+  });
 
   // Defensive, production-grade splash screen lifecycles.
   useEffect(() => {
     const manageSplash = async () => {
-      if (!isAuthLoading) {
+      if (!isAuthLoading && fontsLoaded) {
         try {
           await SplashScreen.hideAsync();
         } catch (e) {
@@ -34,9 +46,9 @@ const AppContent = () => {
       }
     };
     manageSplash();
-  }, [isAuthLoading]);
+  }, [isAuthLoading, fontsLoaded]);
 
-  if (isAuthLoading) {
+  if (isAuthLoading || !fontsLoaded) {
     return null; // Keep splash screen visible ONLY while initial auth is loading
   }
 
@@ -52,7 +64,7 @@ const AppContent = () => {
     <View style={{ flex: 1 }}>
       <NavigationContainer>
         <AppNavigator />
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
       </NavigationContainer>
     </View>
   );

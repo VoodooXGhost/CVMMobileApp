@@ -11,7 +11,7 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
+import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 import { 
   Home, 
@@ -49,21 +49,17 @@ const HomeScreen = () => {
   // Safe width inside component - avoids module-level Dimensions crash in Release builds
   const { width } = useWindowDimensions();
 
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    track('screen_view', { name: 'home' }, { screen: 'home' });
+  }, []);
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={Typography.body}>Error loading dashboard. Please try again.</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    const loadVariant = async () => {
+      const assignments = await getExperimentAssignments(getAnalyticsIdentity());
+      setHeroVariant(assignments.home_hero_cta_variant || 'claim_now');
+    };
+    loadVariant();
+  }, []);
 
   const homeData = response?.data || {};
   const { profile, loyalty, gamification, hero_banners, offers, categories } = homeData;
@@ -76,18 +72,6 @@ const HomeScreen = () => {
     { id: 'n1', title: 'Welcome to EngageHub', body: 'Your personalized updates will appear here.' },
     { id: 'n2', title: 'Rewards tip', body: 'Visit Rewards Hub to redeem available offers.' },
   ];
-
-  useEffect(() => {
-    track('screen_view', { name: 'home' }, { screen: 'home' });
-  }, []);
-
-  useEffect(() => {
-    const loadVariant = async () => {
-      const assignments = await getExperimentAssignments(getAnalyticsIdentity());
-      setHeroVariant(assignments.home_hero_cta_variant || 'claim_now');
-    };
-    loadVariant();
-  }, []);
 
   useEffect(() => {
     safeOffers.slice(0, 3).forEach((offer: any) => {
@@ -114,12 +98,30 @@ const HomeScreen = () => {
     });
   }, [hero_banners]);
 
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={Typography.body}>Error loading dashboard. Please try again.</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Custom Header */}
       <View style={styles.navHeader}>
         <View style={styles.headerLeft}>
-          <View style={styles.mtnLogoSmall} />
+          <View style={styles.mtnLogoSmall}>
+            <Text style={styles.brandPillText}>MTN</Text>
+          </View>
           <Text style={[Typography.title, { fontSize: 18, fontWeight: '900' }]}>EngageHub</Text>
         </View>
         <View style={styles.headerRight}>
@@ -385,18 +387,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mtnLogoSmall: { width: 32, height: 24, backgroundColor: Colors.primary, borderRadius: 4 },
+  mtnLogoSmall: {
+    minWidth: 44,
+    height: 26,
+    backgroundColor: Colors.primary_container,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+  },
+  brandPillText: {
+    ...Typography.label,
+    color: Colors.on_primary_fixed,
+    fontSize: 10,
+  },
   headerRight: { flexDirection: 'row', gap: 16 },
   headerIcon: { position: 'relative' },
   notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.error, borderWidth: 2, borderColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
   welcomeSection: { marginBottom: Spacing.xl },
-  glanceCard: { 
-    backgroundColor: Colors.surface_container_lowest, 
+  glanceCard: {
+    backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.xl, 
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
     marginBottom: Spacing.lg,
   },
   glanceHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
@@ -405,19 +419,18 @@ const styles = StyleSheet.create({
   balanceValue: { fontSize: 18, fontWeight: '900', color: Colors.on_surface },
   balanceLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_variant, marginTop: 4, textTransform: 'uppercase' },
   balanceDivider: { width: 1, height: 30, backgroundColor: Colors.outline_variant },
-  rechargeCta: { backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: BorderRadius.md, gap: 8 },
-  streakCard: { 
+  rechargeCta: { backgroundColor: Colors.cta_primary_bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: BorderRadius.xl, gap: 8 },
+  streakCard: {
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: '#FFFBEB', 
+    backgroundColor: Colors.surface_container_lowest,
     padding: Spacing.md, 
     borderRadius: BorderRadius.xl, 
-    borderWidth: 1, 
-    borderColor: '#FEF3C7',
+    ...Elevation.ambientSoft,
     marginBottom: Spacing.xl,
   },
-  streakIconContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
-  playButton: { backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  streakIconContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary_container, justifyContent: 'center', alignItems: 'center' },
+  playButton: { backgroundColor: Colors.cta_secondary_bg, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   section: { marginBottom: Spacing.xl },
   bannerRow: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
   bannerContainer: { marginRight: 12 },
@@ -427,8 +440,8 @@ const styles = StyleSheet.create({
   bannerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
   bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '900' },
   bannerSubtitle: { color: '#fff', fontSize: 13, opacity: 0.9, marginTop: 4 },
-  bannerButton: { backgroundColor: Colors.primary, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
-  bannerButtonText: { color: '#000', fontWeight: '900', fontSize: 12 },
+  bannerButton: { backgroundColor: Colors.cta_primary_bg, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
+  bannerButtonText: { color: Colors.cta_primary_text, fontWeight: '900', fontSize: 12 },
   quickActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   actionIconItem: { alignItems: 'center', flex: 1 },
   iconCircle: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
@@ -442,7 +455,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: Colors.secondary, borderRadius: 3 },
   progressText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '600' },
   offersList: { gap: Spacing.md },
-  offerItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface_container_lowest, padding: 12, borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.outline_variant },
+  offerItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface_container_lowest, padding: 12, borderRadius: BorderRadius.xl, ...Elevation.ambientSoft },
   offerIconPlaceholder: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.surface_container_high },
   categoryItem: {
     paddingHorizontal: 16,
@@ -482,10 +495,9 @@ const styles = StyleSheet.create({
   modalRow: {
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    ...Elevation.ambientSoft,
   },
   emptyText: {
     ...Typography.body,

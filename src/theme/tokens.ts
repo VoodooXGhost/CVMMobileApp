@@ -1,74 +1,116 @@
 /**
  * The Digital Pulse Design Tokens
- * 
- * Based on DESIGN.md
+ *
+ * Stitch-first premium baseline with yellow-led CTAs and no muddy primary tones.
  */
-
 export const Colors = {
-  // Base Layer
+  // Base surfaces
   surface: '#f9f9f9',
+  surface_container_lowest: '#ffffff',
+  surface_container_low: '#f3f3f3',
+  surface_container_high: '#e8e8e8',
+  surface_container_highest: '#e0e0e0',
+
+  // Brand + contrast
+  primary: '#111316',
+  primary_container: '#ffcc00',
+  on_primary_fixed: '#1c1600',
   on_surface: '#1a1c1c',
   on_surface_variant: '#5c5f5f',
 
-  // Primary Containers
-  primary: '#745b00',
-  primary_container: '#ffcc00',
-  on_primary_fixed: '#241a00',
-
-  // Tonal Layering
-  surface_container_lowest: '#ffffff', // High lift
-  surface_container_low: '#f3f3f3',    // Base section
-  surface_container_high: '#e8e8e8',   // Inputs
-  surface_container_highest: '#e0e0e0', // High contrast
-
-  // Accents
-  secondary: '#2260a2',    // Progress track
-  tertiary_container: '#00e7fe', // High-energy badges
-
-  // Border Fallbacks (20% opacity as per DESIGN.md)
-  outline: 'rgba(26, 28, 28, 0.4)',
-  outline_variant: 'rgba(26, 28, 28, 0.2)',
+  // Accent + status
+  secondary: '#2260a2',
+  tertiary_container: '#00e7fe',
+  success: '#1b8354',
+  warning: '#c56d00',
   error: '#ba1a1a',
+
+  // Border / focus
+  outline: 'rgba(26, 28, 28, 0.35)',
+  outline_variant: 'rgba(26, 28, 28, 0.2)',
+
+  // Semantic interaction tokens
+  cta_primary_bg: '#ffcc00',
+  cta_primary_text: '#111316',
+  cta_secondary_bg: '#111316',
+  cta_secondary_text: '#ffffff',
+  focus_ghost: 'rgba(26, 28, 28, 0.2)',
+  glass_surface: 'rgba(255,255,255,0.78)',
+
+  // Nested section helpers
+  surface_nested_1: '#f3f3f3',
+  surface_nested_2: '#ffffff',
+
+  // Status tints
+  status_success_bg: '#e8f8f0',
+  status_warning_bg: '#fff4e5',
+  status_error_bg: '#fdeeee',
 };
 
 export const Spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 16,
   lg: 24,
   xl: 32,
   xxl: 48,
+  xxxl: 64,
 };
 
 export const BorderRadius = {
-  sm: 4,
-  md: 12, // 0.75rem
-  lg: 16, 
-  xl: 24, // 1.5rem for buttons
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
   full: 9999,
 };
 
 export const Typography = {
-  // Headlines (Work Sans fallback)
   display: {
-    fontSize: 56, // 3.5rem
+    fontFamily: 'WorkSans_700Bold',
+    fontSize: 56,
     lineHeight: 64,
+    letterSpacing: -0.8,
   },
   headline: {
-    fontSize: 28, // 1.75rem
+    fontFamily: 'WorkSans_700Bold',
+    fontSize: 28,
     lineHeight: 36,
+    letterSpacing: -0.4,
   },
-  // Body (Plus Jakarta Sans fallback)
   title: {
-    fontSize: 18, // 1.125rem
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 18,
     lineHeight: 24,
+    letterSpacing: -0.1,
   },
   body: {
-    fontSize: 14, // 0.875rem
-    lineHeight: 20,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 14,
+    lineHeight: 21,
   },
   label: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 12,
     lineHeight: 16,
+    letterSpacing: 0.2,
+  },
+};
+
+export const Elevation = {
+  ambientSoft: {
+    elevation: 4,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+  },
+  ambientLift: {
+    elevation: 8,
+    shadowColor: Colors.on_surface,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 30,
   },
 };

@@ -20,7 +20,7 @@ import {
   Activity,
   History,
 } from 'lucide-react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
 import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
 import { platformStorage } from '../services/storage';
@@ -338,12 +338,12 @@ const styles = StyleSheet.create({
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
   headerCard: { alignItems: 'center', paddingVertical: Spacing.xl },
   avatarContainer: { position: 'relative' },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { ...Typography.headline, fontSize: 32, color: '#000' },
-  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: Colors.primary_container, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { ...Typography.headline, fontSize: 32, color: Colors.on_primary_fixed },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   tierBadge: { backgroundColor: '#F3F3F3', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 16 },
   tierBadgeText: { ...Typography.label, fontWeight: '900', letterSpacing: 1, fontSize: 10 },
-  statsCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
+  statsCard: { backgroundColor: Colors.primary, padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl, ...Elevation.ambientLift },
   statsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
   statsHeaderTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   visualizerLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 8, fontWeight: '900', textAlign: 'center' },
   menuGroup: { marginBottom: Spacing.xl },
   groupLabel: { ...Typography.label, color: Colors.on_surface, opacity: 0.4, marginBottom: Spacing.md, letterSpacing: 1, fontWeight: '900' },
-  groupCard: { backgroundColor: Colors.surface_container_lowest, borderRadius: BorderRadius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.outline_variant },
+  groupCard: { backgroundColor: Colors.surface_container_lowest, borderRadius: BorderRadius.xl, overflow: 'hidden', ...Elevation.ambientSoft },
   lineRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.outline_variant },
   activeTag: { backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   activeTagText: { color: '#16A34A', fontSize: 10, fontWeight: '900' },
@@ -380,16 +380,14 @@ const styles = StyleSheet.create({
   modalRow: {
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
   toggleRow: {
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     flexDirection: 'row',

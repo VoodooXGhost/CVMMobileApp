@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
 import { Star, Store, Smartphone, Wifi, Zap } from 'lucide-react-native';
 import { useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
@@ -79,7 +79,7 @@ const MarketplaceScreen = () => {
 
   const getCategoryIcon = (cat: string, isActive?: boolean) => {
     const Icon = categoryIcons[cat] || Store;
-    return <Icon color={isActive ? '#000000' : Colors.primary} size={24} />;
+    return <Icon color={isActive ? Colors.on_primary_fixed : Colors.primary} size={24} />;
   };
 
   const handleRedeem = (product: any) => {
@@ -145,7 +145,7 @@ const MarketplaceScreen = () => {
               >
                 <View style={[
                   styles.categoryIconCircle,
-                  isActive && { backgroundColor: Colors.primary }
+                  isActive && { backgroundColor: Colors.primary_container }
                 ]}>
                   {getCategoryIcon(cat, isActive)}
                 </View>
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
+      ios: { shadowColor: Colors.on_surface, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20 },
       android: { elevation: 4 },
       web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.08)' }
     })
@@ -276,8 +276,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface_container_lowest, 
     borderRadius: BorderRadius.xl, 
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
   },
   productImagePlaceholder: { height: 140, backgroundColor: Colors.surface_container_high, position: 'relative' },
   promoBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: Colors.error, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
@@ -291,8 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface_container_lowest, 
     borderRadius: BorderRadius.xl, 
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
   },
   bundleIcon: { width: 56, height: 56, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
   earnBadge: { 

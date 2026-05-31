@@ -1,14 +1,12 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, useWindowDimensions, Platform } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
+import { StyleSheet, View, TouchableOpacity, Text, Platform } from 'react-native';
+import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
 import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
 
 // GlassTabBar: Custom floating pill-shaped tab bar with icon highlighting.
 // useWindowDimensions hook (not Dimensions.get) is used here intentionally:
 // module-level Dimensions calls fail in Release APK builds before the JS bridge is ready.
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
-  // Safely get window width inside the component lifecycle
-  const { width } = useWindowDimensions();
   return (
     <View style={styles.container}>
       <View style={styles.tabBarPill}>
@@ -52,7 +50,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
                 {renderIcon(isFocused ? Colors.on_primary_fixed : Colors.on_surface + '99')}
               </View>
               {isFocused && (
-                <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10 }]}>
+                <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10, textTransform: 'uppercase' }]}>
                   {route.name === 'My MTN' ? 'Account' : route.name === 'Marketplace' ? 'Store' : route.name}
                 </Text>
               )}
@@ -76,21 +74,15 @@ const styles = StyleSheet.create({
   },
   tabBarPill: {
     flexDirection: 'row',
-    width: '90%',
-    height: 64,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)', // Semi-transparent for glass effect
+    width: '92%',
+    height: 68,
+    backgroundColor: Colors.glass_surface,
     borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'space-around',
-    // Ambient light shadow
-    elevation: 8,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
+    ...Elevation.ambientLift,
     ...(Platform.OS === 'web' && { boxShadow: '0px 12px 24px rgba(26, 28, 28, 0.08)' }),
-    // Backdrop blur would be applied here in a real environment
   },
   tabItem: {
     alignItems: 'center',
@@ -102,7 +94,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   activeIconContainer: {
-    backgroundColor: Colors.primary_container,
+    backgroundColor: Colors.cta_primary_bg,
   },
 });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
 import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
@@ -139,7 +139,7 @@ const WalletScreen = () => {
               setScanVisible(true);
             }}
           >
-            <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
+            <View style={[styles.actionIcon, { backgroundColor: Colors.primary_container }]}>
               <Scan color="#fff" size={24} />
             </View>
             <Text style={styles.actionLabel}>Scan to Pay</Text>
@@ -160,7 +160,7 @@ const WalletScreen = () => {
             <Text style={styles.actionLabel}>Send Money</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem}>
-            <View style={[styles.actionIcon, { backgroundColor: '#1a1c1c' }]}>
+            <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
               <CreditCard color="#fff" size={24} />
             </View>
             <Text style={styles.actionLabel}>Virtual Card</Text>
@@ -294,27 +294,26 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  tokenBadge: { backgroundColor: Colors.primary + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   balanceSection: { 
     padding: Spacing.xl,
     backgroundColor: Colors.surface_container_lowest,
     borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
     marginBottom: Spacing.xl,
   },
-  balanceFooter: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.outline_variant },
+  balanceFooter: { marginTop: 12, paddingTop: 12 },
   trendUp: { flexDirection: 'row', alignItems: 'center' },
   actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
   actionItem: { alignItems: 'center', flex: 1 },
-  actionIcon: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  actionIcon: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, ...Elevation.ambientSoft },
   actionLabel: { fontSize: 11, fontWeight: '700', color: Colors.on_surface_variant, textTransform: 'uppercase' },
   section: { marginBottom: Spacing.xl },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   cardContainer: {
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: '#1a1c1c',
+    backgroundColor: Colors.primary,
     marginBottom: Spacing.lg,
   },
   frozenCard: { opacity: 0.7 },
@@ -325,7 +324,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardBrand: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-  chip: { width: 40, height: 30, backgroundColor: '#FFD700', borderRadius: 6, opacity: 0.8 },
+  chip: { width: 40, height: 30, backgroundColor: Colors.primary_container, borderRadius: 6, opacity: 0.85 },
   cardNumberContainer: { marginVertical: 20 },
   cardNumber: { color: '#fff', fontSize: 22, letterSpacing: 4, fontWeight: '600' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
@@ -335,8 +334,6 @@ const styles = StyleSheet.create({
   cardControls: {
     flexDirection: 'row',
     backgroundColor: Colors.surface_container_highest,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   controlButton: {
     flex: 1,
@@ -355,8 +352,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    ...Elevation.ambientSoft,
   },
   txIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   emptyState: { padding: 40, alignItems: 'center' },

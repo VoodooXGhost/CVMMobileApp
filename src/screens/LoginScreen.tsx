@@ -3,17 +3,15 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Image,
   SafeAreaView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '../theme/tokens';
+import { BorderRadius, Colors, Spacing, Typography } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
+import { AppButton, AppCard, AppInput } from '../components/Primitives';
 
 const LoginScreen = () => {
   const [msisdn, setMsisdn] = useState('');
@@ -21,19 +19,17 @@ const LoginScreen = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { signIn } = useAuth();
 
-  const [focusedInput, setFocusedInput] = useState<string | null>(null);
-
   const handleLogin = async () => {
     if (!msisdn || !pin) {
-      Alert.alert('Error', 'Please enter both MSISDN and PIN.');
+      Alert.alert('Sign in required', 'Enter both MSISDN and PIN to continue.');
       return;
     }
 
     setIsLoggingIn(true);
     try {
       await signIn(msisdn, pin);
-    } catch (error) {
-      Alert.alert('Login Failed', 'Invalid credentials. Please try again.');
+    } catch (_error) {
+      Alert.alert('Sign in failed', 'Check your credentials and try again.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -41,88 +37,55 @@ const LoginScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            {/* Logo placeholder - in production would be the MTN logo */}
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>MTN</Text>
-            </View>
+          <View style={styles.brandPill}>
+            <Text style={styles.brandPillText}>MTN CVM</Text>
           </View>
           <Text style={Typography.headline}>The Digital Pulse</Text>
-          <Text style={[Typography.body, styles.subtitle]}>
-            Elevating your connectivity experience.
-          </Text>
+          <Text style={[Typography.body, styles.subtitle]}>Premium telecom experiences built for your lifestyle.</Text>
         </View>
 
-        <View style={styles.formContainer}>
-          {/* Glassmorphism Effect Card */}
-          <View style={styles.card}>
-            <Text style={[Typography.title, styles.label]}>Sign In</Text>
-            
-            <View style={styles.inputContainer}>
-              <Text style={Typography.label}>MSISDN</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'msisdn' && styles.inputFocused
-                ]}
-                placeholder="Enter your phone number (+27...)"
-                placeholderTextColor={Colors.on_surface + '66'}
-                value={msisdn}
-                onChangeText={setMsisdn}
-                onFocus={() => setFocusedInput('msisdn')}
-                onBlur={() => setFocusedInput(null)}
-                autoCapitalize="none"
-                keyboardType="phone-pad"
-              />
-            </View>
+        <AppCard style={styles.loginCard} variant="nested">
+          <Text style={[Typography.title, { marginBottom: Spacing.lg }]}>Welcome back</Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={Typography.label}>Secure PIN</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedInput === 'pin' && styles.inputFocused
-                ]}
-                placeholder="Enter your PIN"
-                placeholderTextColor={Colors.on_surface + '66'}
-                value={pin}
-                onChangeText={setPin}
-                onFocus={() => setFocusedInput('pin')}
-                onBlur={() => setFocusedInput(null)}
-                secureTextEntry
-                keyboardType="default"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleLogin}
-              disabled={isLoggingIn}
-            >
-              {isLoggingIn ? (
-                <ActivityIndicator color={Colors.on_primary_fixed} />
-              ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={[Typography.label, { color: Colors.secondary }]}>
-                Forgot password?
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <Text style={[Typography.label, styles.inputLabel]}>MSISDN</Text>
+            <AppInput
+              placeholder="Enter your phone number (+27...)"
+              value={msisdn}
+              onChangeText={setMsisdn}
+              autoCapitalize="none"
+              keyboardType="phone-pad"
+            />
           </View>
 
-          <View style={styles.asymmetricDecoration} />
-        </View>
+          <View style={styles.inputContainer}>
+            <Text style={[Typography.label, styles.inputLabel]}>Secure PIN</Text>
+            <AppInput
+              placeholder="Enter your PIN"
+              value={pin}
+              onChangeText={setPin}
+              secureTextEntry
+            />
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={Typography.label}>Powered by EngageHub & Virtual Card Engine</Text>
+          {isLoggingIn ? (
+            <View style={styles.loadingButton}>
+              <ActivityIndicator color={Colors.cta_primary_text} />
+            </View>
+          ) : (
+            <AppButton label="Sign In" onPress={handleLogin} />
+          )}
+
+          <View style={styles.footerRow}>
+            <Text style={[Typography.body, { color: Colors.on_surface_variant }]}>Need help?</Text>
+            <AppButton label="Reset Password" onPress={() => Alert.alert('Support', 'Password reset is available through support channels.')} variant="ghost" />
+          </View>
+        </AppCard>
+
+        <View style={styles.appFooter}>
+          <Text style={[Typography.label, { color: Colors.on_surface_variant }]}>Powered by EngageHub and CVM Intelligence</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -138,116 +101,55 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Spacing.lg,
     justifyContent: 'center',
+    gap: Spacing.lg,
   },
   header: {
-    marginBottom: Spacing.xxl,
-    alignItems: 'center',
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  logoContainer: {
-    marginBottom: Spacing.md,
-  },
-  logoPlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Soft shadow instead of border: using elevation for native and boxShadow for web
-    elevation: 2,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' }),
-  },
-  logoText: {
-    fontSize: 24,
-    color: Colors.on_primary_fixed,
-    fontWeight: 'bold', // Emulate the bold weight
-  },
-  subtitle: {
-    color: Colors.on_surface + '99',
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-  },
-  formContainer: {
-    position: 'relative',
-  },
-  card: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl, // 1.5rem
-    padding: Spacing.xl,
-    zIndex: 2,
-    // Soft glow ambient shadow: Diffused for editorial feel
-    elevation: 5,
-    shadowColor: Colors.on_surface,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 12px 24px rgba(26, 28, 28, 0.06)' }),
-  },
-  asymmetricDecoration: {
-    position: 'absolute',
-    top: -Spacing.md,
-    right: -Spacing.sm,
-    width: '60%',
-    height: '100%',
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.xl,
-    zIndex: 1,
-    opacity: 0.3,
-    transform: [{ rotate: '2deg' }],
-  },
-  label: {
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: Spacing.md,
-  },
-  input: {
-    height: 56,
-    backgroundColor: Colors.surface_container_high,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.xs,
-    fontSize: 16,
-    color: Colors.on_surface,
-  },
-  inputFocused: {
-    // Ghost border on focus: outline_variant at 20% opacity
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
-  },
-  loginButton: {
-    height: 56,
+  brandPill: {
+    alignSelf: 'flex-start',
     backgroundColor: Colors.primary_container,
     borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  brandPillText: {
+    ...Typography.label,
+    color: Colors.on_primary_fixed,
+    fontSize: 11,
+  },
+  subtitle: {
+    color: Colors.on_surface_variant,
+    maxWidth: '90%',
+  },
+  loginCard: {
+    padding: Spacing.xl,
+    gap: Spacing.md,
+  },
+  inputContainer: {
+    gap: Spacing.xs,
+  },
+  inputLabel: {
+    color: Colors.on_surface_variant,
+    textTransform: 'uppercase',
+    fontSize: 11,
+  },
+  loadingButton: {
+    minHeight: 56,
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.cta_primary_bg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.lg,
-    // Soft signature texture would be a gradient, here we use elevation
-    elevation: 3,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 4px 8px rgba(116, 91, 0, 0.2)' }),
   },
-  loginButtonText: {
-    color: Colors.on_primary_fixed,
-    fontSize: 18,
-    fontWeight: '600', // Emulate semibold weight
-  },
-  forgotPassword: {
-    marginTop: Spacing.md,
+  footerRow: {
+    marginTop: Spacing.sm,
     alignItems: 'center',
+    gap: Spacing.xs,
   },
-  footer: {
-    marginTop: Spacing.xxl,
+  appFooter: {
     alignItems: 'center',
-    opacity: 0.5,
+    marginTop: Spacing.sm,
   },
 });
 
