@@ -109,16 +109,16 @@ const WalletScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={Typography.headline}>Wallet</Text>
+          <Text style={[Typography.headline, { color: Colors.on_surface_dark }]}>Wallet</Text>
           <TouchableOpacity style={styles.tokenBadge}>
-            <Text style={[Typography.label, { color: Colors.primary }]}>{balance?.toLocaleString()} YB</Text>
+            <Text style={[Typography.label, { color: Colors.on_primary_fixed }]}>{balance?.toLocaleString()} YB</Text>
           </TouchableOpacity>
         </View>
         
         {/* Total Balance Card */}
         <View style={styles.balanceSection}>
-          <Text style={[Typography.label, { opacity: 0.6 }]}>Available Balance</Text>
-          <Text style={[Typography.display, { fontSize: 36, marginTop: 4 }]}>{totalBalance}</Text>
+          <Text style={[Typography.label, { opacity: 0.8, color: Colors.on_surface_dark_variant }]}>Available Balance</Text>
+          <Text style={[Typography.display, { fontSize: 36, marginTop: 4, color: Colors.on_surface_dark }]}>{totalBalance}</Text>
           <View style={styles.balanceFooter}>
             <View style={styles.trendUp}>
               <ArrowUpRight size={14} color={Colors.secondary} />
@@ -290,14 +290,14 @@ const WalletScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+  container: { flex: 1, backgroundColor: Colors.surface_dark_base },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 100, backgroundColor: Colors.surface_dark_base },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
   tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   balanceSection: { 
     padding: Spacing.xl,
-    backgroundColor: Colors.surface_container_lowest,
+    backgroundColor: Colors.surface_dark_card,
     borderRadius: BorderRadius.xl,
     ...Elevation.ambientSoft,
     marginBottom: Spacing.xl,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   controlText: { fontSize: 13, fontWeight: '900', color: Colors.on_surface },
   transactionList: { gap: Spacing.sm },
   transactionItem: {
-    backgroundColor: Colors.surface_container_lowest,
+    backgroundColor: Colors.surface_dark_panel,
     padding: Spacing.md,
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   txIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   emptyState: { padding: 40, alignItems: 'center' },
   retryBanner: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.status_error_bg,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     alignItems: 'center',

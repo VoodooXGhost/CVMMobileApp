@@ -128,9 +128,9 @@ const MarketplaceScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={Typography.headline}>Marketplace</Text>
-        <Text style={[Typography.body, { marginBottom: Spacing.lg, opacity: 0.7 }]}>
-          Exclusive MTN deals tailored for you.
+        <Text style={[Typography.headline, { color: Colors.on_surface_dark }]}>Marketplace</Text>
+        <Text style={[Typography.body, { marginBottom: Spacing.lg, opacity: 0.85, color: Colors.on_surface_dark_variant }]}>
+          Premium digital offers tailored for you.
         </Text>
 
         {/* Categories Horizontal Scroll */}
@@ -220,7 +220,7 @@ const MarketplaceScreen = () => {
               <Smartphone color={Colors.primary} size={24} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[Typography.title, { fontSize: 16 }]}>MTN XtraTime Data</Text>
+              <Text style={[Typography.title, { fontSize: 16 }]}>XtraTime Data</Text>
               <Text style={[Typography.body, { fontSize: 12 }]}>Catalog preview only</Text>
               <Text style={[Typography.title, { fontSize: 18, color: Colors.primary, marginTop: 4 }]}>Pending live offer mapping</Text>
             </View>
@@ -251,16 +251,16 @@ const MarketplaceScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+  container: { flex: 1, backgroundColor: Colors.surface_dark_base },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 100, backgroundColor: Colors.surface_dark_base },
   categoryScroll: { marginBottom: Spacing.xl },
   categoryItem: { alignItems: 'center', marginRight: 20 },
   categoryIconCircle: { 
     width: 64, 
     height: 64, 
     borderRadius: 24, 
-    backgroundColor: Colors.surface_container_highest, 
+    backgroundColor: Colors.surface_container_highest,
     justifyContent: 'center', 
     alignItems: 'center',
     ...Platform.select({

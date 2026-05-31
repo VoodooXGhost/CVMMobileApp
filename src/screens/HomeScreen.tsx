@@ -32,6 +32,7 @@ import { useGetHomeDataQuery } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
 import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
 import { getExperimentAssignments } from '../services/experiments';
+import { branding } from '../config/branding';
 
 /**
  * HomeScreen Component
@@ -120,16 +121,16 @@ const HomeScreen = () => {
       <View style={styles.navHeader}>
         <View style={styles.headerLeft}>
           <View style={styles.mtnLogoSmall}>
-            <Text style={styles.brandPillText}>MTN</Text>
+            <Text style={styles.brandPillText}>{branding.operator === 'neutral' ? 'EH' : branding.operator.toUpperCase()}</Text>
           </View>
-          <Text style={[Typography.title, { fontSize: 18, fontWeight: '900' }]}>EngageHub</Text>
+          <Text style={[Typography.title, { fontSize: 18, fontWeight: '900', color: Colors.on_surface_dark }]}>{branding.appTitle}</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setSearchVisible(true)}>
-            <Search size={20} color={Colors.on_surface} />
+            <Search size={20} color={Colors.on_surface_dark} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setNotificationsVisible(true)}>
-            <Bell size={20} color={Colors.on_surface} />
+            <Bell size={20} color={Colors.on_surface_dark} />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
@@ -141,8 +142,8 @@ const HomeScreen = () => {
       >
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Text style={[Typography.body, { opacity: 0.6 }]}>Yello, {profile?.first_name || 'Customer'}</Text>
-          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4 }]}>Your day at a glance</Text>
+          <Text style={[Typography.body, { opacity: 0.8, color: Colors.on_surface_dark_variant }]}>Welcome, {profile?.first_name || 'Customer'}</Text>
+          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4, color: Colors.on_surface_dark }]}>Your day at a glance</Text>
         </View>
 
         {/* FR-1.1 Glance Card (Balances) */}
@@ -376,7 +377,7 @@ const ActionIcon = ({ Icon, label, color, iconColor, onPress }: any) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+  container: { flex: 1, backgroundColor: Colors.surface_dark_base },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   navHeader: { 
     height: 64, 
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'space-between', 
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surface_dark_base,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mtnLogoSmall: {
@@ -404,10 +405,10 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', gap: 16 },
   headerIcon: { position: 'relative' },
   notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.error, borderWidth: 2, borderColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 110, backgroundColor: Colors.surface_dark_base },
   welcomeSection: { marginBottom: Spacing.xl },
   glanceCard: {
-    backgroundColor: Colors.surface_container_lowest,
+    backgroundColor: Colors.surface_dark_card,
     borderRadius: BorderRadius.xl, 
     padding: Spacing.lg,
     ...Elevation.ambientSoft,
@@ -416,14 +417,14 @@ const styles = StyleSheet.create({
   glanceHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
   balancesContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   balanceItem: { flex: 1, alignItems: 'center' },
-  balanceValue: { fontSize: 18, fontWeight: '900', color: Colors.on_surface },
-  balanceLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_variant, marginTop: 4, textTransform: 'uppercase' },
-  balanceDivider: { width: 1, height: 30, backgroundColor: Colors.outline_variant },
+  balanceValue: { fontSize: 18, fontWeight: '900', color: Colors.on_surface_dark },
+  balanceLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_dark_variant, marginTop: 4, textTransform: 'uppercase' },
+  balanceDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.14)' },
   rechargeCta: { backgroundColor: Colors.cta_primary_bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: BorderRadius.xl, gap: 8 },
   streakCard: {
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: Colors.surface_container_lowest,
+    backgroundColor: Colors.surface_dark_panel,
     padding: Spacing.md, 
     borderRadius: BorderRadius.xl, 
     ...Elevation.ambientSoft,
@@ -445,8 +446,8 @@ const styles = StyleSheet.create({
   quickActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   actionIconItem: { alignItems: 'center', flex: 1 },
   iconCircle: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionLabel: { fontSize: 11, fontWeight: '700', color: Colors.on_surface_variant },
-  loyaltyCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
+  actionLabel: { fontSize: 11, fontWeight: '700', color: Colors.on_surface_dark_variant },
+  loyaltyCard: { backgroundColor: Colors.surface_dark_panel, padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
   tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   tierLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '900' },
   tierName: { color: '#fff', fontSize: 22, fontWeight: '900' },
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
   },
   modalLink: {
     ...Typography.label,
-    color: Colors.primary,
+    color: Colors.cta_secondary_bg,
     fontWeight: '700',
   },
   modalRow: {

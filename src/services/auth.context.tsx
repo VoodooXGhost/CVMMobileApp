@@ -146,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userData) {
             await platformStorage.setItemAsync('userData', JSON.stringify(userData));
           }
+          await platformStorage.setItemAsync('last_login_identity', msisdn);
 
           setToken(token);
           setUser(userData ?? null);

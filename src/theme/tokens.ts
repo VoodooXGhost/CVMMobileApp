@@ -10,6 +10,12 @@ export const Colors = {
   surface_container_low: '#f3f3f3',
   surface_container_high: '#e8e8e8',
   surface_container_highest: '#e0e0e0',
+  // Hybrid dark surfaces
+  surface_dark_base: '#050720',
+  surface_dark_panel: '#0d1230',
+  surface_dark_card: '#181f3d',
+  on_surface_dark: '#f6f7fb',
+  on_surface_dark_variant: '#aab1ca',
 
   // Brand + contrast
   primary: '#111316',
@@ -113,4 +119,11 @@ export const Elevation = {
     shadowOpacity: 0.08,
     shadowRadius: 30,
   },
+};
+
+export const Motion = {
+  quick: 120,
+  medium: 220,
+  slow: 320,
+  pressScale: 0.98,
 };

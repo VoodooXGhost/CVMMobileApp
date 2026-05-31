@@ -271,9 +271,9 @@ const RewardsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+  container: { flex: 1, backgroundColor: Colors.surface_dark_base },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 110, backgroundColor: Colors.surface_dark_base },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   spinCta: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.primary_container,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.full,

@@ -25,6 +25,7 @@ import { useAuth } from '../services/auth.context';
 import { useGetHomeDataQuery, useGetUsageDataQuery } from '../services/apiSlice';
 import { platformStorage } from '../services/storage';
 import { exportEvents, getAnalyticsDiagnostics, track } from '../services/analytics';
+import { branding } from '../config/branding';
 
 type ActiveModal = 'billing' | 'security' | 'notifications' | 'diagnostics' | null;
 
@@ -94,7 +95,7 @@ const AccountScreen = () => {
           </View>
 
           <Text style={[Typography.headline, { marginTop: Spacing.md }]}>
-            {profile.first_name || 'MTN'} {profile.last_name || 'Customer'}
+            {profile.first_name || branding.appTitle} {profile.last_name || 'Customer'}
           </Text>
           <Text style={[Typography.body, { color: Colors.on_surface, opacity: 0.6 }]}>{user?.msisdn}</Text>
 
@@ -177,8 +178,8 @@ const AccountScreen = () => {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>MTN SUPER APP V4.5.0-PROD</Text>
-          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>© 2024 MTN South Africa. All rights reserved.</Text>
+          <Text style={styles.footerText}>{branding.appTitle} V5.0.0</Text>
+          <Text style={[styles.footerText, { fontSize: 10, marginTop: 4 }]}>{branding.legalLine}</Text>
         </View>
 
         <Modal visible={activeModal !== null} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>

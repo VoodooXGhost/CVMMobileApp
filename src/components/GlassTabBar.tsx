@@ -32,7 +32,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
             if (route.name === 'Wallet') return <Wallet size={iconSize} color={color} />;
             if (route.name === 'Marketplace') return <Store size={iconSize} color={color} />;
             if (route.name === 'Rewards') return <Gift size={iconSize} color={color} />;
-            if (route.name === 'My MTN') return <User size={iconSize} color={color} />;
+            if (route.name === 'Account') return <User size={iconSize} color={color} />;
             return null;
           };
 
@@ -51,7 +51,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
               </View>
               {isFocused && (
                 <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10, textTransform: 'uppercase' }]}>
-                  {route.name === 'My MTN' ? 'Account' : route.name === 'Marketplace' ? 'Store' : route.name}
+                  {route.name === 'Marketplace' ? 'Store' : route.name}
                 </Text>
               )}
             </TouchableOpacity>
