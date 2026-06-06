@@ -4,7 +4,7 @@
     "slug": "tmcel",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./TmcelSmallLogo.png",
+    "icon": "./TmcelLauncherIcon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
@@ -16,9 +16,9 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "za.co.mtn.superapp",
+      "package": "za.co.tmcel.superapp",
       "adaptiveIcon": {
-        "foregroundImage": "./TmcelSmallLogo.png",
+        "foregroundImage": "./TmcelLauncherIcon.png",
         "backgroundColor": "#00843D"
       },
       "edgeToEdgeEnabled": true,

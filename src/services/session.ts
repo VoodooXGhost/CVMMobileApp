@@ -1,7 +1,5 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
 import { runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
@@ -143,26 +141,10 @@ const normalizeDeviceToken = async () => {
 };
 
 const getExpoPushTokenIfAvailable = async () => {
-  try {
-    const permissions = await Notifications.getPermissionsAsync();
-    if (!permissions.granted) {
-      return null;
-    }
-
-    const projectId =
-      Constants.easConfig?.projectId ??
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      Constants.expoConfig?.extra?.projectId ??
-      null;
-
-    const tokenResponse = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined,
-    );
-    return tokenResponse?.data ?? null;
-  } catch (error) {
-    logger.warn('Expo push token unavailable', error);
-    return null;
-  }
+  // BlueStacks and local debug builds do not have a real push provider attached.
+  // Keep the registration path stable, but let production operators wire the real token source later.
+  logger.info('Push token lookup skipped in this build path');
+  return null;
 };
 
 export const registerMobileDevice = async () => {

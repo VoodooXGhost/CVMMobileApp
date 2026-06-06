@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Device from 'expo-device';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
@@ -28,7 +27,27 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const [scanned, setScanned] = useState(false);
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
   const { authenticate } = useBiometricAuth();
-  const cameraSupported = Device.isDevice && !Device.modelName?.toLowerCase().includes('bluestacks');
+
+  // Keep the camera mount path free of native device modules and avoid known emulator-like environments.
+  const cameraSupported = (() => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    const platformConstants = Platform.constants as Record<string, string | undefined>;
+    const platformBits = [
+      platformConstants.Brand,
+      platformConstants.Manufacturer,
+      platformConstants.Model,
+      platformConstants.Fingerprint,
+      platformConstants.Serial,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return !/(bluestacks|genymotion|emulator|sdk|virtual|vbox|qemu|android sdk built for x86)/i.test(platformBits);
+  })();
 
   useEffect(() => {
     if (visible && !scanned) {
