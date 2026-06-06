@@ -14,7 +14,12 @@ const codeMap: Record<string, string> = {
 
 export const getApiErrorCode = (error: any) => {
   const payload = error?.data?.error ?? error?.error ?? error?.response?.data?.error ?? null;
-  const rawCode = payload?.code ?? payload?.error_code ?? error?.data?.code ?? error?.response?.data?.code;
+  const rawCode =
+    payload?.code ??
+    payload?.error_code ??
+    error?.code ??
+    error?.data?.code ??
+    error?.response?.data?.code;
   return rawCode ? codeMap[String(rawCode).toUpperCase()] ?? String(rawCode).toLowerCase() : null;
 };
 

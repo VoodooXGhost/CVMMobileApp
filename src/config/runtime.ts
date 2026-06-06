@@ -29,6 +29,16 @@ export const validateRuntimeConfig = () => {
   if (missing.length > 0) {
     throw new Error(`Missing required mobile env vars for ${runtimeProfile}: ${missing.join(', ')}`);
   }
+
+  if (runtimeProfile === 'prod') {
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+    if (!apiUrl.startsWith('https://')) {
+      throw new Error('Production mobile API URL must use HTTPS.');
+    }
+    if (['localhost', '127.0.0.1', '10.0.2.2'].some((host) => apiUrl.includes(host))) {
+      throw new Error('Production mobile API URL cannot point to local emulator hosts.');
+    }
+  }
 };
 
 export const runtimeConfig = {

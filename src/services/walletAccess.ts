@@ -52,6 +52,13 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
   const existing = await getValidWalletToken();
   if (existing) return existing;
 
+  const accessToken = await platformStorage.getItemAsync('userToken');
+  if (!accessToken) {
+    const error: any = new Error('Wallet verification requires an active session.');
+    error.code = 'session_expired';
+    throw error;
+  }
+
   const deviceId = await getDeviceIdentifier();
   const attempts = [
     `${buildUrl('/api/v1/mobile/auth/wallet/verify')}`,
@@ -68,17 +75,23 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
           device_id: deviceId,
           platform: Platform.OS,
         },
-        { timeout: 10_000 },
+        {
+          timeout: 10_000,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
       );
       const payload = response?.data ?? {};
       const walletToken = payload.wallet_token ?? payload.walletToken ?? payload.token;
       const expiresIn = Number(payload.expires_in ?? payload.expiresIn ?? 300);
-      const safeToken =
-        typeof walletToken === 'string' && walletToken.length > 0
-          ? walletToken
-          : `wallet-${deviceId}-${Date.now().toString(36)}`;
-      await storeWalletToken(safeToken, Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 300);
-      return safeToken;
+      if (typeof walletToken !== 'string' || walletToken.length === 0) {
+        const error: any = new Error('Wallet verification did not return a token.');
+        error.code = 'wallet_step_up_required';
+        throw error;
+      }
+      await storeWalletToken(walletToken, Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 300);
+      return walletToken;
     } catch (error: any) {
       lastError = error;
       const statusCode = error?.response?.status;
@@ -90,8 +103,16 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
   }
 
   logger.warn('Wallet step-up verification failed', { status: lastError?.response?.status });
-  const fallbackToken = `wallet-${deviceId}-${Date.now().toString(36)}`;
-  await storeWalletToken(fallbackToken, 300);
-  return fallbackToken;
+  const failure: any = new Error('Wallet verification required.');
+  failure.code = getWalletFailureCode(lastError);
+  failure.details = lastError;
+  throw failure;
 };
 
+const getWalletFailureCode = (error: any) => {
+  const status = error?.response?.status;
+  if (status === 401) return 'wallet_token_expired';
+  if (status === 403) return 'wallet_step_up_required';
+  if (status === 404 || status === 405) return 'wallet_step_up_required';
+  return 'wallet_step_up_required';
+};
