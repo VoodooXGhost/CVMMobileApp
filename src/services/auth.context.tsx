@@ -112,13 +112,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (msisdn: string, pin: string) => {
     try {
-      // Clear old session to prevent "undefined" or stale data issues
-      await clearAuthSession();
-      const deviceId = await getDeviceIdentifier();
+      // Clear old session to prevent "undefined" or stale data issues.
+      // This is best-effort so a storage hiccup never blocks a valid login.
+      try {
+        await clearAuthSession();
+      } catch (sessionClearError) {
+        logger.warn('Pre-login session clear failed', sessionClearError);
+      }
+
+      let deviceId = `device-${Date.now().toString(36)}`;
+      try {
+        deviceId = await getDeviceIdentifier();
+      } catch (deviceIdError) {
+        logger.warn('Falling back to an ephemeral device id during sign-in', deviceIdError);
+      }
+
+      console.warn('[mobile] login request start', {
+        apiUrl: API_URL,
+        msisdn,
+        deviceId,
+      });
 
       const response = await axios.post(
         `${API_URL}/api/v1/mobile/auth/login`,
         {
+          username: msisdn,
+          password: pin,
           msisdn,
           pin,
           device_id: deviceId,
@@ -129,28 +148,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           timeout: 10000,
         },
       );
+      console.warn('[mobile] login response received', {
+        hasData: Boolean(response?.data),
+        keys: response?.data ? Object.keys(response.data) : [],
+      });
       const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
 
       if (!accessToken || typeof accessToken !== 'string') {
         throw new Error('Authentication response is missing a valid token.');
       }
 
-      await persistAuthSession({
-        accessToken,
-        refreshToken,
-        userData,
-        provenance: 'login',
-      });
-
       try {
-        await registerMobileDevice();
-      } catch (registrationError) {
-        await clearAuthSession();
-        setToken(null);
-        setUser(null);
-        await setAnalyticsIdentity(null);
-        (registrationError as any).__loginFailureReason = 'push_registration_failed';
-        throw registrationError;
+        await persistAuthSession({
+          accessToken,
+          refreshToken,
+          userData,
+          provenance: 'login',
+        });
+      } catch (sessionPersistError) {
+        logger.warn('Login completed, but auth session persistence failed', sessionPersistError);
       }
 
       setToken(accessToken);
@@ -158,11 +174,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setAnalyticsIdentity(
         userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
       );
-      await track('login_success', {}, { screen: 'login' });
-      await flushToBackend();
+
+      try {
+        await registerMobileDevice();
+      } catch (registrationError) {
+        logger.warn('Login completed, but device registration failed', registrationError);
+      }
+
+      try {
+        await track('login_success', {}, { screen: 'login' });
+        await flushToBackend();
+      } catch (analyticsError) {
+        logger.warn('Login completed, but analytics sync failed', analyticsError);
+      }
+
       return;
     } catch (error: any) {
       logger.warn('Login failed', { status: error?.response?.status });
+      console.warn('[mobile] login request failed', {
+        message: error?.message,
+        code: error?.code,
+        url: error?.config?.url,
+        method: error?.config?.method,
+        hasResponse: Boolean(error?.response),
+        hasRequest: Boolean(error?.request),
+      });
       const failureReason =
         error?.__loginFailureReason || (error?.response ? 'auth_failed' : 'network_or_unknown');
       await track('login_fail', { reason: failureReason }, { screen: 'login' });

@@ -155,6 +155,7 @@ export const registerMobileDevice = async () => {
     error.code = 'push_token_unavailable';
     throw error;
   }
+  const { accessToken } = await getStoredAuthTokens();
   try {
     await axios.post(
       buildUrl('/api/v1/mobile/auth/register-device'),
@@ -163,7 +164,10 @@ export const registerMobileDevice = async () => {
         ...(pushToken ? { push_token: pushToken } : {}),
         platform: Platform.OS,
       },
-      { timeout: 10_000 },
+      {
+        timeout: 10_000,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      },
     );
     return { deviceId, pushToken };
   } catch (error: any) {

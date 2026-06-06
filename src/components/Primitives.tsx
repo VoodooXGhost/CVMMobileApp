@@ -27,7 +27,11 @@ export const AppButton = ({
     variant === 'secondary'
       ? { backgroundColor: Colors.cta_secondary_bg, color: Colors.cta_secondary_text }
       : variant === 'ghost'
-        ? { backgroundColor: 'transparent', color: Colors.on_surface }
+        ? {
+            backgroundColor: 'rgba(17, 19, 22, 0.04)',
+            color: Colors.on_surface,
+            borderColor: 'rgba(17, 19, 22, 0.08)',
+          }
         : { backgroundColor: Colors.cta_primary_bg, color: Colors.cta_primary_text };
 
   return (
@@ -36,11 +40,25 @@ export const AppButton = ({
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: variantStyles.backgroundColor, opacity: disabled ? 0.5 : pressed ? 0.9 : 1 },
         variant === 'ghost' && styles.ghostButton,
+        {
+          backgroundColor: variantStyles.backgroundColor,
+          borderColor: variantStyles.borderColor,
+          opacity: disabled ? 0.5 : pressed ? 0.92 : 1,
+        },
       ]}
     >
-      <Text style={[Typography.title, { color: variantStyles.color, fontSize: 16 }]}>{label}</Text>
+      <Text
+        style={[
+          Typography.title,
+          {
+            color: variantStyles.color,
+            fontSize: variant === 'ghost' ? 15 : 16,
+          },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 };
@@ -101,8 +119,16 @@ const styles = StyleSheet.create({
     ...Elevation.ambientSoft,
   },
   ghostButton: {
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
+    minHeight: 40,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 0,
+    borderWidth: 0,
+    elevation: 0,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    overflow: 'hidden',
   },
   card: {
     borderRadius: BorderRadius.xl,

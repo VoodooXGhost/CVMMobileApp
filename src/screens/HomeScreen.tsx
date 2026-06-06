@@ -155,22 +155,6 @@ const HomeScreen = () => {
     persistNotificationCursorAndSeen(payload.next_cursor ?? null);
   }, [notificationResponse, notifCursor]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={Typography.body}>Error loading dashboard. Please try again.</Text>
-      </View>
-    );
-  }
-
   const filteredNotifications = notifications.filter((item: any) => {
     if (item.category === 'marketing' && !marketingEnabled) return false;
     if (item.category === 'campaign' && !campaignEnabled) return false;
@@ -262,6 +246,22 @@ const HomeScreen = () => {
       }
     });
   }, [notificationsVisible, filteredNotifications, notifImpressionIds]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={Typography.body}>Error loading dashboard. Please try again.</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

@@ -36,9 +36,15 @@ const LoginScreen = () => {
     } catch (error: any) {
       const statusCode = error?.response?.status;
       if (!statusCode) {
+        const rawMessage =
+          typeof error?.message === 'string' && error.message.trim().length > 0
+            ? error.message.trim()
+            : null;
         Alert.alert(
           t('login.signInFailed', 'Sign in failed'),
-          `Cannot reach authentication server at ${runtimeConfig.apiUrl}. Verify backend availability and network access.`,
+          rawMessage
+            ? rawMessage
+            : `Cannot reach authentication server at ${runtimeConfig.apiUrl}. Verify backend availability and network access.`,
         );
       } else {
         Alert.alert(
@@ -94,7 +100,16 @@ const LoginScreen = () => {
 
           <View style={styles.footerRow}>
             <Text style={[Typography.body, { color: Colors.on_surface_variant }]}>{t('login.needHelp', 'Need help?')}</Text>
-            <AppButton label={t('login.resetPassword', 'Reset Password')} onPress={() => Alert.alert(t('login.support', 'Support'), t('login.supportMessage', 'Password reset is available through support channels.'))} variant="ghost" />
+            <AppButton
+              label={t('login.resetPassword', 'Reset Password')}
+              onPress={() =>
+                Alert.alert(
+                  t('login.support', 'Support'),
+                  t('login.supportMessage', 'Password reset is available through support channels.'),
+                )
+              }
+              variant="ghost"
+            />
           </View>
         </AppCard>
 
