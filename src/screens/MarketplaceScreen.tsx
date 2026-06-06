@@ -8,6 +8,9 @@ import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/
 import { getExperimentAssignments } from '../services/experiments';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 
 /**
  * MarketplaceScreen Component (Formerly ShopScreen)
@@ -24,31 +27,15 @@ const MarketplaceScreen = () => {
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = React.useState(allCategory);
   const [cardCtaVariant, setCardCtaVariant] = React.useState('hot_badge');
+  const { authenticate } = useBiometricAuth();
+  const { offers, categories } = shopData?.data || {};
+  const safeOffers = Array.isArray(offers) ? offers : [];
 
   useEffect(() => {
     if (!activeCategory || activeCategory.toLowerCase() === 'all' || activeCategory.toLowerCase() === 'todos') {
       setActiveCategory(allCategory);
     }
   }, [allCategory]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={Typography.body}>{t('marketplace.loadError', 'Error loading marketplace. Please try again.')}</Text>
-      </View>
-    );
-  }
-
-  const { offers, categories } = shopData?.data || {};
-  const safeOffers = Array.isArray(offers) ? offers : [];
 
   useEffect(() => {
     track('screen_view', { name: 'marketplace' }, { screen: 'marketplace' });
@@ -77,6 +64,22 @@ const MarketplaceScreen = () => {
       }
     });
   }, [activeCategory, safeOffers]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={Typography.body}>{t('marketplace.loadError', 'Error loading marketplace. Please try again.')}</Text>
+      </View>
+    );
+  }
   
   // Custom categories with icons
   const categoryIcons: Record<string, any> = {
@@ -107,11 +110,20 @@ const MarketplaceScreen = () => {
       t('marketplace.confirmPurchase', 'Confirm Purchase'),
       prompt,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
         { 
           text: t('marketplace.buy', 'Buy'), 
           onPress: async () => {
             try {
+              const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+              if (!accepted) {
+                Alert.alert(
+                  t('wallet.walletVerificationRequired', 'Wallet verification required'),
+                  t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+                );
+                return;
+              }
+              await ensureWalletAccess();
               await track(
                 'redeem_start',
                 { item_id: itemId, placement: 'marketplace_grid' },
@@ -125,12 +137,21 @@ const MarketplaceScreen = () => {
               );
               Alert.alert(t('common.success', 'Success'), t('marketplace.purchaseSuccess', 'You have successfully purchased {title}!').replace('{title}', String(product.title)));
             } catch (err: any) {
+              const errorCode = getApiErrorCode(err);
+              const errorMessage = resolveLocalizedApiError(t, err, t('marketplace.purchaseFail', 'Failed to complete purchase.'));
               await track(
                 'redeem_fail',
-                { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
+                { item_id: itemId, reason: errorCode || err?.status || 'unknown' },
                 { screen: 'marketplace', placement: 'marketplace_grid' },
               );
-              Alert.alert(t('common.error', 'Error'), err?.data?.detail || t('marketplace.purchaseFail', 'Failed to complete purchase.'));
+              if (errorCode === 'wallet_token_expired' || errorCode === 'wallet_step_up_required') {
+                Alert.alert(
+                  t('wallet.walletVerificationRequired', 'Wallet verification required'),
+                  t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+                );
+                return;
+              }
+              Alert.alert(t('common.error', 'Error'), errorMessage);
             }
           }
         }

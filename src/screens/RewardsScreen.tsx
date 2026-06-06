@@ -20,28 +20,49 @@ import {
   Gift,
   Award
 } from 'lucide-react-native';
-import { useGetHomeDataQuery, useGetOffersDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
+import { useGetHomeDataQuery, useGetOffersDataQuery, useGetGamesDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
 import { shouldTrackImpression, track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
+import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { getPrimaryGame } from '../services/games';
+import { resolveYmBalance } from '../services/loyalty';
 
 const RewardsScreen = () => {
   const { language, t } = useI18n();
   const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
   const { data: offersResponse, isLoading: isOffersLoading } = useGetOffersDataQuery();
+  const { data: gamesResponse } = useGetGamesDataQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const [spinVisible, setSpinVisible] = useState(false);
+  const { authenticate } = useBiometricAuth();
+  const [selectedGame, setSelectedGame] = useState<any>(null);
 
   const homeData = homeResponse?.data || {};
   const { gamification, loyalty } = homeData;
   const offersData = offersResponse?.data || {};
   const { offers } = offersData;
   const safeOffers = Array.isArray(offers) ? offers : [];
+  const gamesData = gamesResponse?.data || {};
+  const safeGames = Array.isArray(gamesData?.active_games)
+    ? gamesData.active_games
+    : Array.isArray(gamesData?.games)
+      ? gamesData.games
+      : [];
+  const primaryGame = getPrimaryGame(gamesData);
 
   useEffect(() => {
     track('screen_view', { name: 'rewards' }, { screen: 'rewards' });
   }, []);
+
+  useEffect(() => {
+    if (!selectedGame && primaryGame) {
+      setSelectedGame(primaryGame);
+    }
+  }, [primaryGame?.id, primaryGame?.type]);
 
   useEffect(() => {
     safeOffers.slice(0, 10).forEach((offer: any) => {
@@ -77,11 +98,17 @@ const RewardsScreen = () => {
       t('rewards.confirmRedemption', 'Confirm Redemption'),
       prompt,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
         { 
           text: 'Redeem', 
           onPress: async () => {
             try {
+              const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+              if (!accepted) {
+                Alert.alert(t('wallet.walletVerificationRequired', 'Wallet verification required'), t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'));
+                return;
+              }
+              await ensureWalletAccess();
               await track(
                 'redeem_start',
                 { item_id: itemId, placement: 'rewards_featured' },
@@ -95,12 +122,14 @@ const RewardsScreen = () => {
               );
               Alert.alert(t('common.success', 'Success'), t('rewards.redeemed', 'You have redeemed {title}!').replace('{title}', String(offer.title)));
             } catch (err: any) {
+              const errorCode = getApiErrorCode(err);
+              const errorMessage = resolveLocalizedApiError(t, err, t('rewards.redeemFail', 'Failed to redeem offer.'));
               await track(
                 'redeem_fail',
-                { item_id: itemId, reason: err?.status || err?.data?.detail || 'unknown' },
+                { item_id: itemId, reason: errorCode || err?.status || 'unknown' },
                 { screen: 'rewards', placement: 'rewards_featured' },
               );
-              Alert.alert(t('common.error', 'Error'), err?.data?.detail || t('rewards.redeemFail', 'Failed to redeem offer.'));
+              Alert.alert(t('common.error', 'Error'), errorMessage);
             }
           }
         }
@@ -143,7 +172,7 @@ const RewardsScreen = () => {
           <View style={styles.pointsBadge}>
             <Star size={14} color={Colors.on_primary_fixed} fill={Colors.on_primary_fixed} />
             <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900' }]}>
-              {loyalty?.yello_bucks_balance?.toLocaleString() || 0} YM
+              {resolveYmBalance(loyalty).toLocaleString()} YM
             </Text>
           </View>
         </View>
@@ -188,6 +217,32 @@ const RewardsScreen = () => {
                Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('rewards.activeGames', 'Active Games')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg }}>
+            {(safeGames.length > 0 ? safeGames : [primaryGame]).map((game: any) => (
+              <TouchableOpacity
+                key={String(game.id)}
+                style={styles.gameCard}
+                onPress={() => {
+                  setSelectedGame(game);
+                  setSpinVisible(true);
+                }}
+              >
+                <Text style={[Typography.title, { fontSize: 14 }]} numberOfLines={1}>
+                  {game.title}
+                </Text>
+                <Text style={[Typography.label, { opacity: 0.6, marginTop: 6 }]} numberOfLines={2}>
+                  {game.description || game.subtitle || game.type}
+                </Text>
+                <Text style={[Typography.label, { marginTop: 10, color: Colors.primary }]}>
+                  {game.type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Spin-the-Wheel Hero Section */}
@@ -272,7 +327,7 @@ const RewardsScreen = () => {
         <SpinWheelModal 
           visible={spinVisible} 
           onClose={() => setSpinVisible(false)} 
-          gameId={1} // Assuming Game ID 1 is Daily Spin
+          game={selectedGame || primaryGame}
         />
       </ScrollView>
     </SafeAreaView>
@@ -403,6 +458,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
+  },
+  gameCard: {
+    width: 180,
+    marginRight: 12,
+    padding: 16,
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.lg,
+    ...Elevation.ambientSoft,
   },
   questCard: {
     flexDirection: 'row',

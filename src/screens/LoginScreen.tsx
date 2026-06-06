@@ -15,6 +15,7 @@ import { useAuth } from '../services/auth.context';
 import { AppButton, AppCard, AppInput } from '../components/Primitives';
 import { runtimeConfig } from '../config/runtime';
 import { useI18n } from '../services/i18n';
+import { resolveLocalizedApiError } from '../services/apiErrors';
 
 const LoginScreen = () => {
   const { t } = useI18n();
@@ -40,7 +41,10 @@ const LoginScreen = () => {
           `Cannot reach authentication server at ${runtimeConfig.apiUrl}. Verify backend availability and network access.`,
         );
       } else {
-        Alert.alert(t('login.signInFailed', 'Sign in failed'), t('login.checkCredentials', 'Check your credentials and try again.'));
+        Alert.alert(
+          t('login.signInFailed', 'Sign in failed'),
+          resolveLocalizedApiError(t, error, t('login.checkCredentials', 'Check your credentials and try again.')),
+        );
       }
     } finally {
       setIsLoggingIn(false);

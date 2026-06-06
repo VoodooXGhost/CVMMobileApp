@@ -1,18 +1,28 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Easing, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Easing, useWindowDimensions, Platform, Alert } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X, Star, Zap, Gift } from 'lucide-react-native';
 import { usePlayGameMutation } from '../services/apiSlice';
 import { useI18n } from '../services/i18n';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 
 // SpinWheelModal: Gamified slot-spin interface for YelloMola reward draws.
 interface SpinWheelModalProps {
   visible: boolean;
   onClose: () => void;
-  gameId: number;
+  game?: {
+    id: number | string;
+    type?: string;
+    title?: string;
+    subtitle?: string;
+    description?: string;
+    spin_cost?: number;
+  } | null;
 }
 
-const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
+const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
   const { t } = useI18n();
   // Safe width inside component - avoids module-level Dimensions crash in Release builds
   const { width } = useWindowDimensions();
@@ -20,12 +30,21 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
   const [playGame, { isLoading }] = usePlayGameMutation();
   const [result, setResult] = React.useState<any>(null);
   const [isSpinning, setIsSpinning] = React.useState(false);
+  const { authenticate } = useBiometricAuth();
 
   const startSpin = async () => {
     if (isSpinning) return;
     
     setIsSpinning(true);
     setResult(null);
+
+    const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+    if (!accepted) {
+      setIsSpinning(false);
+      return;
+    }
+
+    await ensureWalletAccess();
 
     // Initial continuous spin
     Animated.loop(
@@ -38,7 +57,7 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
     ).start();
 
     try {
-      const response = await playGame({ game_id: gameId }).unwrap();
+      const response = await playGame({ game_id: Number(game?.id ?? 1) }).unwrap();
       
       // Stop loop and do a final deceleration spin
       spinValue.stopAnimation((currentValue) => {
@@ -49,13 +68,26 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
-          setResult(response.data);
+          setResult(response?.data ?? response);
           setIsSpinning(false);
         });
       });
-    } catch (error) {
+    } catch (error: any) {
        setIsSpinning(false);
-       onClose();
+       const errorCode = getApiErrorCode(error);
+       const errorMessage = resolveLocalizedApiError(
+         t,
+         error,
+         t('spin.spinFailed', 'Unable to complete the spin right now.'),
+       );
+       if (errorCode === 'wallet_token_expired' || errorCode === 'wallet_step_up_required') {
+         Alert.alert(
+           t('wallet.walletVerificationRequired', 'Wallet verification required'),
+           t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+         );
+         return;
+       }
+       Alert.alert(t('common.error', 'Error'), errorMessage);
     }
   };
 
@@ -72,9 +104,9 @@ const SpinWheelModal = ({ visible, onClose, gameId }: SpinWheelModalProps) => {
             <X size={24} color={Colors.on_surface} />
           </TouchableOpacity>
 
-          <Text style={[Typography.headline, { textAlign: 'center' }]}>{t('spin.title', 'Spin & Win')}</Text>
+          <Text style={[Typography.headline, { textAlign: 'center' }]}>{game?.title || t('spin.title', 'Spin & Win')}</Text>
           <Text style={[Typography.body, { textAlign: 'center', marginBottom: 40 }]}>
-            {t('spin.subtitle', 'Use 50 YelloMola to spin for a prize!')}
+            {game?.description || game?.subtitle || t('spin.subtitle', 'Use 50 YelloMola to spin for a prize!')}
           </Text>
 
           <View style={styles.wheelContainer}>

@@ -1,9 +1,19 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { platformStorage } from './storage';
 import axios from 'axios';
+import { runtimeConfig } from '../config/runtime';
 import { flushToBackend, setAnalyticsIdentity, track } from './analytics';
 import { logger } from './logger';
+import {
+  clearAuthSession,
+  getDeviceIdentifier,
+  getStoredAuthTokens,
+  mapAuthPayload as mapSessionAuthPayload,
+  persistAuthSession,
+  registerMobileDevice,
+  refreshAuthSession,
+  shouldRefreshStoredSession,
+} from './session';
 
 interface AuthContextType {
   token: string | null;
@@ -21,46 +31,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // The BFF URL - strictly using environment variables for enterprise compatibility
-  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.1:3000'; 
+  // Use the runtime API URL so mobile and web stay aligned with the deployed contract.
+  const API_URL = runtimeConfig.apiUrl;
 
   useEffect(() => {
     // Load token from storage on mount
     const loadToken = async () => {
       try {
-        const savedToken = await platformStorage.getItemAsync('userToken');
-        const savedUser = await platformStorage.getItemAsync('userData');
-        
-        // STRICT VALIDATION: Token must be a non-empty string and NOT garbage
-        const isValidToken = 
-          savedToken && 
-          typeof savedToken === 'string' &&
-          savedToken !== 'undefined' && 
-          savedToken !== 'null' && 
-          savedToken !== '[object Object]' &&
-          savedToken.length > 20; // JWTs are typically long
+        const { accessToken, refreshToken, userData } = await getStoredAuthTokens();
+        const shouldRenewSession = await shouldRefreshStoredSession();
+        if (shouldRenewSession) {
+          const refreshed = await refreshAuthSession();
+          if (refreshed?.accessToken) {
+            setToken(refreshed.accessToken);
+            setUser(refreshed.userData ?? userData ?? null);
+            await setAnalyticsIdentity(
+              refreshed.userData?.msisdn ?? refreshed.userData?.username ?? refreshed.userData?.email ?? null,
+            );
+            return;
+          }
+        }
+
+        const isValidToken = accessToken && typeof accessToken === 'string' && accessToken.length > 20;
+        const parsedUser = userData ?? null;
 
         if (isValidToken) {
-          setToken(savedToken);
-          
-          const isValidUser = savedUser && savedUser !== 'undefined' && savedUser !== 'null' && savedUser.startsWith('{');
-          if (isValidUser) {
-            try {
-              const parsedUser = JSON.parse(savedUser!);
-              setUser(parsedUser);
-              await setAnalyticsIdentity(
-                parsedUser?.msisdn ?? parsedUser?.username ?? parsedUser?.email ?? null,
-              );
-            } catch (parseError) {
-              logger.warn('Failed to parse saved user from storage', parseError);
-              setUser(null);
-            }
+          setToken(accessToken);
+          if (parsedUser) {
+            setUser(parsedUser);
+            await setAnalyticsIdentity(
+              parsedUser?.msisdn ?? parsedUser?.username ?? parsedUser?.email ?? null,
+            );
+          }
+        } else if (refreshToken) {
+          const refreshed = await refreshAuthSession();
+          if (refreshed?.accessToken) {
+            setToken(refreshed.accessToken);
+            setUser(refreshed.userData ?? parsedUser);
+            await setAnalyticsIdentity(
+              refreshed.userData?.msisdn ?? refreshed.userData?.username ?? refreshed.userData?.email ?? null,
+            );
+          } else {
+            await clearAuthSession();
+            setToken(null);
+            setUser(null);
+            await setAnalyticsIdentity(null);
           }
         } else {
-          // If token looks invalid, ensure we are logged out
-          await platformStorage.deleteItemAsync('userToken');
-          await platformStorage.deleteItemAsync('userData');
-          await platformStorage.deleteItemAsync('refreshToken');
+          await clearAuthSession();
           setToken(null);
           setUser(null);
           await setAnalyticsIdentity(null);
@@ -91,19 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const mapAuthPayload = (data: any) => {
-    const token = data?.access_token ?? data?.token ?? null;
-    const refreshToken = data?.refresh_token ?? null;
-    const userData = data?.user ?? data?.profile ?? null;
-    return { token, refreshToken, userData };
-  };
-
   const signIn = async (msisdn: string, pin: string) => {
     try {
       // Clear old session to prevent "undefined" or stale data issues
-      await platformStorage.deleteItemAsync('userToken');
-      await platformStorage.deleteItemAsync('userData');
-      await platformStorage.deleteItemAsync('refreshToken');
+      await clearAuthSession();
+      const deviceId = await getDeviceIdentifier();
 
       // Support both mobile and legacy auth contracts in deterministic order.
       const attempts = [
@@ -112,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           body: {
             msisdn,
             pin,
-            device_id: 'DEVICE-S6-ENTERPRISE',
+            device_id: deviceId,
             platform: 'android',
           },
         },
@@ -121,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           body: {
             username: msisdn,
             password: pin,
-            device_id: 'DEVICE-S6-ENTERPRISE',
+            device_id: deviceId,
             platform: 'android',
           },
           headers: { 'Content-Type': 'application/json' },
@@ -144,25 +154,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             headers: attempt.headers,
             timeout: 10000,
           });
-          const { token, refreshToken, userData } = mapAuthPayload(response.data);
+          const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
 
-          if (!token || typeof token !== 'string') {
+          if (!accessToken || typeof accessToken !== 'string') {
             throw new Error('Authentication response is missing a valid token.');
           }
 
-          await platformStorage.setItemAsync('userToken', token);
-          if (refreshToken && typeof refreshToken === 'string') {
-            await platformStorage.setItemAsync('refreshToken', refreshToken);
-          }
-          if (userData) {
-            await platformStorage.setItemAsync('userData', JSON.stringify(userData));
-          }
+          await persistAuthSession({
+            accessToken,
+            refreshToken,
+            userData,
+            provenance: 'login',
+          });
 
-          setToken(token);
+          setToken(accessToken);
           setUser(userData ?? null);
           await setAnalyticsIdentity(
             userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
           );
+          await registerMobileDevice();
           await track('login_success', {}, { screen: 'login' });
           await flushToBackend();
           return;
@@ -177,18 +187,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       await track('login_fail', { reason: 'auth_failed' }, { screen: 'login' });
-      throw lastError ?? new Error('Authentication failed');
+      const authError = lastError ?? new Error('Authentication failed');
+      (authError as any).__loginFailureReason = 'auth_failed';
+      throw authError;
     } catch (error: any) {
       logger.warn('Login failed', { status: error?.response?.status });
-      await track('login_fail', { reason: 'network_or_unknown' }, { screen: 'login' });
+      const failureReason =
+        error?.__loginFailureReason || (error?.response ? 'auth_failed' : 'network_or_unknown');
+      await track('login_fail', { reason: failureReason }, { screen: 'login' });
       throw error;
     }
   };
 
   const signOut = async () => {
-    await platformStorage.deleteItemAsync('userToken');
-    await platformStorage.deleteItemAsync('userData');
-    await platformStorage.deleteItemAsync('refreshToken');
+    await clearAuthSession();
     setToken(null);
     setUser(null);
     await setAnalyticsIdentity(null);

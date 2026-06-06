@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityInd
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X, Send } from 'lucide-react-native';
 import { useP2pTransferMutation } from '../services/apiSlice';
-import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -17,6 +19,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
   const [msisdn, setMsisdn] = useState('');
   const [amount, setAmount] = useState('');
   const [transfer, { isLoading }] = useP2pTransferMutation();
+  const { authenticate } = useBiometricAuth();
 
   const handleSend = async () => {
     if (!msisdn || msisdn.length < 10) {
@@ -30,6 +33,15 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
     }
 
     try {
+      const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+      if (!accepted) {
+        Alert.alert(
+          t('wallet.walletVerificationRequired', 'Wallet verification required'),
+          t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+        );
+        return;
+      }
+      await ensureWalletAccess();
       await track(
         'wallet_action_start',
         { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
@@ -46,16 +58,21 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
       setAmount('');
       onClose();
     } catch (err: any) {
+      const errorCode = getApiErrorCode(err);
+      const errorMessage = resolveLocalizedApiError(t, err, t('p2p.transferFailed', 'Transfer failed'));
       await track(
         'wallet_action_fail',
-        { action: 'p2p_transfer', receiver_msisdn: msisdn, reason: err?.status || 'unknown' },
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, reason: errorCode || err?.status || 'unknown' },
         { screen: 'wallet', source: 'p2p_modal' },
       );
-      if (isUnsupportedError(err)) {
-        Alert.alert(t('p2p.transferUnavailable', 'Transfer unavailable'), statusCopy.unsupportedFeature);
-      } else {
-        Alert.alert(t('p2p.transferFailed', 'Transfer failed'), err?.data?.detail || statusCopy.networkError);
+      if (errorCode === 'wallet_token_expired' || errorCode === 'wallet_step_up_required') {
+        Alert.alert(
+          t('wallet.walletVerificationRequired', 'Wallet verification required'),
+          t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+        );
+        return;
       }
+      Alert.alert(t('p2p.transferFailed', 'Transfer failed'), errorMessage);
     }
   };
 

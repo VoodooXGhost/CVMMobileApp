@@ -4,9 +4,11 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
-import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 
 interface ScanToPayModalProps {
   visible: boolean;
@@ -24,6 +26,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
+  const { authenticate } = useBiometricAuth();
 
   useEffect(() => {
     if (visible && !scanned) {
@@ -93,6 +96,16 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
           text: t('scan.pay', 'Pay'),
           onPress: async () => {
             try {
+              const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+              if (!accepted) {
+                Alert.alert(
+                  t('wallet.walletVerificationRequired', 'Wallet verification required'),
+                  t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+                );
+                setScanned(false);
+                return;
+              }
+              await ensureWalletAccess();
               await track(
                 'wallet_action_start',
                 { action: 'scan_pay', item_id: payload.item_id, amount: payload.amount },
@@ -108,16 +121,22 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
                 { text: t('common.done', 'Done'), onPress: onClose },
               ]);
             } catch (err: any) {
+              const errorCode = getApiErrorCode(err);
+              const errorMessage = resolveLocalizedApiError(t, err, t('scan.paymentFailed', 'Payment failed'));
               await track(
                 'wallet_action_fail',
-                { action: 'scan_pay', item_id: payload.item_id, reason: err?.status || 'unknown' },
+                { action: 'scan_pay', item_id: payload.item_id, reason: errorCode || err?.status || 'unknown' },
                 { screen: 'wallet', source: 'scan_modal' },
               );
-              if (isUnsupportedError(err)) {
-                Alert.alert(t('scan.paymentUnavailable', 'Payment unavailable'), statusCopy.unsupportedFeature);
-              } else {
-                Alert.alert(t('scan.paymentFailed', 'Payment failed'), err?.data?.detail || statusCopy.networkError);
+              if (errorCode === 'wallet_token_expired' || errorCode === 'wallet_step_up_required') {
+                Alert.alert(
+                  t('wallet.walletVerificationRequired', 'Wallet verification required'),
+                  t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+                );
+                setScanned(false);
+                return;
               }
+              Alert.alert(t('scan.paymentFailed', 'Payment failed'), errorMessage);
               setScanned(false);
             }
           },

@@ -41,6 +41,7 @@ import { getExperimentAssignments } from '../services/experiments';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
 import { platformStorage } from '../services/storage';
+import { resolveYmBalance, resolvePointsToNext } from '../services/loyalty';
 
 /**
  * HomeScreen Component
@@ -311,7 +312,7 @@ const HomeScreen = () => {
             </View>
             <View style={styles.balanceDivider} />
             <View style={styles.balanceItem}>
-              <Text style={[styles.balanceValue, { color: Colors.secondary }]}>{loyalty?.yello_bucks_balance?.toLocaleString() || '0'}</Text>
+              <Text style={[styles.balanceValue, { color: Colors.secondary }]}>{resolveYmBalance(loyalty).toLocaleString()}</Text>
               <Text style={styles.balanceLabel}>YM</Text>
             </View>
           </View>
@@ -402,13 +403,13 @@ const HomeScreen = () => {
                 <Text style={styles.tierLabel}>{t('home.currentTier', 'CURRENT TIER')}</Text>
                 <Text style={styles.tierName}>{loyalty?.current_tier || 'Bronze'}</Text>
               </View>
-              <Text style={styles.tierPoints}>{loyalty?.yello_bucks_balance?.toLocaleString()} YM</Text>
+              <Text style={styles.tierPoints}>{resolveYmBalance(loyalty).toLocaleString()} YM</Text>
            </View>
            <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
            </View>
            <Text style={styles.progressText}>
-              {loyalty?.points_to_next?.toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
+              {resolvePointsToNext(loyalty).toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
            </Text>
         </View>
 

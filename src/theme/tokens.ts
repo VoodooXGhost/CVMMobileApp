@@ -69,31 +69,31 @@ export const BorderRadius = {
 export const Typography = {
   display: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 24,
     letterSpacing: 0,
   },
   headline: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 24,
     letterSpacing: 0,
   },
   title: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 24,
     letterSpacing: 0,
   },
   body: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 24,
   },
   label: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 24,
     letterSpacing: 0,
   },
 };

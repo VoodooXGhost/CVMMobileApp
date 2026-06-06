@@ -12,6 +12,7 @@ const translations = {
       cancel: 'Cancel',
       success: 'Success',
       error: 'Error',
+      approvalRequired: 'This action requires approval.',
       notifications: 'Notifications',
       refresh: 'Refresh',
       customer: 'Customer',
@@ -83,6 +84,7 @@ const translations = {
       resetPassword: 'Reset Password',
       support: 'Support',
       supportMessage: 'Password reset is available through support channels.',
+      sessionExpired: 'Your session expired. Please sign in again.',
     },
     rewards: {
       title: 'Rewards Hub',
@@ -105,6 +107,10 @@ const translations = {
       dailyQuests: 'Daily Quests',
       referFriend: 'Refer a Friend',
       earnPerReferral: 'Earn 500 YM per referral',
+      activeGames: 'Active Games',
+      gameUnavailable: 'This game is not available right now.',
+      gameUnavailableBody: 'Please try again once the active game is available.',
+      invalidGameState: 'This game cannot be played right now.',
     },
     marketplace: {
       title: 'Marketplace',
@@ -151,6 +157,10 @@ const translations = {
       requestFailed: 'Request failed',
       expiry: 'EXPIRY',
       cvv: 'CVV',
+      stepUpPrompt: 'Authenticate to continue spending YM.',
+      walletVerificationRequired: 'Wallet verification required',
+      walletVerificationRequiredBody: 'Please complete wallet verification to continue.',
+      insufficientBalance: 'You do not have enough YelloMola for this action.',
     },
     account: {
       associatedLines: 'ASSOCIATED LINES',
@@ -184,6 +194,7 @@ const translations = {
       collect: 'COLLECT',
       spinning: 'SPINNING...',
       spinNow: 'SPIN NOW',
+      spinFailed: 'Unable to complete the spin right now.',
     },
     p2p: {
       invalidInput: 'Invalid Input',
@@ -220,6 +231,7 @@ const translations = {
       cancel: 'Cancelar',
       success: 'Sucesso',
       error: 'Erro',
+      approvalRequired: 'Esta acao requer aprovacao.',
       notifications: 'Notificacoes',
       refresh: 'Atualizar',
       customer: 'Cliente',
@@ -291,6 +303,7 @@ const translations = {
       resetPassword: 'Repor Palavra-passe',
       support: 'Suporte',
       supportMessage: 'A reposicao de palavra-passe esta disponivel via suporte.',
+      sessionExpired: 'A sua sessao expirou. Inicie sessao novamente.',
     },
     rewards: {
       title: 'Centro de Premios',
@@ -313,6 +326,10 @@ const translations = {
       dailyQuests: 'Missoes Diarias',
       referFriend: 'Convide um Amigo',
       earnPerReferral: 'Ganhe 500 YM por convite',
+      activeGames: 'Jogos Ativos',
+      gameUnavailable: 'Este jogo nao esta disponivel agora.',
+      gameUnavailableBody: 'Tente novamente quando o jogo ativo estiver disponivel.',
+      invalidGameState: 'Este jogo nao pode ser jogado agora.',
     },
     marketplace: {
       title: 'Mercado',
@@ -359,6 +376,10 @@ const translations = {
       requestFailed: 'Pedido falhou',
       expiry: 'VALIDADE',
       cvv: 'CVV',
+      stepUpPrompt: 'Autentique-se para continuar a gastar YM.',
+      walletVerificationRequired: 'Verificacao da carteira necessaria',
+      walletVerificationRequiredBody: 'Conclua a verificacao da carteira para continuar.',
+      insufficientBalance: 'Nao tem YelloMola suficiente para esta acao.',
     },
     account: {
       associatedLines: 'LINHAS ASSOCIADAS',
@@ -392,6 +413,7 @@ const translations = {
       collect: 'RECOLHER',
       spinning: 'A GIRAR...',
       spinNow: 'GIRAR AGORA',
+      spinFailed: 'Nao foi possivel concluir o giro neste momento.',
     },
     p2p: {
       invalidInput: 'Entrada invalida',

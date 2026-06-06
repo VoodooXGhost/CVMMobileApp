@@ -1,6 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { platformStorage } from './storage';
 import { logger } from './logger';
+import { runtimeConfig } from '../config/runtime';
+import { clearAuthSession, refreshAuthSession } from './session';
+import { normalizeLoyaltyPayload } from './loyalty';
+import { normalizeGamesPayload } from './games';
 
 /**
  * Enterprise API Slice using RTK Query.
@@ -8,12 +12,25 @@ import { logger } from './logger';
  * and normalized response shapes across backend variants.
  * STRICTLY NO LOCALHOST.
  */
-const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.EXPO_PUBLIC_API_URL,
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: runtimeConfig.apiUrl,
   prepareHeaders: async (headers) => {
     const token = await platformStorage.getItemAsync('userToken');
     if (token && token.length > 20) {
       headers.set('authorization', `Bearer ${token}`);
+    }
+    const walletToken = await platformStorage.getItemAsync('wallet_token');
+    const walletExpiresAt = Number((await platformStorage.getItemAsync('wallet_token_expires_at')) || '0');
+    if (walletToken && walletExpiresAt > Date.now()) {
+      headers.set('X-Wallet-Token', walletToken);
+    }
+    const zeroRatingEnabled =
+      runtimeConfig.profile !== 'prod' ||
+      runtimeConfig.apiUrl.includes('10.0.2.2') ||
+      runtimeConfig.apiUrl.includes('localhost') ||
+      runtimeConfig.apiUrl.includes('127.0.0.1');
+    if (zeroRatingEnabled) {
+      headers.set('X-Tmcel-Zero-Rate', 'true');
     }
     return headers;
   },
@@ -50,7 +67,7 @@ const normalizeHomeData = (raw: any) => {
   const profile = source.profile ?? {};
   const legacyBalances = source.balances ?? profile.balances ?? {};
   const legacyYelloBucks = source.yelloBucks ?? {};
-  const loyaltySource = source.loyalty ?? {};
+  const loyaltySource = normalizeLoyaltyPayload(source.loyalty ?? {}, legacyYelloBucks);
 
   const offers = toArray(source.offers).map((offer: any, index: number) => ({
     id: offer?.id ?? index + 1,
@@ -76,14 +93,6 @@ const normalizeHomeData = (raw: any) => {
 
   const normalizedLoyalty = {
     ...loyaltySource,
-    current_tier:
-      loyaltySource.current_tier ?? legacyYelloBucks.tier ?? 'Bronze',
-    next_tier: loyaltySource.next_tier ?? 'Silver',
-    points_to_next:
-      loyaltySource.points_to_next ?? legacyYelloBucks.pointsToNext ?? 0,
-    yello_bucks_balance:
-      loyaltySource.yello_bucks_balance ?? legacyYelloBucks.balance ?? 0,
-    progress_percentage: loyaltySource.progress_percentage ?? 0,
   };
 
   const normalizedGamification = source.gamification ?? {
@@ -99,6 +108,10 @@ const normalizeHomeData = (raw: any) => {
     offers,
     categories: source.categories ?? categories,
   };
+};
+
+const normalizeGamesData = (raw: any) => {
+  return normalizeGamesPayload(raw);
 };
 
 const normalizeWalletData = (raw: any) => {
@@ -203,9 +216,43 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
       return normalizeUsageData(raw);
     case 'getNotifications':
       return normalizeNotificationsData(raw);
+    case 'getGamesData':
+      return normalizeGamesData(raw);
     default:
       return raw?.data ?? raw;
   }
+};
+
+const captureBillingMode = async (result: any) => {
+  const billingMode = result?.meta?.response?.headers?.get?.('x-tmcel-billing');
+  if (billingMode) {
+    await platformStorage.setItemAsync('tmcel_billing_mode', String(billingMode));
+    await platformStorage.setItemAsync('tmcel_billing_last_seen_at', new Date().toISOString());
+    logger.log('Billing mode observed', { billingMode });
+  }
+};
+
+const executeRequest = async (args: any, api: any, extraOptions: any) => {
+  let result = await rawBaseQuery(args, api, extraOptions);
+  await captureBillingMode(result);
+
+  if (result.error && result.error.status === 401) {
+    const refreshed = await refreshAuthSession();
+    if (refreshed?.accessToken) {
+      result = await rawBaseQuery(args, api, extraOptions);
+      await captureBillingMode(result);
+    }
+
+    if (result.error && result.error.status === 401) {
+      logger.warn('Unauthorized request. Clearing stale session.');
+      await clearAuthSession();
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.reload();
+      }
+    }
+  }
+
+  return result;
 };
 
 const queryWithFallback = async (
@@ -216,7 +263,7 @@ const queryWithFallback = async (
 ) => {
   let lastResult: any = null;
   for (let index = 0; index < paths.length; index += 1) {
-    const result = await baseQuery(paths[index], api, extraOptions);
+    const result = await executeRequest(paths[index], api, extraOptions);
     lastResult = result;
     if (!result.error || !shouldTryFallback(result.error) || index === paths.length - 1) {
       if (result.data) {
@@ -235,7 +282,7 @@ const mutationWithFallback = async (
 ) => {
   let lastResult: any = null;
   for (let index = 0; index < configs.length; index += 1) {
-    const result = await baseQuery(configs[index], api, extraOptions);
+    const result = await executeRequest(configs[index], api, extraOptions);
     lastResult = result;
     if (!result.error || !shouldTryFallback(result.error) || index === configs.length - 1) {
       return result;
@@ -246,24 +293,8 @@ const mutationWithFallback = async (
 
 export const apiSlice = createApi({
   reducerPath: 'api',
-  baseQuery: async (args, api, extraOptions) => {
-    const result = await baseQuery(args, api, extraOptions);
-
-    // If we get a 401, the token is likely stale or invalid
-    if (result.error && result.error.status === 401) {
-      logger.warn('Unauthorized request. Clearing stale session.');
-      await platformStorage.deleteItemAsync('userToken');
-      await platformStorage.deleteItemAsync('userData');
-
-      // On web, we can force a reload to reset the App state
-      if (typeof window !== 'undefined' && window.location) {
-        window.location.reload();
-      }
-    }
-
-    return result;
-  },
-  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications'],
+  baseQuery: executeRequest,
+  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -285,7 +316,7 @@ export const apiSlice = createApi({
         ),
       providesTags: ['Wallet'],
     }),
-    getOffersData: builder.query<any, void>({
+  getOffersData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
           ['/api/v1/mobile/v1/offers', '/api/shop'],
@@ -294,6 +325,16 @@ export const apiSlice = createApi({
           'getOffersData',
         ),
       providesTags: ['Shop'],
+    }),
+    getGamesData: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/games', '/api/v1/mobile/v1/home'],
+          api,
+          extraOptions,
+          'getGamesData',
+        ),
+      providesTags: ['Games'],
     }),
     toggleCardFreeze: builder.mutation<any, { freeze: boolean }>({
       queryFn: (body, api, extraOptions) =>
@@ -329,7 +370,7 @@ export const apiSlice = createApi({
           api,
           extraOptions,
         ),
-      invalidatesTags: ['Home', 'Wallet'],
+      invalidatesTags: ['Home', 'Wallet', 'Games'],
     }),
     redeemOffer: builder.mutation<any, { item_id: number }>({
       queryFn: (body, api, extraOptions) =>
@@ -392,6 +433,7 @@ export const {
   useGetHomeDataQuery, 
   useGetWalletDataQuery, 
   useGetOffersDataQuery,
+  useGetGamesDataQuery,
   useToggleCardFreezeMutation,
   useP2pTransferMutation,
   usePlayGameMutation,
