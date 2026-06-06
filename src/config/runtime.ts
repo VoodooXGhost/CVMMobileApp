@@ -14,6 +14,8 @@ if (!allowedProfiles.includes(runtimeProfile)) {
   throw new Error(`Invalid EXPO_PUBLIC_RUNTIME_PROFILE '${process.env.EXPO_PUBLIC_RUNTIME_PROFILE}'. Use dev|staging|prod.`);
 }
 
+const defaultDevApiUrl = 'http://10.0.2.2:8125';
+
 const requiredByProfile: Record<RuntimeProfile, string[]> = {
   dev: ['EXPO_PUBLIC_API_URL'],
   staging: ['EXPO_PUBLIC_API_URL', 'EXPO_PUBLIC_API_CONTRACT_VERSION', 'EXPO_PUBLIC_RELEASE_VERSION'],
@@ -26,7 +28,9 @@ export const validateRuntimeConfig = () => {
     return !value || value.trim().length === 0;
   });
 
-  if (missing.length > 0) {
+  // Keep dev/test builds launchable on BlueStacks even if the env file was not injected,
+  // but preserve strict validation for staging and prod.
+  if (runtimeProfile !== 'dev' && missing.length > 0) {
     throw new Error(`Missing required mobile env vars for ${runtimeProfile}: ${missing.join(', ')}`);
   }
 
@@ -43,7 +47,7 @@ export const validateRuntimeConfig = () => {
 
 export const runtimeConfig = {
   profile: runtimeProfile,
-  apiUrl: process.env.EXPO_PUBLIC_API_URL || '',
+  apiUrl: process.env.EXPO_PUBLIC_API_URL || defaultDevApiUrl,
   apiContractVersion: process.env.EXPO_PUBLIC_API_CONTRACT_VERSION || 'mobile-v1',
   releaseVersion: process.env.EXPO_PUBLIC_RELEASE_VERSION || 'local-dev',
   flags: {
