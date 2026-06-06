@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { platformStorage } from './storage';
 import { logger } from './logger';
-import { runtimeConfig } from '../config/runtime';
+import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { clearAuthSession, refreshAuthSession } from './session';
 import { normalizeLoyaltyPayload } from './loyalty';
 import { normalizeGamesPayload } from './games';
@@ -24,14 +24,8 @@ const rawBaseQuery = fetchBaseQuery({
     if (walletToken && walletExpiresAt > Date.now()) {
       headers.set('X-Wallet-Token', walletToken);
     }
-    const zeroRatingEnabled =
-      runtimeConfig.profile !== 'prod' ||
-      runtimeConfig.apiUrl.includes('10.0.2.2') ||
-      runtimeConfig.apiUrl.includes('localhost') ||
-      runtimeConfig.apiUrl.includes('127.0.0.1');
-    if (zeroRatingEnabled) {
-      headers.set('X-Tmcel-Zero-Rate', 'true');
-    }
+    const zeroRateHeaders = getZeroRateRequestHeaders();
+    Object.entries(zeroRateHeaders).forEach(([key, value]) => headers.set(key, value));
     return headers;
   },
 });

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
-import { runtimeConfig } from '../config/runtime';
+import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
 
@@ -71,13 +71,14 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
       const response = await axios.post(
         attempts[index],
         {
-          biometric_assertion: biometricAssertion,
-          device_id: deviceId,
+          biometricAssertion,
+          deviceId,
           platform: Platform.OS,
         },
         {
           timeout: 10_000,
           headers: {
+            ...getZeroRateRequestHeaders(),
             Authorization: `Bearer ${accessToken}`,
           },
         },

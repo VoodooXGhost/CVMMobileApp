@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
-import { runtimeConfig } from '../config/runtime';
+import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
 
@@ -115,8 +115,8 @@ export const refreshAuthSession = async () => {
   try {
     const response = await axios.post(
       buildUrl('/api/v1/mobile/auth/refresh'),
-      { refresh_token: refreshToken, device_id: deviceId },
-      { timeout: 10_000 },
+      { refreshToken, deviceId },
+      { timeout: 10_000, headers: getZeroRateRequestHeaders() },
     );
     const { accessToken, refreshToken: nextRefreshToken, userData } = mapAuthPayload(response.data);
     if (!accessToken || typeof accessToken !== 'string') {
@@ -160,13 +160,16 @@ export const registerMobileDevice = async () => {
     await axios.post(
       buildUrl('/api/v1/mobile/auth/register-device'),
       {
-        device_id: deviceId,
-        ...(pushToken ? { push_token: pushToken } : {}),
+        deviceId,
+        ...(pushToken ? { pushToken } : {}),
         platform: Platform.OS,
       },
       {
         timeout: 10_000,
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        headers: {
+          ...getZeroRateRequestHeaders(),
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
       },
     );
     return { deviceId, pushToken };
@@ -189,6 +192,7 @@ export const revokeRemoteSession = async () => {
       {
         timeout: 10_000,
         headers: {
+          ...getZeroRateRequestHeaders(),
           Authorization: `Bearer ${accessToken}`,
         },
       },

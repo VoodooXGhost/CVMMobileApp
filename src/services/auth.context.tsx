@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { AppState } from 'react-native';
 import axios from 'axios';
-import { runtimeConfig } from '../config/runtime';
+import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { flushToBackend, setAnalyticsIdentity, track } from './analytics';
 import { logger } from './logger';
 import {
@@ -144,8 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           platform: 'android',
         },
         {
-          headers: { 'Content-Type': 'application/json' },
           timeout: 10000,
+          headers: {
+            ...getZeroRateRequestHeaders(),
+            'Content-Type': 'application/json',
+          },
         },
       );
       console.warn('[mobile] login response received', {
