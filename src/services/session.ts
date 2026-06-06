@@ -114,45 +114,27 @@ export const refreshAuthSession = async () => {
   if (!refreshToken) return null;
 
   const deviceId = await getDeviceIdentifier();
-  const attempts = [
-    {
-      url: buildUrl('/api/v1/mobile/auth/refresh'),
-      body: { refresh_token: refreshToken, device_id: deviceId },
-    },
-    {
-      url: buildUrl('/auth/refresh'),
-      body: { refresh_token: refreshToken, device_id: deviceId },
-    },
-  ];
-
-  let lastError: any = null;
-  for (let index = 0; index < attempts.length; index += 1) {
-    const attempt = attempts[index];
-    try {
-      const response = await axios.post(attempt.url, attempt.body, { timeout: 10_000 });
-      const { accessToken, refreshToken: nextRefreshToken, userData } = mapAuthPayload(response.data);
-      if (!accessToken || typeof accessToken !== 'string') {
-        throw new Error('Refresh response did not include an access token.');
-      }
-      await persistAuthSession({
-        accessToken,
-        refreshToken: nextRefreshToken ?? refreshToken,
-        userData,
-        provenance: 'refresh',
-      });
-      return { accessToken, refreshToken: nextRefreshToken ?? refreshToken, userData };
-    } catch (error: any) {
-      lastError = error;
-      const statusCode = error?.response?.status;
-      const canFallback = statusCode === 404 || statusCode === 405;
-      if (!canFallback || index === attempts.length - 1) {
-        break;
-      }
+  try {
+    const response = await axios.post(
+      buildUrl('/api/v1/mobile/auth/refresh'),
+      { refresh_token: refreshToken, device_id: deviceId },
+      { timeout: 10_000 },
+    );
+    const { accessToken, refreshToken: nextRefreshToken, userData } = mapAuthPayload(response.data);
+    if (!accessToken || typeof accessToken !== 'string') {
+      throw new Error('Refresh response did not include an access token.');
     }
+    await persistAuthSession({
+      accessToken,
+      refreshToken: nextRefreshToken ?? refreshToken,
+      userData,
+      provenance: 'refresh',
+    });
+    return { accessToken, refreshToken: nextRefreshToken ?? refreshToken, userData };
+  } catch (error: any) {
+    logger.warn('Refresh session failed', { status: error?.response?.status });
+    return null;
   }
-
-  logger.warn('Refresh session failed', { status: lastError?.response?.status });
-  return null;
 };
 
 const normalizeDeviceToken = async () => {
@@ -186,34 +168,48 @@ const getExpoPushTokenIfAvailable = async () => {
 export const registerMobileDevice = async () => {
   const deviceId = await normalizeDeviceToken();
   const pushToken = await getExpoPushTokenIfAvailable();
-  const attempts = [
-    `${buildUrl('/api/v1/mobile/auth/register-device')}`,
-    `${buildUrl('/auth/register-device')}`,
-  ];
-
-  let lastError: any = null;
-  for (let index = 0; index < attempts.length; index += 1) {
-    try {
-      await axios.post(
-        attempts[index],
-        {
-          device_id: deviceId,
-          ...(pushToken ? { push_token: pushToken } : {}),
-          platform: Platform.OS,
-        },
-        { timeout: 10_000 },
-      );
-      return { deviceId, pushToken };
-    } catch (error: any) {
-      lastError = error;
-      const statusCode = error?.response?.status;
-      const canFallback = statusCode === 404 || statusCode === 405;
-      if (!canFallback || index === attempts.length - 1) {
-        break;
-      }
-    }
+  if (runtimeConfig.profile === 'prod' && !pushToken) {
+    const error: any = new Error('A real push token is required for production device registration.');
+    error.code = 'push_token_unavailable';
+    throw error;
   }
+  try {
+    await axios.post(
+      buildUrl('/api/v1/mobile/auth/register-device'),
+      {
+        device_id: deviceId,
+        ...(pushToken ? { push_token: pushToken } : {}),
+        platform: Platform.OS,
+      },
+      { timeout: 10_000 },
+    );
+    return { deviceId, pushToken };
+  } catch (error: any) {
+    logger.warn('Device registration failed', { status: error?.response?.status });
+    if (runtimeConfig.profile === 'prod') {
+      throw error;
+    }
+    return { deviceId, pushToken };
+  }
+};
 
-  logger.warn('Device registration failed', { status: lastError?.response?.status });
-  return { deviceId, pushToken };
+export const revokeRemoteSession = async () => {
+  const accessToken = await platformStorage.getItemAsync('userToken');
+  if (!accessToken) return false;
+  try {
+    await axios.post(
+      buildUrl('/api/v1/mobile/auth/logout'),
+      {},
+      {
+        timeout: 10_000,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+    return true;
+  } catch (error: any) {
+    logger.warn('Remote session revoke failed', { status: error?.response?.status });
+    return false;
+  }
 };

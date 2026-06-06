@@ -11,6 +11,7 @@ import {
   mapAuthPayload as mapSessionAuthPayload,
   persistAuthSession,
   registerMobileDevice,
+  revokeRemoteSession,
   refreshAuthSession,
   shouldRefreshStoredSession,
 } from './session';
@@ -115,81 +116,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await clearAuthSession();
       const deviceId = await getDeviceIdentifier();
 
-      // Support both mobile and legacy auth contracts in deterministic order.
-      const attempts = [
+      const response = await axios.post(
+        `${API_URL}/api/v1/mobile/auth/login`,
         {
-          url: `${API_URL}/api/v1/mobile/auth/login`,
-          body: {
-            msisdn,
-            pin,
-            device_id: deviceId,
-            platform: 'android',
-          },
+          msisdn,
+          pin,
+          device_id: deviceId,
+          platform: 'android',
         },
         {
-          url: `${API_URL}/api/v1/mobile/auth/login`,
-          body: {
-            username: msisdn,
-            password: pin,
-            device_id: deviceId,
-            platform: 'android',
-          },
           headers: { 'Content-Type': 'application/json' },
+          timeout: 10000,
         },
-        {
-          url: `${API_URL}/auth/login`,
-          body: {
-            username: msisdn,
-            password: pin,
-          },
-          headers: { 'Content-Type': 'application/json' },
-        },
-      ];
+      );
+      const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
 
-      let lastError: any = null;
-      for (let index = 0; index < attempts.length; index += 1) {
-        const attempt = attempts[index];
-        try {
-          const response = await axios.post(attempt.url, attempt.body, {
-            headers: attempt.headers,
-            timeout: 10000,
-          });
-          const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
-
-          if (!accessToken || typeof accessToken !== 'string') {
-            throw new Error('Authentication response is missing a valid token.');
-          }
-
-          await persistAuthSession({
-            accessToken,
-            refreshToken,
-            userData,
-            provenance: 'login',
-          });
-
-          setToken(accessToken);
-          setUser(userData ?? null);
-          await setAnalyticsIdentity(
-            userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
-          );
-          await registerMobileDevice();
-          await track('login_success', {}, { screen: 'login' });
-          await flushToBackend();
-          return;
-        } catch (error: any) {
-          lastError = error;
-          const statusCode = error?.response?.status;
-          const canFallback = statusCode === 404 || statusCode === 405;
-          if (!canFallback || index === attempts.length - 1) {
-            break;
-          }
-        }
+      if (!accessToken || typeof accessToken !== 'string') {
+        throw new Error('Authentication response is missing a valid token.');
       }
 
-      await track('login_fail', { reason: 'auth_failed' }, { screen: 'login' });
-      const authError = lastError ?? new Error('Authentication failed');
-      (authError as any).__loginFailureReason = 'auth_failed';
-      throw authError;
+      await persistAuthSession({
+        accessToken,
+        refreshToken,
+        userData,
+        provenance: 'login',
+      });
+
+      try {
+        await registerMobileDevice();
+      } catch (registrationError) {
+        await clearAuthSession();
+        setToken(null);
+        setUser(null);
+        await setAnalyticsIdentity(null);
+        (registrationError as any).__loginFailureReason = 'push_registration_failed';
+        throw registrationError;
+      }
+
+      setToken(accessToken);
+      setUser(userData ?? null);
+      await setAnalyticsIdentity(
+        userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn,
+      );
+      await track('login_success', {}, { screen: 'login' });
+      await flushToBackend();
+      return;
     } catch (error: any) {
       logger.warn('Login failed', { status: error?.response?.status });
       const failureReason =
@@ -200,6 +171,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    try {
+      await revokeRemoteSession();
+    } catch (_error) {
+      // Remote revoke is best-effort; local session clear still proceeds.
+    }
     await clearAuthSession();
     setToken(null);
     setUser(null);
