@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Device from 'expo-device';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
 import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
@@ -27,6 +28,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const [scanned, setScanned] = useState(false);
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
   const { authenticate } = useBiometricAuth();
+  const cameraSupported = Device.isDevice && !Device.modelName?.toLowerCase().includes('bluestacks');
 
   useEffect(() => {
     if (visible && !scanned) {
@@ -151,6 +153,23 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   };
 
   const renderCameraContent = () => {
+    if (!cameraSupported) {
+      return (
+        <View style={styles.permissionContainer}>
+          <Text style={Typography.title}>{t('scan.unavailableTitle', 'Scan to Pay is unavailable here')}</Text>
+          <Text style={[Typography.body, styles.permissionCopy]}>
+            {t(
+              'scan.unavailableBody',
+              'This emulator does not provide a usable camera surface. Use a physical Android device to scan QR codes.',
+            )}
+          </Text>
+          <TouchableOpacity style={styles.grantButton} onPress={closeAndReset}>
+            <Text style={styles.grantText}>{t('common.done', 'Done')}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
@@ -227,6 +246,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  permissionCopy: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   grantButton: {
     marginTop: 20,
