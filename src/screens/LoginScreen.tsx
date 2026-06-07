@@ -62,8 +62,8 @@ const LoginScreen = () => {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <View style={styles.header}>
           <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
-          <Text style={Typography.headline}>{t('login.title', 'The Digital Pulse')}</Text>
-          <Text style={[Typography.body, styles.subtitle]}>{t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}</Text>
+          <Text style={styles.titleText}>{t('login.title', 'The Digital Pulse')}</Text>
+          <Text style={styles.subtitleText}>{t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}</Text>
         </View>
 
         <AppCard style={styles.loginCard} variant="nested">
@@ -133,17 +133,29 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   header: {
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
     gap: Spacing.sm,
+    alignItems: 'center',
   },
   tmcelLogo: {
-    width: 120,
-    height: 42,
-    alignSelf: 'flex-start',
+    width: '100%',
+    height: 140,
+    alignSelf: 'center',
   },
-  subtitle: {
+  titleText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    textAlign: 'center',
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
+  subtitleText: {
+    fontSize: 16,
     color: Colors.on_surface_variant,
+    textAlign: 'center',
     maxWidth: '90%',
+    fontFamily: 'PlusJakartaSans_500Medium',
+    lineHeight: 22,
   },
   loginCard: {
     padding: Spacing.xl,
