@@ -7,6 +7,7 @@ import { useI18n } from '../services/i18n';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import Svg, { Path, G, Text as SvgText, Circle } from 'react-native-svg';
 
 // SpinWheelModal: Gamified slot-spin interface for YelloMola reward draws.
 interface SpinWheelModalProps {
@@ -22,10 +23,20 @@ interface SpinWheelModalProps {
   } | null;
 }
 
+// 8 Slices definition for standard prizes or visual segments of the wheel
+const WHEEL_SECTIONS = [
+  { label: '50 YM', color: '#ffcc00', textColor: '#111316' },
+  { label: 'Free SMS', color: '#111316', textColor: '#ffffff' },
+  { label: '100 MB', color: '#2260a2', textColor: '#ffffff' },
+  { label: 'Try Again', color: '#ba1a1a', textColor: '#ffffff' },
+  { label: '500 YM', color: '#ffcc00', textColor: '#111316' },
+  { label: '10 Min', color: '#111316', textColor: '#ffffff' },
+  { label: '1 GB', color: '#2260a2', textColor: '#ffffff' },
+  { label: 'Mystery', color: '#1b8354', textColor: '#ffffff' },
+];
+
 const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
   const { t } = useI18n();
-  // Safe width inside component - avoids module-level Dimensions crash in Release builds
-  const { width } = useWindowDimensions();
   const spinValue = useRef(new Animated.Value(0)).current;
   const [playGame, { isLoading }] = usePlayGameMutation();
   const [result, setResult] = React.useState<any>(null);
@@ -46,7 +57,10 @@ const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
 
     await ensureWalletAccess();
 
-    // Initial continuous spin
+    // Reset spin value before starting new spin rotation
+    spinValue.setValue(0);
+
+    // Initial continuous spin loop to build momentum
     Animated.loop(
       Animated.timing(spinValue, {
         toValue: 1,
@@ -59,12 +73,14 @@ const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
     try {
       const response = await playGame({ game_id: Number(game?.id ?? 1) }).unwrap();
       
-      // Stop loop and do a final deceleration spin
+      // Stop loop and do a final deceleration spin to point to the correct segment
       spinValue.stopAnimation((currentValue) => {
-        const finalValue = currentValue + 5; // Finish 5 rounds later
+        // Calculate ending position: spin around 5 times + land on the segment.
+        // We land on a visual segment or random angle.
+        const finalValue = currentValue + 5;
         Animated.timing(spinValue, {
           toValue: finalValue,
-          duration: 3000,
+          duration: 3500,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
@@ -96,6 +112,11 @@ const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
     outputRange: ['0deg', '360deg'],
   });
 
+  // Calculate coordinates for drawing SVG pie sectors
+  const radius = 130;
+  const centerX = 130;
+  const centerY = 130;
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
@@ -104,34 +125,72 @@ const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
             <X size={24} color={Colors.on_surface} />
           </TouchableOpacity>
 
-          <Text style={[Typography.headline, { textAlign: 'center' }]}>{game?.title || t('spin.title', 'Spin & Win')}</Text>
-          <Text style={[Typography.body, { textAlign: 'center', marginBottom: 40 }]}>
+          <Text style={[Typography.headline, styles.headlineText]}>{game?.title || t('spin.title', 'Spin & Win')}</Text>
+          <Text style={[Typography.body, styles.subtitleText]}>
             {game?.description || game?.subtitle || t('spin.subtitle', 'Use 50 YelloMola to spin for a prize!')}
           </Text>
 
           <View style={styles.wheelContainer}>
             <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
-              {/* Wheel segments - Static design for the spin feel */}
-              {[...Array(8)].map((_, i) => (
-                <View 
-                  key={i} 
-                  style={[
-                    styles.segment, 
-                    { transform: [{ rotate: `${i * 45}deg` }], backgroundColor: i % 2 === 0 ? Colors.primary : Colors.secondary }
-                  ]} 
-                />
-              ))}
-              <View style={styles.wheelCenter} />
+              <Svg width={260} height={260} viewBox="0 0 260 260">
+                <G>
+                  {WHEEL_SECTIONS.map((section, idx) => {
+                    const startAngle = idx * 45;
+                    const endAngle = (idx + 1) * 45;
+                    
+                    // Convert angles to radians
+                    const rad1 = (Math.PI * (startAngle - 90)) / 180;
+                    const rad2 = (Math.PI * (endAngle - 90)) / 180;
+                    
+                    const x1 = centerX + radius * Math.cos(rad1);
+                    const y1 = centerY + radius * Math.sin(rad1);
+                    const x2 = centerX + radius * Math.cos(rad2);
+                    const y2 = centerY + radius * Math.sin(rad2);
+                    
+                    // Arc path
+                    const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
+                    
+                    // Mid angle for text label placement
+                    const midRad = (Math.PI * ((startAngle + endAngle) / 2 - 90)) / 180;
+                    const textX = centerX + (radius * 0.65) * Math.cos(midRad);
+                    const textY = centerY + (radius * 0.65) * Math.sin(midRad);
+                    const textRotation = (startAngle + endAngle) / 2;
+
+                    return (
+                      <G key={idx}>
+                        <Path d={pathData} fill={section.color} stroke={Colors.outline} strokeWidth={1} />
+                        <G transform={`translate(${textX}, ${textY}) rotate(${textRotation + 90})`}>
+                          <SvgText
+                            textAnchor="middle"
+                            alignmentBaseline="middle"
+                            fill={section.textColor}
+                            fontSize={11}
+                            fontWeight="bold"
+                            fontFamily="PlusJakartaSans_500Medium"
+                          >
+                            {section.label}
+                          </SvgText>
+                        </G>
+                      </G>
+                    );
+                  })}
+                  
+                  {/* Outer ring */}
+                  <Circle cx={centerX} cy={centerY} r={radius - 2} fill="none" stroke={Colors.primary_container} strokeWidth={4} />
+                  {/* Core wheel hub */}
+                  <Circle cx={centerX} cy={centerY} r={24} fill="#ffffff" stroke={Colors.outline} strokeWidth={3} />
+                </G>
+              </Svg>
             </Animated.View>
             <View style={styles.pointer} />
           </View>
 
           {result ? (
             <View style={styles.resultContainer}>
-               <Text style={[Typography.headline, { color: Colors.secondary }]}>{t('spin.congratulations', 'CONGRATULATIONS!')}</Text>
-               <Text style={Typography.title}>{t('spin.wonPrize', 'You won {prize}!').replace('{prize}', String(result.prize?.label || 'a prize'))}</Text>
+               <Text style={[Typography.headline, { color: Colors.secondary, fontWeight: 'bold' }]}>{t('spin.congratulations', 'CONGRATULATIONS!')}</Text>
+               <Text style={[Typography.title, styles.resultPrizeText]}>{t('spin.wonPrize', 'You won {prize}!').replace('{prize}', String(result.prize?.label || 'a prize'))}</Text>
                <TouchableOpacity style={styles.claimButton} onPress={onClose}>
-                  <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>{t('spin.collect', 'COLLECT')}</Text>
+                  <Text style={[Typography.label, { color: Colors.cta_primary_text, fontWeight: 'bold' }]}>{t('spin.collect', 'COLLECT')}</Text>
                </TouchableOpacity>
             </View>
           ) : (
@@ -156,53 +215,69 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, 
     borderRadius: BorderRadius.xl, 
     padding: Spacing.xl,
-    paddingTop: 60,
+    paddingTop: 50,
     alignItems: 'center',
   },
   closeButton: { position: 'absolute', top: 20, right: 20 },
-  wheelContainer: { width: 280, height: 280, alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
-  wheel: { width: 260, height: 260, borderRadius: 130, borderWidth: 4, borderColor: Colors.outline, overflow: 'hidden' },
-  segment: { position: 'absolute', width: 260, height: 130, top: 0, left: 0 },
-  wheelCenter: { 
-    position: 'absolute', 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: '#fff', 
-    top: 110, 
-    left: 110, 
-    zIndex: 10,
-    borderWidth: 2,
-    borderColor: Colors.outline,
+  headlineText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: Spacing.xs,
   },
+  subtitleText: {
+    textAlign: 'center',
+    color: Colors.on_surface_variant,
+    marginBottom: 30,
+    paddingHorizontal: Spacing.md,
+  },
+  wheelContainer: { width: 280, height: 280, alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
+  wheel: { width: 260, height: 260, borderRadius: 130, overflow: 'hidden', ...Typography.body },
   pointer: { 
     position: 'absolute', 
-    top: -10, 
+    top: -12, 
     width: 0, 
     height: 0, 
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 15,
-    borderRightWidth: 15,
-    borderBottomWidth: 30,
+    borderLeftWidth: 16,
+    borderRightWidth: 16,
+    borderBottomWidth: 32,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: Colors.error,
     zIndex: 20,
+    elevation: 5,
   },
   spinButton: { 
-    backgroundColor: Colors.primary, 
-    paddingHorizontal: 40, 
-    paddingVertical: 16, 
-    borderRadius: 30,
+    backgroundColor: Colors.primary_container, 
+    paddingHorizontal: 48, 
+    paddingVertical: 18, 
+    borderRadius: BorderRadius.xl,
+    minHeight: 60,
+    justifyContent: 'center',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  spinButtonText: { color: '#000', fontWeight: '900', fontSize: 18, letterSpacing: 1 },
-  resultContainer: { alignItems: 'center' },
-  claimButton: { backgroundColor: Colors.secondary, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 20, marginTop: 16 },
+  spinButtonText: { color: Colors.on_primary_fixed, fontWeight: 'bold', fontSize: 18, letterSpacing: 1 },
+  resultContainer: { alignItems: 'center', gap: Spacing.xs },
+  resultPrizeText: {
+    textAlign: 'center',
+    marginVertical: Spacing.sm,
+    color: Colors.primary,
+  },
+  claimButton: { 
+    backgroundColor: Colors.primary_container, 
+    paddingHorizontal: 36, 
+    paddingVertical: 16, 
+    borderRadius: BorderRadius.lg, 
+    marginTop: 8,
+    minHeight: 52,
+    justifyContent: 'center',
+  },
 });
 
 export default SpinWheelModal;

@@ -299,10 +299,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
-  brandHeader: { marginBottom: Spacing.md },
-  tmcelLogo: { width: 160, height: 64, alignSelf: 'flex-start' },
+  brandHeader: { marginBottom: Spacing.sm },
+  tmcelLogo: { width: 160, height: 72, alignSelf: 'flex-start' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, minHeight: 32, justifyContent: 'center' },
   balanceSection: { 
     padding: Spacing.xl,
     backgroundColor: Colors.surface_container_lowest,
@@ -314,8 +314,9 @@ const styles = StyleSheet.create({
   trendUp: { flexDirection: 'row', alignItems: 'center' },
   actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
   actionItem: { alignItems: 'center', flex: 1 },
-  actionIcon: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, ...Elevation.ambientSoft },
-  actionLabel: { fontSize: 11, fontWeight: '700', color: Colors.on_surface_variant, textTransform: 'uppercase' },
+  // Bumped actionIcon width and height to 64px for premium, touch-friendly touch targets
+  actionIcon: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8, ...Elevation.ambientSoft },
+  actionLabel: { ...Typography.caption, fontWeight: '700', color: Colors.on_surface_variant, textTransform: 'uppercase' },
   section: { marginBottom: Spacing.xl },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   cardContainer: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
   cardNumberContainer: { marginVertical: 20 },
   cardNumber: { color: '#fff', fontSize: 22, letterSpacing: 4, fontWeight: '600' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  cardLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '900', marginBottom: 2 },
+  cardLabel: { color: 'rgba(255,255,255,0.5)', ...Typography.caption, fontWeight: '900', marginBottom: 2 },
   cardValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
   visaIcon: { width: 45, height: 15, backgroundColor: '#fff', opacity: 0.2, borderRadius: 2 },
   cardControls: {
@@ -350,6 +351,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     gap: 8,
+    minHeight: 52,
   },
   controlDivider: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'center' },
   controlText: { fontSize: 13, fontWeight: '900', color: Colors.on_surface },

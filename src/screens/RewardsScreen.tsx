@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   tmcelLogo: {
     width: 160,
-    height: 64,
+    height: 72,
     alignSelf: 'flex-start',
   },
   header: { 
@@ -359,6 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
+    minHeight: 32,
   },
   streakCard: {
     backgroundColor: Colors.surface_container_lowest,
@@ -385,14 +386,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dayCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    // Increased day circle width and height to 42px as requested for better visibility
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.surface_container_high,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayLabel: { fontSize: 10, fontWeight: '700', color: Colors.on_surface_variant },
+  dayLabel: { ...Typography.caption, fontWeight: '700', color: Colors.on_surface_variant },
   streakFooter: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -402,9 +404,10 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.outline_variant,
     gap: 8
   },
-  streakFooterText: { fontSize: 10, fontWeight: '600', color: Colors.on_surface_variant },
+  streakFooterText: { ...Typography.caption, fontWeight: '600', color: Colors.on_surface_variant },
   spinHero: {
-    height: 180,
+    // Increased spin daily banner height to 200px for robust visual presentation
+    height: 200,
     backgroundColor: Colors.primary_container,
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',
@@ -420,11 +423,13 @@ const styles = StyleSheet.create({
   },
   spinCta: {
     backgroundColor: Colors.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: BorderRadius.full,
     marginTop: 16,
     alignSelf: 'flex-start',
+    minHeight: 46,
+    justifyContent: 'center',
   },
   spinIconContainer: {
     position: 'absolute',

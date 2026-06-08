@@ -19,9 +19,11 @@ import {
 interface AuthContextType {
   token: string | null;
   user: any | null;
+  storedMsisdn: string | null;
   // signIn uses MSISDN + PIN — Option A mobile-first auth
   signIn: (msisdn: string, pin: string) => Promise<void>;
   signOut: () => Promise<void>;
+  clearMsisdn: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -30,15 +32,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
+  const [storedMsisdn, setStoredMsisdn] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Use the runtime API URL so mobile and web stay aligned with the deployed contract.
   const API_URL = runtimeConfig.apiUrl;
 
   useEffect(() => {
-    // Load token from storage on mount
+    // Load token and stored MSISDN from storage on mount
     const loadToken = async () => {
       try {
+        const msisdn = await getStoredMsisdn();
+        setStoredMsisdn(msisdn);
+
         const { accessToken, refreshToken, userData } = await getStoredAuthTokens();
         const shouldRenewSession = await shouldRefreshStoredSession();
         if (shouldRenewSession) {
@@ -46,6 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshed?.accessToken) {
             setToken(refreshed.accessToken);
             setUser(refreshed.userData ?? userData ?? null);
+            if (refreshed.userData?.msisdn) {
+              await persistStoredMsisdn(refreshed.userData.msisdn);
+              setStoredMsisdn(refreshed.userData.msisdn);
+            }
             await setAnalyticsIdentity(
               refreshed.userData?.msisdn ?? refreshed.userData?.username ?? refreshed.userData?.email ?? null,
             );
@@ -60,6 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(accessToken);
           if (parsedUser) {
             setUser(parsedUser);
+            if (parsedUser.msisdn) {
+              await persistStoredMsisdn(parsedUser.msisdn);
+              setStoredMsisdn(parsedUser.msisdn);
+            }
             await setAnalyticsIdentity(
               parsedUser?.msisdn ?? parsedUser?.username ?? parsedUser?.email ?? null,
             );
@@ -69,6 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshed?.accessToken) {
             setToken(refreshed.accessToken);
             setUser(refreshed.userData ?? parsedUser);
+            if (refreshed.userData?.msisdn) {
+              await persistStoredMsisdn(refreshed.userData.msisdn);
+              setStoredMsisdn(refreshed.userData.msisdn);
+            }
             await setAnalyticsIdentity(
               refreshed.userData?.msisdn ?? refreshed.userData?.username ?? refreshed.userData?.email ?? null,
             );
@@ -168,6 +186,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userData,
           provenance: 'login',
         });
+        // Save the MSISDN for PIN-only returning user login flow
+        await persistStoredMsisdn(msisdn);
+        setStoredMsisdn(msisdn);
       } catch (sessionPersistError) {
         logger.warn('Login completed, but auth session persistence failed', sessionPersistError);
       }
@@ -215,14 +236,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (_error) {
       // Remote revoke is best-effort; local session clear still proceeds.
     }
+    // Fully clear auth tokens, session data, and the stored MSISDN so next launch requires full credentials
     await clearAuthSession();
+    await clearStoredMsisdn();
     setToken(null);
     setUser(null);
+    setStoredMsisdn(null);
     await setAnalyticsIdentity(null);
   };
 
+  const clearMsisdn = async () => {
+    // Clear stored MSISDN to allow user to switch accounts/log in under a different number
+    await clearStoredMsisdn();
+    setStoredMsisdn(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ token, user, signIn, signOut, isLoading }}>
+    <AuthContext.Provider value={{ token, user, storedMsisdn, signIn, signOut, clearMsisdn, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

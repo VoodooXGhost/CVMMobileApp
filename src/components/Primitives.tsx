@@ -111,7 +111,8 @@ export const AppInput = React.forwardRef<TextInput, TextInputProps>(function App
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 56,
+    // Increased minHeight to 60px for a more touch-friendly, premium feel matching enterprise standards
+    minHeight: 60,
     borderRadius: BorderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     ...Elevation.ambientSoft,
   },
   ghostButton: {
-    minHeight: 40,
+    minHeight: 46,
     paddingHorizontal: Spacing.md,
     paddingVertical: 0,
     borderWidth: 0,
@@ -136,7 +137,8 @@ const styles = StyleSheet.create({
     ...Elevation.ambientSoft,
   },
   input: {
-    height: 56,
+    // Increased height to 60px to match buttons and improve spacing/readability
+    height: 60,
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.surface_container_high,
     paddingHorizontal: Spacing.md,

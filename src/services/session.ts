@@ -77,6 +77,23 @@ export const persistAuthSession = async ({
   }
 };
 
+const STORED_MSISDN_KEY = 'storedMsisdn';
+
+export const persistStoredMsisdn = async (msisdn: string) => {
+  // Store the user's MSISDN to allow direct PIN-only login on subsequent launches without needing re-entry of the MSISDN.
+  await platformStorage.setItemAsync(STORED_MSISDN_KEY, msisdn);
+};
+
+export const getStoredMsisdn = async () => {
+  // Retrieve the stored MSISDN from platform-specific secure storage. Returns null if not logged in previously.
+  return await platformStorage.getItemAsync(STORED_MSISDN_KEY);
+};
+
+export const clearStoredMsisdn = async () => {
+  // Clear the stored MSISDN upon explicit user logout.
+  await platformStorage.deleteItemAsync(STORED_MSISDN_KEY);
+};
+
 export const clearAuthSession = async () => {
   await platformStorage.deleteItemAsync(ACCESS_TOKEN_KEY);
   await platformStorage.deleteItemAsync(REFRESH_TOKEN_KEY);

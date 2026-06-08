@@ -291,8 +291,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
-  brandHeader: { marginBottom: Spacing.md },
-  tmcelLogo: { width: 160, height: 64, alignSelf: 'flex-start' },
+  brandHeader: { marginBottom: Spacing.sm },
+  tmcelLogo: { width: 160, height: 72, alignSelf: 'flex-start' },
   categoryScroll: { marginBottom: Spacing.xl },
   categoryItem: { alignItems: 'center', marginRight: 20 },
   categoryIconCircle: { 
@@ -338,7 +338,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary, 
     paddingHorizontal: 10, 
     paddingVertical: 6, 
-    borderRadius: 14 
+    borderRadius: 14,
+    minHeight: 32,
   },
 });
 

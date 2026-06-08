@@ -66,23 +66,24 @@ export const BorderRadius = {
   full: 9999,
 };
 
+// Typography design tokens using a professional Material 3 inspired scale to ensure readable, well-proportioned layout across all devices.
 export const Typography = {
   display: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 16,
-    lineHeight: 24,
-    letterSpacing: 0,
+    fontSize: 34,
+    lineHeight: 42,
+    letterSpacing: -0.5,
   },
   headline: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 16,
-    lineHeight: 24,
-    letterSpacing: 0,
+    fontSize: 28,
+    lineHeight: 36,
+    letterSpacing: -0.2,
   },
   title: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 28,
     letterSpacing: 0,
   },
   body: {
@@ -92,9 +93,15 @@ export const Typography = {
   },
   label: {
     fontFamily: 'PlusJakartaSans_500Medium',
-    fontSize: 16,
-    lineHeight: 24,
-    letterSpacing: 0,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0.2,
+  },
+  caption: {
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.3,
   },
 };
 
