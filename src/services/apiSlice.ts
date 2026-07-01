@@ -2,9 +2,10 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { platformStorage } from './storage';
 import { logger } from './logger';
 import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
-import { clearAuthSession, refreshAuthSession } from './session';
+import { invalidateAuthSession, refreshAuthSession } from './session';
 import { normalizeLoyaltyPayload } from './loyalty';
 import { normalizeGamesPayload } from './games';
+import { normalizeCampaignFeed } from './campaigns';
 
 /**
  * Enterprise API Slice using RTK Query.
@@ -212,6 +213,8 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
       return normalizeNotificationsData(raw);
     case 'getGamesData':
       return normalizeGamesData(raw);
+    case 'getCampaignsData':
+      return normalizeCampaignFeed(raw);
     default:
       return raw?.data ?? raw;
   }
@@ -239,7 +242,7 @@ const executeRequest = async (args: any, api: any, extraOptions: any) => {
 
     if (result.error && result.error.status === 401) {
       logger.warn('Unauthorized request. Clearing stale session.');
-      await clearAuthSession();
+      await invalidateAuthSession();
       if (typeof window !== 'undefined' && window.location) {
         window.location.reload();
       }
@@ -288,7 +291,7 @@ const mutationWithFallback = async (
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: executeRequest,
-  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games'],
+  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games', 'Campaigns'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -310,7 +313,7 @@ export const apiSlice = createApi({
         ),
       providesTags: ['Wallet'],
     }),
-  getOffersData: builder.query<any, void>({
+    getOffersData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
           ['/api/v1/mobile/v1/offers', '/api/shop'],
@@ -319,6 +322,16 @@ export const apiSlice = createApi({
           'getOffersData',
         ),
       providesTags: ['Shop'],
+    }),
+    getCampaignsData: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/campaigns', '/api/campaigns'],
+          api,
+          extraOptions,
+          'getCampaignsData',
+        ),
+      providesTags: ['Campaigns'],
     }),
     getGamesData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -389,10 +402,13 @@ export const apiSlice = createApi({
     }),
     getNotifications: builder.query<any, { limit?: number; cursor?: string | null; unread_only?: boolean } | void>({
       queryFn: (arg, api, extraOptions) => {
-        const limit = arg?.limit ?? 20;
-        const cursor = arg?.cursor ? `&cursor=${encodeURIComponent(arg.cursor)}` : '';
+        const normalizedArg = (arg ?? {}) as { limit?: number; cursor?: string | null; unread_only?: boolean };
+        const limit = normalizedArg.limit ?? 20;
+        const cursor = normalizedArg.cursor ? `&cursor=${encodeURIComponent(normalizedArg.cursor)}` : '';
         const unreadOnly =
-          typeof arg?.unread_only === 'boolean' ? `&unread_only=${arg.unread_only ? 'true' : 'false'}` : '';
+          typeof normalizedArg.unread_only === 'boolean'
+            ? `&unread_only=${normalizedArg.unread_only ? 'true' : 'false'}`
+            : '';
         return queryWithFallback(
           [`/api/v1/mobile/v1/notifications?limit=${limit}${cursor}${unreadOnly}`],
           api,
@@ -427,6 +443,7 @@ export const {
   useGetHomeDataQuery, 
   useGetWalletDataQuery, 
   useGetOffersDataQuery,
+  useGetCampaignsDataQuery,
   useGetGamesDataQuery,
   useToggleCardFreezeMutation,
   useP2pTransferMutation,

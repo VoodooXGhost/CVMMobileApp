@@ -11,6 +11,7 @@ import {
   Image,
   Modal,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
 import { useAuth } from '../services/auth.context';
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react-native';
 import {
   useGetHomeDataQuery,
+  useGetCampaignsDataQuery,
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationsReadMutation,
@@ -42,6 +44,18 @@ import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
 import { platformStorage } from '../services/storage';
 import { resolveYmBalance, resolvePointsToNext } from '../services/loyalty';
+import {
+  CampaignItem,
+  getCampaignActionPreview,
+  launchCampaignAction,
+  loadCampaignCache,
+  loadCampaignFavorites,
+  loadCampaignStatuses,
+  normalizeCampaignFeed,
+  saveCampaignCache,
+  saveCampaignFavorites,
+  saveCampaignStatus,
+} from '../services/campaigns';
 
 /**
  * HomeScreen Component
@@ -53,9 +67,17 @@ const HomeScreen = () => {
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
+  const { data: campaignResponse, isFetching: isCampaignsFetching, error: campaignError, refetch: refetchCampaigns } = useGetCampaignsDataQuery();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchVisible, setSearchVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [campaignActionVisible, setCampaignActionVisible] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignItem | null>(null);
+  const [campaignFilter, setCampaignFilter] = useState('all');
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [campaignFavorites, setCampaignFavoritesState] = useState<Record<string, boolean>>({});
+  const [campaignStatuses, setCampaignStatuses] = useState<Record<string, CampaignItem['last_action_status']>>({});
+  const [campaignErrorMessage, setCampaignErrorMessage] = useState<string | null>(null);
   const [heroVariant, setHeroVariant] = useState('claim_now');
   const [marketingEnabled, setMarketingEnabled] = useState(true);
   const [campaignEnabled, setCampaignEnabled] = useState(true);
@@ -139,6 +161,48 @@ const HomeScreen = () => {
   }, []);
 
   useEffect(() => {
+    const loadCampaignState = async () => {
+      const [favorites, statuses, cache] = await Promise.all([
+        loadCampaignFavorites(),
+        loadCampaignStatuses(),
+        loadCampaignCache(),
+      ]);
+      setCampaignFavoritesState(favorites);
+      setCampaignStatuses(statuses);
+      if (cache?.campaigns?.length) {
+        setCampaigns(cache.campaigns);
+      }
+    };
+    loadCampaignState();
+  }, []);
+
+  useEffect(() => {
+    if (!campaignResponse?.data) {
+      return;
+    }
+    const feed = normalizeCampaignFeed(campaignResponse.data);
+    setCampaigns(feed.campaigns);
+    setCampaignErrorMessage(null);
+    saveCampaignCache(feed);
+  }, [campaignResponse]);
+
+  useEffect(() => {
+    if (!campaignError) {
+      return;
+    }
+    const restoreCache = async () => {
+      const cached = await loadCampaignCache();
+      if (cached?.campaigns?.length) {
+        setCampaigns(cached.campaigns);
+        setCampaignErrorMessage(null);
+        return;
+      }
+      setCampaignErrorMessage(t('home.campaignEmpty', 'No campaigns available right now.'));
+    };
+    restoreCache();
+  }, [campaignError, t]);
+
+  useEffect(() => {
     if (!notificationResponse?.data) return;
     const payload = notificationResponse.data;
     const incoming = Array.isArray(payload.notifications) ? payload.notifications : [];
@@ -159,6 +223,13 @@ const HomeScreen = () => {
     if (item.category === 'marketing' && !marketingEnabled) return false;
     if (item.category === 'campaign' && !campaignEnabled) return false;
     return true;
+  });
+
+  const campaignCategories = Array.from(new Set(campaigns.map((item) => item.category).filter(Boolean)));
+  const visibleCampaigns = campaigns.filter((item) => {
+    if (campaignFilter === 'all') return true;
+    if (campaignFilter === 'saved') return Boolean(campaignFavorites[item.id] ?? item.saved);
+    return item.category === campaignFilter;
   });
 
   const unreadVisibleCount = filteredNotifications.filter((item: any) => !item.is_read).length;
@@ -233,6 +304,108 @@ const HomeScreen = () => {
     }
   };
 
+  const toggleCampaignFavorite = async (campaign: CampaignItem) => {
+    const nextValue = !(campaignFavorites[campaign.id] ?? campaign.saved);
+    const nextFavorites = { ...campaignFavorites, [campaign.id]: nextValue };
+    setCampaignFavoritesState(nextFavorites);
+    await saveCampaignFavorites(nextFavorites);
+    setCampaigns((prev) =>
+      prev.map((item) =>
+        item.id === campaign.id
+          ? { ...item, saved: nextValue }
+          : item,
+      ),
+    );
+    track(
+      nextValue ? 'campaign_save' : 'campaign_unsave',
+      { campaign_id: campaign.id, category: campaign.category },
+      { screen: 'home', placement: 'campaign_feed' },
+    );
+  };
+
+  const openCampaignAction = (campaign: CampaignItem) => {
+    setSelectedCampaign(campaign);
+    setCampaignActionVisible(true);
+    track(
+      'campaign_click',
+      { campaign_id: campaign.id, category: campaign.category, action_type: campaign.action_type },
+      { screen: 'home', placement: 'campaign_feed' },
+    );
+  };
+
+  const launchSelectedCampaign = async () => {
+    if (!selectedCampaign) return;
+    const campaign = selectedCampaign;
+    setCampaignErrorMessage(null);
+    setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: 'pending' }));
+    setCampaigns((prev) =>
+      prev.map((item) =>
+        item.id === campaign.id ? { ...item, last_action_status: 'pending' } : item,
+      ),
+    );
+    await saveCampaignStatus(campaign.id, 'pending');
+    try {
+      const result = await launchCampaignAction(campaign);
+      const nextStatus = result.usedFallback ? 'success' : 'success';
+      setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: nextStatus }));
+      setCampaigns((prev) =>
+        prev.map((item) =>
+          item.id === campaign.id
+            ? { ...item, last_action_status: nextStatus }
+            : item,
+        ),
+      );
+      await saveCampaignStatus(campaign.id, nextStatus);
+      track(
+        'campaign_action_success',
+        {
+          campaign_id: campaign.id,
+          action_type: campaign.action_type,
+          used_fallback: Boolean(result.usedFallback),
+          uri: result.uri,
+        },
+        { screen: 'home', placement: 'campaign_feed' },
+      );
+      if (result.usedFallback) {
+        track(
+          'campaign_action_fallback',
+          { campaign_id: campaign.id, action_type: campaign.action_type, uri: result.uri },
+          { screen: 'home', placement: 'campaign_feed' },
+        );
+      }
+      setCampaignActionVisible(false);
+      Alert.alert(
+        t('common.success', 'Success'),
+        result.usedFallback
+          ? t('home.campaignLaunchFallback', 'Using the fallback phone action.')
+          : t('home.campaignLaunchSuccess', 'Campaign action launched successfully.'),
+      );
+    } catch (launchError: any) {
+      setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: 'failed' }));
+      setCampaigns((prev) =>
+        prev.map((item) =>
+          item.id === campaign.id
+            ? { ...item, last_action_status: 'failed' }
+            : item,
+        ),
+      );
+      await saveCampaignStatus(campaign.id, 'failed');
+      track(
+        'campaign_action_fail',
+        {
+          campaign_id: campaign.id,
+          action_type: campaign.action_type,
+          reason: launchError?.message || 'launch_failed',
+        },
+        { screen: 'home', placement: 'campaign_feed' },
+      );
+      Alert.alert(
+        t('common.error', 'Error'),
+        launchError?.message || t('home.campaignLaunchFail', 'Unable to launch the campaign action.'),
+      );
+    }
+  };
+
   useEffect(() => {
     if (!notificationsVisible) return;
     filteredNotifications.forEach((item: any) => {
@@ -246,6 +419,18 @@ const HomeScreen = () => {
       }
     });
   }, [notificationsVisible, filteredNotifications, notifImpressionIds]);
+
+  useEffect(() => {
+    visibleCampaigns.slice(0, 6).forEach((item: CampaignItem) => {
+      if (shouldTrackImpression(item.id, 'home_campaign_feed')) {
+        track(
+          'campaign_impression',
+          { campaign_id: item.id, category: item.category, action_type: item.action_type },
+          { screen: 'home', placement: 'campaign_feed' },
+        );
+      }
+    });
+  }, [visibleCampaigns]);
 
   if (isLoading) {
     return (
@@ -396,6 +581,110 @@ const HomeScreen = () => {
           </View>
         </View>
 
+        {/* Campaign Feed */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.title, { marginBottom: 4 }]}>{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('home.campaignsSubtitle', 'Browse offers and launch the next step from your phone.')}</Text>
+            </View>
+            <TouchableOpacity onPress={refetchCampaigns} style={styles.sectionActionButton}>
+              <Text style={styles.sectionActionText}>{t('common.refresh', 'Refresh')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+            {[
+              { key: 'all', label: allCategoryLabel },
+              { key: 'saved', label: t('common.saved', 'Saved') },
+              ...campaignCategories.map((category: string) => ({ key: category, label: category })),
+            ].map((filter: { key: string; label: string }) => (
+              <TouchableOpacity
+                key={`campaign-filter-${filter.key}`}
+                style={[styles.categoryItem, campaignFilter === filter.key && styles.categoryItemActive]}
+                onPress={() => setCampaignFilter(filter.key)}
+              >
+                <Text style={[Typography.label, campaignFilter === filter.key && { color: Colors.primary }]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {campaignErrorMessage ? (
+            <View style={styles.campaignStateCard}>
+              <Text style={Typography.body}>{campaignErrorMessage}</Text>
+            </View>
+          ) : isCampaignsFetching && campaigns.length === 0 ? (
+            <View style={styles.campaignStateCard}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+            </View>
+          ) : visibleCampaigns.length === 0 ? (
+            <View style={styles.campaignStateCard}>
+              <Text style={Typography.body}>{t('home.campaignEmpty', 'No campaigns available right now.')}</Text>
+            </View>
+          ) : (
+            visibleCampaigns.map((campaign: CampaignItem) => {
+              const isSaved = campaignFavorites[campaign.id] ?? campaign.saved;
+              const currentStatus = (campaignStatuses[campaign.id] as any) || campaign.last_action_status;
+              return (
+                <View key={campaign.id} style={styles.campaignCard}>
+                  <TouchableOpacity
+                    style={styles.campaignCardBody}
+                    activeOpacity={0.85}
+                    onPress={() => openCampaignAction(campaign)}
+                  >
+                    <View style={styles.campaignCardTopRow}>
+                      <View style={styles.campaignBadgeRow}>
+                        <View style={styles.campaignBadge}>
+                          <Text style={styles.campaignBadgeText}>{campaign.category}</Text>
+                        </View>
+                        <Text style={styles.campaignPriority}>{campaign.priority}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.favoriteButton}
+                        onPress={(event) => {
+                          event?.stopPropagation?.();
+                          toggleCampaignFavorite(campaign);
+                        }}
+                      >
+                        <Star
+                          size={16}
+                          color={isSaved ? Colors.secondary : Colors.on_surface_variant}
+                          fill={isSaved ? Colors.secondary : 'transparent'}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={Typography.title}>{campaign.title}</Text>
+                    <Text style={[Typography.body, { marginTop: 4, opacity: 0.78 }]}>{campaign.summary}</Text>
+                    <Text style={[Typography.label, { marginTop: 8, opacity: 0.72 }]}>
+                      {campaign.eligibility}
+                    </Text>
+                    <Text style={[Typography.label, { marginTop: 10, color: Colors.primary }]}>
+                      {t('home.campaignActionPreview', 'Action preview')}: {getCampaignActionPreview(campaign)}
+                    </Text>
+                    <Text style={[Typography.label, { marginTop: 4, opacity: 0.65 }]}>
+                      {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
+                    </Text>
+                    <View style={styles.campaignMetaRow}>
+                      <Text style={styles.campaignStatusText}>
+                        {currentStatus === 'success'
+                          ? t('common.success', 'Success')
+                          : currentStatus === 'failed'
+                            ? t('common.error', 'Error')
+                            : currentStatus === 'pending'
+                              ? t('home.campaignPending', 'Pending')
+                              : t('home.campaignAvailable', 'Available')}
+                      </Text>
+                      <Text style={styles.campaignCtaText}>{campaign.cta_label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          )}
+        </View>
+
         {/* Loyalty Progression */}
         <View style={styles.loyaltyCard}>
            <View style={styles.tierHeader}>
@@ -482,6 +771,65 @@ const HomeScreen = () => {
                 </View>
               ))
             )}
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={campaignActionVisible && Boolean(selectedCampaign)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCampaignActionVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, paddingRight: Spacing.sm }}>
+                <Text style={Typography.title}>{t('home.campaignConfirmTitle', 'Confirm campaign action')}</Text>
+                <Text style={[Typography.label, { opacity: 0.6, marginTop: 4 }]}>
+                  {selectedCampaign ? selectedCampaign.title : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setCampaignActionVisible(false)}>
+                <Text style={styles.modalLink}>{t('common.close', 'Close')}</Text>
+              </TouchableOpacity>
+            </View>
+            {selectedCampaign ? (
+              <View>
+                <Text style={Typography.body}>
+                  {t('home.campaignConfirmBody', 'You are about to launch {action}. Continue?').replace(
+                    '{action}',
+                    getCampaignActionPreview(selectedCampaign),
+                  )}
+                </Text>
+                <Text style={[Typography.label, { marginTop: 12, opacity: 0.7 }]}>
+                  {t('home.campaignActionType', 'Action type')}: {selectedCampaign.action_type.toUpperCase()}
+                </Text>
+                <Text style={[Typography.label, { marginTop: 4, opacity: 0.7 }]}>
+                  {selectedCampaign.saved
+                    ? t('common.saved', 'Saved')
+                    : t('common.notSaved', 'Not saved')}
+                </Text>
+                <Text style={[Typography.label, { marginTop: 4, opacity: 0.7 }]}>
+                  {selectedCampaign.eligibility}
+                </Text>
+                <View style={styles.campaignModalActions}>
+                  <TouchableOpacity
+                    style={[styles.notificationRetryButton, { flex: 1, marginRight: Spacing.sm }]}
+                    onPress={() => setCampaignActionVisible(false)}
+                  >
+                    <Text style={styles.notificationRetryText}>{t('common.cancel', 'Cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.rechargeCta, { flex: 1, marginBottom: 0 }]}
+                    onPress={launchSelectedCampaign}
+                  >
+                    <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>
+                      {t('home.campaignLaunch', 'Launch action')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
           </View>
         </View>
       </Modal>
@@ -674,6 +1022,106 @@ const styles = StyleSheet.create({
   // Increased icon circles to 64px to support premium, highly visible layout
   iconCircle: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   actionLabel: { ...Typography.label, fontWeight: '700', color: Colors.on_surface_variant },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  sectionSubtitle: {
+    ...Typography.label,
+    color: Colors.on_surface_variant,
+    opacity: 0.8,
+  },
+  sectionActionButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.surface_container_high,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  sectionActionText: {
+    ...Typography.label,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  campaignStateCard: {
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Elevation.ambientSoft,
+  },
+  campaignCard: {
+    backgroundColor: Colors.surface_container_lowest,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.md,
+    ...Elevation.ambientSoft,
+  },
+  campaignCardBody: {
+    padding: Spacing.md,
+  },
+  campaignCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  campaignBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    paddingRight: Spacing.sm,
+  },
+  campaignBadge: {
+    backgroundColor: Colors.primary_container,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  campaignBadgeText: {
+    ...Typography.caption,
+    color: Colors.on_primary_fixed,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  campaignPriority: {
+    ...Typography.caption,
+    color: Colors.on_surface_variant,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  favoriteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface_container_high,
+  },
+  campaignMetaRow: {
+    marginTop: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  campaignStatusText: {
+    ...Typography.label,
+    color: Colors.on_surface_variant,
+    fontWeight: '700',
+  },
+  campaignCtaText: {
+    ...Typography.label,
+    color: Colors.primary,
+    fontWeight: '800',
+  },
+  campaignModalActions: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+  },
   loyaltyCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
   tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   tierLabel: { color: 'rgba(255,255,255,0.6)', ...Typography.caption, fontWeight: '900' },
