@@ -16,6 +16,7 @@ import {
   registerMobileDevice,
   revokeRemoteSession,
   refreshAuthSession,
+  subscribeAuthSessionInvalidation,
   shouldRefreshStoredSession,
 } from './session';
 
@@ -112,6 +113,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     loadToken();
+  }, []);
+
+  useEffect(() => {
+    // If any shared API request invalidates the session, move the app back to the login shell.
+    return subscribeAuthSessionInvalidation(() => {
+      try {
+        setToken(null);
+        setUser(null);
+        void setAnalyticsIdentity(null);
+      } catch (error) {
+        logger.warn('Session invalidation handling failed', error);
+      }
+    });
   }, []);
 
   useEffect(() => {

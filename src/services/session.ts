@@ -9,6 +9,26 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_DATA_KEY = 'userData';
 const DEVICE_ID_KEY = 'analytics_device_id';
 const SESSION_PROVENANCE_KEY = 'auth_session_provenance';
+const SESSION_INVALIDATION_KEY = 'auth_session_invalidated_at';
+
+type AuthSessionListener = () => void;
+
+const authSessionListeners = new Set<AuthSessionListener>();
+
+const notifyAuthSessionInvalidated = () => {
+  authSessionListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (_error) {
+      // Listener failures must not block the logout path.
+    }
+  });
+};
+
+export const subscribeAuthSessionInvalidation = (listener: AuthSessionListener) => {
+  authSessionListeners.add(listener);
+  return () => authSessionListeners.delete(listener);
+};
 
 const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
 
@@ -99,6 +119,12 @@ export const clearAuthSession = async () => {
   await platformStorage.deleteItemAsync(REFRESH_TOKEN_KEY);
   await platformStorage.deleteItemAsync(USER_DATA_KEY);
   await platformStorage.deleteItemAsync(SESSION_PROVENANCE_KEY);
+};
+
+export const invalidateAuthSession = async () => {
+  await clearAuthSession();
+  await platformStorage.setItemAsync(SESSION_INVALIDATION_KEY, new Date().toISOString());
+  notifyAuthSessionInvalidated();
 };
 
 export const getStoredAuthTokens = async () => {

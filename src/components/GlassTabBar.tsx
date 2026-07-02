@@ -51,11 +51,20 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
               ]}>
                 {renderIcon(isFocused ? Colors.on_primary_fixed : Colors.on_surface + '99')}
               </View>
-              {isFocused && (
-                <Text style={[Typography.label, { color: Colors.on_surface, marginTop: 4, fontSize: 10, textTransform: 'uppercase' }]}>
-                  {index === 4 ? t('nav.account', 'Account') : index === 2 ? t('nav.store', 'Store') : (options.title || route.name)}
-                </Text>
-              )}
+              <Text
+                style={[
+                  Typography.label,
+                  {
+                    color: isFocused ? Colors.on_surface : Colors.on_surface_variant,
+                    marginTop: 4,
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {index === 4 ? t('nav.account', 'Account') : index === 2 ? t('nav.store', 'Store') : (options.title || route.name)}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -90,13 +99,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    minWidth: 56,
   },
   iconContainer: {
-    padding: 8,
-    borderRadius: BorderRadius.full,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activeIconContainer: {
     backgroundColor: Colors.cta_primary_bg,
+    ...Elevation.softLift,
   },
 });
 
