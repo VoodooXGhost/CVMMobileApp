@@ -136,7 +136,8 @@ export const buildCampaignActionUri = (campaign: CampaignItem) => {
     case 'sms': {
       const recipient = String(payload.recipient || payload.phone_number || '').trim();
       if (!recipient) return null;
-      const smsBody = payload.sms_body ? `?body=${encodeURIComponent(String(payload.sms_body))}` : '';
+      const bodyText = payload.sms_body || payload.message || payload.body;
+      const smsBody = bodyText ? `?body=${encodeURIComponent(String(bodyText))}` : '';
       return `sms:${recipient}${smsBody}`;
     }
     case 'deeplink':
