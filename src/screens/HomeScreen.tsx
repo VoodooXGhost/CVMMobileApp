@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   ScrollView,
@@ -12,8 +11,9 @@ import {
   Modal,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
+import { MotiView } from 'moti';
 import { useAuth } from '../services/auth.context';
 import { 
   Home, 
@@ -87,7 +87,7 @@ const HomeScreen = () => {
   const [isNotifRefreshing, setIsNotifRefreshing] = useState(false);
   const [isNotifLoading, setIsNotifLoading] = useState(false);
   const [notifImpressionIds, setNotifImpressionIds] = useState<Record<string, boolean>>({});
-  // Safe width inside component - avoids module-level Dimensions crash in Release builds
+  
   const { width } = useWindowDimensions();
   const {
     data: notificationResponse,
@@ -117,6 +117,7 @@ const HomeScreen = () => {
   const filteredOffers = safeOffers.filter(
     (offer: any) => activeCategory === allCategoryLabel || offer.category === activeCategory,
   );
+  
   const loadNotificationPreferences = async () => {
     const marketing = await platformStorage.getItemAsync('notif_marketing_enabled');
     const campaign = await platformStorage.getItemAsync('notif_campaign_enabled');
@@ -346,7 +347,7 @@ const HomeScreen = () => {
     await saveCampaignStatus(campaign.id, 'pending');
     try {
       const result = await launchCampaignAction(campaign);
-      const nextStatus = result.usedFallback ? 'success' : 'success';
+      const nextStatus = 'success';
       setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: nextStatus }));
       setCampaigns((prev) =>
         prev.map((item) =>
@@ -434,108 +435,152 @@ const HomeScreen = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View className="flex-1 justify-center items-center bg-surface">
+        <ActivityIndicator size="large" color="#111316" />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={Typography.body}>Error loading dashboard. Please try again.</Text>
+      <View className="flex-1 justify-center items-center bg-surface">
+        <Text className="font-body text-[16px] text-on-surface">Error loading dashboard. Please try again.</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-surface">
       {/* Custom Header */}
-      <View style={styles.navHeader}>
-        <View style={styles.headerLeft}>
-          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+      <View className="h-[72px] flex-row items-center justify-between px-lg bg-surface">
+        <View className="flex-row items-center gap-[10px]">
+          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px]" resizeMode="contain" />
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setSearchVisible(true)}>
-            <Search size={20} color={Colors.on_surface} />
+        <View className="flex-row gap-16">
+          <TouchableOpacity className="relative" onPress={() => setSearchVisible(true)}>
+            <Search size={20} color="#1a1c1c" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={handleOpenNotifications}>
-            <Bell size={20} color={Colors.on_surface} />
-            {unreadVisibleCount > 0 ? <View style={styles.notificationDot} /> : null}
+          <TouchableOpacity className="relative" onPress={handleOpenNotifications}>
+            <Bell size={20} color="#1a1c1c" />
+            {unreadVisibleCount > 0 ? <View className="absolute -top-[2px] -right-[2px] w-2 h-2 rounded-full bg-error border-2 border-surface" /> : null}
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome Section */}
-        <View style={styles.welcomeSection}>
-          <Text style={[Typography.body, { opacity: 0.6, fontSize: 18, lineHeight: 26 }]}>{t('home.greetingPrefix', 'Ola')}, {profile?.first_name || t('common.customer', 'Customer')}</Text>
-          <Text style={[Typography.headline, { fontSize: 28, marginTop: 4 }]}>{t('home.dayAtGlance', 'Your day at a glance')}</Text>
-        </View>
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400 }}
+          className="mb-xl"
+        >
+          <Text className="font-body text-[18px] text-on-surface-variant opacity-60 leading-[26px]">
+            {t('home.greetingPrefix', 'Ola')}, {profile?.first_name || t('common.customer', 'Customer')}
+          </Text>
+          <Text className="font-headline text-[28px] mt-1 font-bold">
+            {t('home.dayAtGlance', 'Your day at a glance')}
+          </Text>
+        </MotiView>
 
         {/* FR-1.1 Glance Card (Balances) */}
-        <View style={styles.glanceCard}>
-          <View style={styles.glanceHeader}>
-            <Text style={[Typography.label, { fontWeight: '900', color: Colors.on_surface_variant }]}>{t('home.myBalances', 'MY BALANCES')}</Text>
+        <MotiView
+          from={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15, delay: 50 }}
+          className="bg-surface-container-lowest rounded-xl p-lg shadow-sm mb-lg"
+        >
+          <View className="flex-row justify-between mb-md">
+            <Text className="font-label text-[13px] font-black text-on-surface-variant">
+              {t('home.myBalances', 'MY BALANCES')}
+            </Text>
             <TouchableOpacity onPress={() => refetch()}>
-              <Text style={[Typography.label, { color: Colors.primary }]}>{t('common.refresh', 'Refresh')}</Text>
+              <Text className="font-label text-[13px] color-[#111316]">
+                {t('common.refresh', 'Refresh')}
+              </Text>
             </TouchableOpacity>
           </View>
           
-          <View style={styles.balancesContainer}>
-            <View style={styles.balanceItem}>
-              <Text style={styles.balanceValue}>{formatMznCurrency(profile?.balances?.airtime, language)}</Text>
-              <Text style={styles.balanceLabel}>{t('home.airtime', 'Airtime')}</Text>
+          <View className="flex-row items-center justify-between mb-md">
+            <View className="flex-1 items-center">
+              <Text className="text-[22px] font-black text-on-surface font-display">
+                {formatMznCurrency(profile?.balances?.airtime, language)}
+              </Text>
+              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+                {t('home.airtime', 'Airtime')}
+              </Text>
             </View>
-            <View style={styles.balanceDivider} />
-            <View style={styles.balanceItem}>
-              <Text style={styles.balanceValue}>{profile?.balances?.data || '0GB'}</Text>
-              <Text style={styles.balanceLabel}>{t('home.data', 'Data')}</Text>
+            <View className="w-[1px] h-[30px] bg-outline-variant" />
+            <View className="flex-1 items-center">
+              <Text className="text-[22px] font-black text-on-surface font-display">
+                {profile?.balances?.data || '0GB'}
+              </Text>
+              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+                {t('home.data', 'Data')}
+              </Text>
             </View>
-            <View style={styles.balanceDivider} />
-            <View style={styles.balanceItem}>
-              <Text style={[styles.balanceValue, { color: Colors.secondary }]}>{resolveYmBalance(loyalty).toLocaleString()}</Text>
-              <Text style={styles.balanceLabel}>YM</Text>
+            <View className="w-[1px] h-[30px] bg-outline-variant" />
+            <View className="flex-1 items-center">
+              <Text className="text-[22px] font-black text-secondary font-display">
+                {resolveYmBalance(loyalty).toLocaleString()}
+              </Text>
+              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+                YM
+              </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.rechargeCta} onPress={() => navigation.navigate('Wallet')}>
-            <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>{t('home.quickRecharge', 'QUICK RECHARGE')}</Text>
-            <ChevronRight size={16} color="#000" />
+          <TouchableOpacity className="bg-cta-primary-bg flex-row items-center justify-center min-h-[60px] rounded-xl gap-2 shadow-sm active:opacity-90" onPress={() => navigation.navigate('Wallet')}>
+            <Text className="font-label text-[13px] text-[#111316] font-black uppercase">
+              {t('home.quickRecharge', 'QUICK RECHARGE')}
+            </Text>
+            <ChevronRight size={16} color="#111316" />
           </TouchableOpacity>
-        </View>
+        </MotiView>
 
         {/* Streak / Gamification Visibility */}
         {gamification && (
-          <View style={styles.streakCard}>
-             <View style={styles.streakIconContainer}>
-                <Flame size={20} color={Colors.secondary} fill={Colors.secondary} />
+          <MotiView
+            from={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 100 }}
+            className="flex-row items-center bg-surface-container-lowest p-md rounded-xl shadow-sm mb-xl"
+          >
+             <View className="w-11 h-11 rounded-full bg-primary-container justify-center items-center">
+                <Flame size={20} color="#2260a2" fill="#2260a2" />
              </View>
-             <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[Typography.title, { fontSize: 16 }]}>{gamification.current_streak} {t('home.dayStreak', 'Day Streak!')}</Text>
-                <Text style={[Typography.label, { opacity: 0.6 }]}>{gamification.milestone_target - gamification.current_streak} {t('home.daysToNextReward', 'days to next reward')}</Text>
+             <View className="flex-1 ml-3">
+                <Text className="font-title text-[20px] text-on-surface font-semibold">
+                  {gamification.current_streak} {t('home.dayStreak', 'Day Streak!')}
+                </Text>
+                <Text className="font-label text-[13px] text-on-surface-variant opacity-60">
+                  {gamification.milestone_target - gamification.current_streak} {t('home.daysToNextReward', 'days to next reward')}
+                </Text>
              </View>
-             <TouchableOpacity style={styles.playButton} onPress={() => navigation.navigate('Rewards')}>
-                <Text style={[Typography.label, { color: '#fff' }]}>{t('home.play', 'PLAY')}</Text>
+             <TouchableOpacity className="bg-cta-secondary-bg px-5 py-2.5 rounded-md min-h-[44px] justify-center active:opacity-90" onPress={() => navigation.navigate('Rewards')}>
+                <Text className="font-label text-[13px] text-white font-bold">
+                  {t('home.play', 'PLAY')}
+                </Text>
              </TouchableOpacity>
-          </View>
+          </MotiView>
         )}
 
         {/* FR-1.2 Dynamic CVM Banner (MAB Optimized) */}
-        <View style={styles.section}>
+        <View className="mb-xl">
           <ScrollView 
             horizontal 
             pagingEnabled 
             showsHorizontalScrollIndicator={false}
-            style={styles.bannerRow}
+            className="-mx-lg px-lg"
           >
             {hero_banners?.map((banner: any) => (
               <TouchableOpacity
                 key={banner.id}
-                style={[styles.bannerContainer, { width: width - (Spacing.lg * 2) }]}
+                style={{ width: width - 32 }}
+                className="mr-3"
                 onPress={() => {
                   track(
                     'offer_click',
@@ -545,21 +590,21 @@ const HomeScreen = () => {
                   navigation.navigate('Marketplace');
                 }}
               >
-                 <View style={styles.promoBanner}>
+                 <View className="h-[180px] rounded-xl overflow-hidden bg-zinc-800 relative">
                     <Image 
                       source={{ uri: banner.image_url }} 
-                      style={StyleSheet.absoluteFill} 
+                      className="absolute inset-0 w-full h-full"
                       resizeMode="cover"
                     />
-                    <View style={styles.bannerOverlay}>
-                      <View style={styles.bannerBadge}>
+                    <View className="absolute inset-0 bg-black/35 p-5 justify-end">
+                      <View className="flex-row items-center gap-1 mb-2">
                         <Zap size={12} color="#fff" fill="#fff" />
-                        <Text style={styles.bannerBadgeText}>JUST FOR YOU</Text>
+                        <Text className="text-white text-[10px] font-black uppercase">JUST FOR YOU</Text>
                       </View>
-                      <Text style={styles.bannerTitle}>{banner.title}</Text>
-                      <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-                      <View style={styles.bannerButton}>
-                        <Text style={styles.bannerButtonText}>
+                      <Text className="text-white text-[24px] font-black leading-7" numberOfLines={1}>{banner.title}</Text>
+                      <Text className="text-white text-[13px] opacity-90 mt-1" numberOfLines={1}>{banner.subtitle}</Text>
+                      <View className="bg-cta-primary-bg self-start px-5 py-2.5 rounded-full mt-3 min-h-[40px] justify-center shadow-sm">
+                        <Text className="text-cta-primary-text font-black text-[12px] uppercase">
                           {heroVariant === 'unlock_offer' ? 'UNLOCK OFFER' : 'CLAIM NOW'}
                         </Text>
                       </View>
@@ -571,9 +616,9 @@ const HomeScreen = () => {
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('home.quickActions', 'Quick Actions')}</Text>
-          <View style={styles.quickActionRow}>
+        <View className="mb-xl">
+          <Text className="font-title text-[20px] mb-md font-semibold">{t('home.quickActions', 'Quick Actions')}</Text>
+          <View className="flex-row justify-between">
             <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
             <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
             <ActionIcon Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" onPress={() => navigation.navigate('Rewards')} />
@@ -582,18 +627,20 @@ const HomeScreen = () => {
         </View>
 
         {/* Campaign Feed */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[Typography.title, { marginBottom: 4 }]}>{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
-              <Text style={styles.sectionSubtitle}>{t('home.campaignsSubtitle', 'Browse offers and launch the next step from your phone.')}</Text>
+        <View className="mb-xl">
+          <View className="flex-row items-start justify-between mb-sm gap-sm">
+            <View className="flex-1">
+              <Text className="font-title text-[20px] mb-1 font-semibold">{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
+              <Text className="font-label text-[13px] text-on-surface-variant opacity-80">
+                {t('home.campaignsSubtitle', 'Browse offers and launch the next step from your phone.')}
+              </Text>
             </View>
-            <TouchableOpacity onPress={refetchCampaigns} style={styles.sectionActionButton}>
-              <Text style={styles.sectionActionText}>{t('common.refresh', 'Refresh')}</Text>
+            <TouchableOpacity onPress={refetchCampaigns} className="self-start bg-surface-container-high rounded-full px-md py-sm active:opacity-80">
+              <Text className="font-label text-[13px] text-primary font-bold">{t('common.refresh', 'Refresh')}</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-md">
             {[
               { key: 'all', label: allCategoryLabel },
               { key: 'saved', label: t('common.saved', 'Saved') },
@@ -601,10 +648,12 @@ const HomeScreen = () => {
             ].map((filter: { key: string; label: string }) => (
               <TouchableOpacity
                 key={`campaign-filter-${filter.key}`}
-                style={[styles.categoryItem, campaignFilter === filter.key && styles.categoryItemActive]}
+                className={`px-4 py-2 rounded-full bg-surface-container-high mr-2 opacity-60 ${
+                  campaignFilter === filter.key ? 'bg-primary-container opacity-100' : ''
+                }`}
                 onPress={() => setCampaignFilter(filter.key)}
               >
-                <Text style={[Typography.label, campaignFilter === filter.key && { color: Colors.primary }]}>
+                <Text className={`font-label text-[13px] ${campaignFilter === filter.key ? 'text-primary font-semibold' : 'text-on-surface-variant'}`}>
                   {filter.label}
                 </Text>
               </TouchableOpacity>
@@ -612,37 +661,49 @@ const HomeScreen = () => {
           </ScrollView>
 
           {campaignErrorMessage ? (
-            <View style={styles.campaignStateCard}>
-              <Text style={Typography.body}>{campaignErrorMessage}</Text>
+            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
+              <Text className="font-body text-[16px] text-on-surface">{campaignErrorMessage}</Text>
             </View>
           ) : isCampaignsFetching && campaigns.length === 0 ? (
-            <View style={styles.campaignStateCard}>
-              <ActivityIndicator size="small" color={Colors.primary} />
+            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
+              <ActivityIndicator size="small" color="#111316" />
             </View>
           ) : visibleCampaigns.length === 0 ? (
-            <View style={styles.campaignStateCard}>
-              <Text style={Typography.body}>{t('home.campaignEmpty', 'No campaigns available right now.')}</Text>
+            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
+              <Text className="font-body text-[16px] text-on-surface">
+                {t('home.campaignEmpty', 'No campaigns available right now.')}
+              </Text>
             </View>
           ) : (
-            visibleCampaigns.map((campaign: CampaignItem) => {
+            visibleCampaigns.map((campaign: CampaignItem, index: number) => {
               const isSaved = campaignFavorites[campaign.id] ?? campaign.saved;
               const currentStatus = (campaignStatuses[campaign.id] as any) || campaign.last_action_status;
               return (
-                <View key={campaign.id} style={styles.campaignCard}>
+                <MotiView
+                  key={campaign.id}
+                  from={{ opacity: 0, translateY: 15 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'spring', damping: 15, delay: index * 60 }}
+                  className="bg-surface-container-lowest rounded-xl mb-md shadow-sm overflow-hidden"
+                >
                   <TouchableOpacity
-                    style={styles.campaignCardBody}
+                    className="p-md"
                     activeOpacity={0.85}
                     onPress={() => openCampaignAction(campaign)}
                   >
-                    <View style={styles.campaignCardTopRow}>
-                      <View style={styles.campaignBadgeRow}>
-                        <View style={styles.campaignBadge}>
-                          <Text style={styles.campaignBadgeText}>{campaign.category}</Text>
+                    <View className="flex-row justify-between items-start mb-sm">
+                      <View className="flex-row items-center gap-2 flex-1 pr-sm">
+                        <View className="bg-primary-container rounded-full px-2.5 py-1.5">
+                          <Text className="font-caption text-[11px] text-on-primary-fixed font-black uppercase">
+                            {campaign.category}
+                          </Text>
                         </View>
-                        <Text style={styles.campaignPriority}>{campaign.priority}</Text>
+                        <Text className="font-caption text-[11px] text-on-surface-variant uppercase font-bold">
+                          {campaign.priority}
+                        </Text>
                       </View>
                       <TouchableOpacity
-                        style={styles.favoriteButton}
+                        className="w-8 h-8 rounded-full items-center justify-center bg-surface-container-high active:scale-95"
                         onPress={(event) => {
                           event?.stopPropagation?.();
                           toggleCampaignFavorite(campaign);
@@ -650,24 +711,26 @@ const HomeScreen = () => {
                       >
                         <Star
                           size={16}
-                          color={isSaved ? Colors.secondary : Colors.on_surface_variant}
-                          fill={isSaved ? Colors.secondary : 'transparent'}
+                          color={isSaved ? '#2260a2' : 'rgba(26, 28, 28, 0.6)'}
+                          fill={isSaved ? '#2260a2' : 'transparent'}
                         />
                       </TouchableOpacity>
                     </View>
-                    <Text style={Typography.title}>{campaign.title}</Text>
-                    <Text style={[Typography.body, { marginTop: 4, opacity: 0.78 }]}>{campaign.summary}</Text>
-                    <Text style={[Typography.label, { marginTop: 8, opacity: 0.72 }]}>
+                    <Text className="font-title text-[20px] font-bold text-on-surface">{campaign.title}</Text>
+                    <Text className="font-body text-[16px] text-on-surface-variant mt-1 leading-[22px]">
+                      {campaign.summary}
+                    </Text>
+                    <Text className="font-label text-[13px] text-on-surface-variant opacity-70 mt-2">
                       {campaign.eligibility}
                     </Text>
-                    <Text style={[Typography.label, { marginTop: 10, color: Colors.primary }]}>
+                    <Text className="font-label text-[13px] mt-2.5 text-primary font-semibold">
                       {t('home.campaignActionPreview', 'Action preview')}: {getCampaignActionPreview(campaign)}
                     </Text>
-                    <Text style={[Typography.label, { marginTop: 4, opacity: 0.65 }]}>
+                    <Text className="font-label text-[13px] mt-1 text-on-surface-variant opacity-60">
                       {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
                     </Text>
-                    <View style={styles.campaignMetaRow}>
-                      <Text style={styles.campaignStatusText}>
+                    <View className="mt-md flex-row justify-between items-center gap-sm">
+                      <Text className="font-label text-[13px] text-on-surface-variant font-bold">
                         {currentStatus === 'success'
                           ? t('common.success', 'Success')
                           : currentStatus === 'failed'
@@ -676,154 +739,198 @@ const HomeScreen = () => {
                               ? t('home.campaignPending', 'Pending')
                               : t('home.campaignAvailable', 'Available')}
                       </Text>
-                      <Text style={styles.campaignCtaText}>{campaign.cta_label}</Text>
+                      <Text className="font-label text-[13px] text-primary font-black uppercase">
+                        {campaign.cta_label}
+                      </Text>
                     </View>
                   </TouchableOpacity>
-                </View>
+                </MotiView>
               );
             })
           )}
         </View>
 
         {/* Loyalty Progression */}
-        <View style={styles.loyaltyCard}>
-           <View style={styles.tierHeader}>
+        <MotiView
+          from={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          className="bg-[#1a1c1c] p-6 rounded-xl mb-xl shadow-md"
+        >
+           <View className="flex-row justify-between items-center mb-4">
               <View>
-                <Text style={styles.tierLabel}>{t('home.currentTier', 'CURRENT TIER')}</Text>
-                <Text style={styles.tierName}>{loyalty?.current_tier || 'Bronze'}</Text>
+                <Text className="text-white/60 font-caption text-[11px] font-black uppercase">
+                  {t('home.currentTier', 'CURRENT TIER')}
+                </Text>
+                <Text className="text-white text-[22px] font-black mt-1">
+                  {loyalty?.current_tier || 'Bronze'}
+                </Text>
               </View>
-              <Text style={styles.tierPoints}>{resolveYmBalance(loyalty).toLocaleString()} YM</Text>
+              <Text className="text-secondary text-[18px] font-black">
+                {resolveYmBalance(loyalty).toLocaleString()} YM
+              </Text>
            </View>
-           <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${loyalty?.progress_percentage || 0}%` }]} />
+           <View className="h-1.5 bg-white/10 rounded-full mb-2">
+              <View style={{ width: `${loyalty?.progress_percentage || 0}%` }} className="h-full bg-secondary rounded-full" />
            </View>
-           <Text style={styles.progressText}>
+           <Text className="text-white/50 font-caption text-[11px] font-semibold">
               {resolvePointsToNext(loyalty).toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
            </Text>
-        </View>
+        </MotiView>
 
         {/* Market Sneak Peek */}
-        <View style={styles.section}>
-           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('home.marketplacePicks', 'Marketplace Picks')}</Text>
-           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+        <View className="mb-xl">
+           <Text className="font-title text-[20px] mb-md font-semibold">
+             {t('home.marketplacePicks', 'Marketplace Picks')}
+           </Text>
+           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-md">
               {[allCategoryLabel, ...safeCategories].map((cat: string) => (
                 <TouchableOpacity 
                   key={cat} 
-                  style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
+                  className={`px-4 py-2 rounded-full bg-surface-container-high mr-2 opacity-60 ${
+                    activeCategory === cat ? 'bg-primary-container opacity-100' : ''
+                  }`}
                   onPress={() => setActiveCategory(cat)}
                 >
-                  <Text style={[Typography.label, activeCategory === cat && { color: Colors.primary }]}>{cat}</Text>
+                  <Text className={`font-label text-[13px] ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
                 </TouchableOpacity>
               ))}
            </ScrollView>
-           <View style={styles.offersList}>
-              {filteredOffers.slice(0, 3).map((offer: any) => (
-                <TouchableOpacity
+           <View className="gap-md">
+              {filteredOffers.slice(0, 3).map((offer: any, idx: number) => (
+                <MotiView
                   key={offer.id}
-                  style={styles.offerItem}
-                  onPress={() => {
-                    track(
-                      'offer_click',
-                      { item_id: offer.id, placement: 'home_marketplace_picks' },
-                      { screen: 'home', placement: 'home_marketplace_picks' },
-                    );
-                    navigation.navigate('Marketplace');
-                  }}
+                  from={{ opacity: 0, translateY: 10 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'spring', damping: 15, delay: idx * 50 }}
+                  className="flex-row items-center bg-surface-container-lowest p-3 rounded-xl shadow-sm border border-outline-variant"
                 >
-                   <View style={styles.offerIconPlaceholder} />
-                   <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={Typography.title} numberOfLines={1}>{offer.title}</Text>
-                      <Text style={[Typography.label, { color: Colors.primary }]}>{formatMznCurrency(offer.price, language)} • YM</Text>
-                   </View>
-                   <ChevronRight size={20} color={Colors.outline} />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    className="flex-row items-center flex-1"
+                    onPress={() => {
+                      track(
+                        'offer_click',
+                        { item_id: offer.id, placement: 'home_marketplace_picks' },
+                        { screen: 'home', placement: 'home_marketplace_picks' },
+                      );
+                      navigation.navigate('Marketplace');
+                    }}
+                  >
+                     <View className="w-11 h-11 rounded-xl bg-surface-container-high justify-center items-center" />
+                     <View className="flex-1 ml-3">
+                        <Text className="font-title text-[16px] font-bold text-on-surface" numberOfLines={1}>
+                          {offer.title}
+                        </Text>
+                        <Text className="font-label text-[13px] text-primary mt-1 font-semibold">
+                          {formatMznCurrency(offer.price, language)} • YM
+                        </Text>
+                     </View>
+                     <ChevronRight size={20} color="rgba(26, 28, 28, 0.4)" />
+                  </TouchableOpacity>
+                </MotiView>
               ))}
            </View>
         </View>
       </ScrollView>
+
+      {/* Search Modal */}
       <Modal visible={searchVisible} transparent animationType="slide" onRequestClose={() => setSearchVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={Typography.title}>{t('home.searchOffers', 'Search Offers')}</Text>
+        <View className="flex-1 justify-end bg-black/35">
+          <View className="bg-surface rounded-t-xl p-lg max-h-[70%]">
+            <View className="flex-row justify-between items-center mb-md">
+              <Text className="font-title text-[20px] font-bold text-on-surface">
+                {t('home.searchOffers', 'Search Offers')}
+              </Text>
               <TouchableOpacity onPress={() => setSearchVisible(false)}>
-                <Text style={styles.modalLink}>Close</Text>
+                <Text className="font-label text-[13px] text-primary font-bold">Close</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-md">
               {[allCategoryLabel, ...safeCategories].map((cat: string) => (
                 <TouchableOpacity
                   key={`search-${cat}`}
-                  style={[styles.categoryItem, activeCategory === cat && styles.categoryItemActive]}
+                  className={`px-4 py-2 rounded-full bg-surface-container-high mr-2 opacity-60 ${
+                    activeCategory === cat ? 'bg-primary-container opacity-100' : ''
+                  }`}
                   onPress={() => setActiveCategory(cat)}
                 >
-                  <Text style={[Typography.label, activeCategory === cat && { color: Colors.primary }]}>{cat}</Text>
+                  <Text className={`font-label text-[13px] ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {filteredOffers.length === 0 ? (
-              <Text style={styles.emptyText}>{t('home.noOffersCategory', 'No offers match this category yet.')}</Text>
+              <Text className="font-body text-[16px] text-on-surface-variant p-4 text-center">
+                {t('home.noOffersCategory', 'No offers match this category yet.')}
+              </Text>
             ) : (
-              filteredOffers.slice(0, 6).map((offer: any) => (
-                <View key={`filtered-${offer.id}`} style={styles.modalRow}>
-                  <Text style={Typography.title}>{offer.title}</Text>
-                  <Text style={[Typography.label, { color: Colors.primary }]}>{formatMznCurrency(offer.price, language)} • YM</Text>
-                </View>
-              ))
+              <ScrollView className="space-y-sm">
+                {filteredOffers.slice(0, 6).map((offer: any) => (
+                  <View key={`filtered-${offer.id}`} className="bg-surface-container-lowest rounded-md p-md mb-sm shadow-sm">
+                    <Text className="font-title text-[16px] font-bold text-on-surface">{offer.title}</Text>
+                    <Text className="font-label text-[13px] text-primary mt-1 font-semibold">
+                      {formatMznCurrency(offer.price, language)} • YM
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
             )}
           </View>
         </View>
       </Modal>
+
+      {/* Campaign Action Confirmation Modal */}
       <Modal
         visible={campaignActionVisible && Boolean(selectedCampaign)}
         transparent
         animationType="fade"
         onRequestClose={() => setCampaignActionVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-                <Text style={Typography.title}>{t('home.campaignConfirmTitle', 'Confirm campaign action')}</Text>
-                <Text style={[Typography.label, { opacity: 0.6, marginTop: 4 }]}>
+        <View className="flex-1 justify-center items-center bg-black/40 px-lg">
+          <View className="bg-surface rounded-xl p-lg w-full max-w-[90%] shadow-lg">
+            <View className="flex-row justify-between items-center mb-md border-b border-outline-variant pb-md">
+              <View className="flex-1 pr-sm">
+                <Text className="font-title text-[20px] font-bold text-on-surface">
+                  {t('home.campaignConfirmTitle', 'Confirm campaign action')}
+                </Text>
+                <Text className="font-label text-[13px] text-on-surface-variant opacity-60 mt-1">
                   {selectedCampaign ? selectedCampaign.title : ''}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setCampaignActionVisible(false)}>
-                <Text style={styles.modalLink}>{t('common.close', 'Close')}</Text>
+                <Text className="font-label text-[13px] text-primary font-bold">{t('common.close', 'Close')}</Text>
               </TouchableOpacity>
             </View>
             {selectedCampaign ? (
-              <View>
-                <Text style={Typography.body}>
+              <View className="gap-sm">
+                <Text className="font-body text-[16px] text-on-surface leading-5">
                   {t('home.campaignConfirmBody', 'You are about to launch {action}. Continue?').replace(
                     '{action}',
                     getCampaignActionPreview(selectedCampaign),
                   )}
                 </Text>
-                <Text style={[Typography.label, { marginTop: 12, opacity: 0.7 }]}>
-                  {t('home.campaignActionType', 'Action type')}: {selectedCampaign.action_type.toUpperCase()}
-                </Text>
-                <Text style={[Typography.label, { marginTop: 4, opacity: 0.7 }]}>
-                  {selectedCampaign.saved
-                    ? t('common.saved', 'Saved')
-                    : t('common.notSaved', 'Not saved')}
-                </Text>
-                <Text style={[Typography.label, { marginTop: 4, opacity: 0.7 }]}>
-                  {selectedCampaign.eligibility}
-                </Text>
-                <View style={styles.campaignModalActions}>
+                <View className="bg-surface-container-high p-sm rounded-md mt-sm gap-1">
+                  <Text className="font-label text-[13px] text-on-surface font-semibold">
+                    {t('home.campaignActionType', 'Action type')}: {selectedCampaign.action_type.toUpperCase()}
+                  </Text>
+                  <Text className="font-label text-[13px] text-on-surface-variant">
+                    Status: {selectedCampaign.saved ? t('common.saved', 'Saved') : t('common.notSaved', 'Not saved')}
+                  </Text>
+                  <Text className="font-label text-[13px] text-on-surface-variant">
+                    {selectedCampaign.eligibility}
+                  </Text>
+                </View>
+                <View className="flex-row gap-sm mt-lg">
                   <TouchableOpacity
-                    style={[styles.notificationRetryButton, { flex: 1, marginRight: Spacing.sm }]}
+                    className="flex-1 min-h-[50px] bg-surface-container-highest rounded-xl justify-center items-center"
                     onPress={() => setCampaignActionVisible(false)}
                   >
-                    <Text style={styles.notificationRetryText}>{t('common.cancel', 'Cancel')}</Text>
+                    <Text className="font-label text-[13px] text-on-surface font-bold">{t('common.cancel', 'Cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.rechargeCta, { flex: 1, marginBottom: 0 }]}
+                    className="flex-1 min-h-[50px] bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
                     onPress={launchSelectedCampaign}
                   >
-                    <Text style={[Typography.label, { color: '#000', fontWeight: '900' }]}>
+                    <Text className="font-label text-[13px] text-cta-primary-text font-black uppercase">
                       {t('home.campaignLaunch', 'Launch action')}
                     </Text>
                   </TouchableOpacity>
@@ -833,47 +940,49 @@ const HomeScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Notifications Modal */}
       <Modal
         visible={notificationsVisible}
         transparent
         animationType="slide"
         onRequestClose={() => setNotificationsVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={Typography.title}>{t('home.notificationsTitle', 'Notifications')}</Text>
-              <View style={styles.notificationHeaderActions}>
+        <View className="flex-1 justify-end bg-black/35">
+          <View className="bg-surface rounded-t-xl p-lg max-h-[75%]">
+            <View className="flex-row justify-between items-center mb-md pb-xs border-b border-outline-variant">
+              <Text className="font-title text-[20px] font-bold text-on-surface">{t('home.notificationsTitle', 'Notifications')}</Text>
+              <View className="flex-row gap-3 items-center">
                 <TouchableOpacity
                   onPress={handleMarkAllNotificationsRead}
                   disabled={isMarkingAllRead || unreadVisibleCount === 0}
                 >
-                  <Text style={[styles.modalLink, unreadVisibleCount === 0 && { opacity: 0.4 }]}>
+                  <Text className={`font-label text-[13px] text-primary font-bold ${unreadVisibleCount === 0 ? 'opacity-40' : ''}`}>
                     {t('home.markAllRead', 'Mark all as read')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                  <Text style={styles.modalLink}>Close</Text>
+                  <Text className="font-label text-[13px] text-primary font-bold">Close</Text>
                 </TouchableOpacity>
               </View>
             </View>
             {isNotifLoading || isFetchingNotifications ? (
-              <View style={styles.notificationStateContainer}>
-                <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={[Typography.body, { marginTop: 8 }]}>
+              <View className="py-lg items-center">
+                <ActivityIndicator size="small" color="#111316" />
+                <Text className="font-body text-[16px] text-on-surface mt-2">
                   {t('home.notificationsLoading', 'Loading notifications...')}
                 </Text>
               </View>
             ) : notificationError ? (
-              <View style={styles.notificationStateContainer}>
-                <Text style={Typography.body}>{notificationError}</Text>
-                <TouchableOpacity style={styles.notificationRetryButton} onPress={handleRefreshNotifications}>
-                  <Text style={styles.notificationRetryText}>{t('home.retry', 'Retry')}</Text>
+              <View className="py-lg items-center">
+                <Text className="font-body text-[16px] text-on-surface">{notificationError}</Text>
+                <TouchableOpacity className="mt-md bg-primary-container px-md py-sm rounded-full" onPress={handleRefreshNotifications}>
+                  <Text className="font-label text-[13px] text-on-primary-fixed font-bold">{t('home.retry', 'Retry')}</Text>
                 </TouchableOpacity>
               </View>
             ) : filteredNotifications.length === 0 ? (
-              <View style={styles.notificationStateContainer}>
-                <Text style={Typography.body}>
+              <View className="py-lg items-center">
+                <Text className="font-body text-[16px] text-on-surface-variant">
                   {t('home.notificationsEmpty', 'No notifications available right now.')}
                 </Text>
               </View>
@@ -883,27 +992,27 @@ const HomeScreen = () => {
                   <RefreshControl
                     refreshing={isNotifRefreshing}
                     onRefresh={handleRefreshNotifications}
-                    tintColor={Colors.primary}
+                    tintColor="#111316"
                   />
                 }
               >
                 {filteredNotifications.map((item: any) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.modalRow}
+                    className="bg-surface-container-lowest rounded-md p-md mb-sm shadow-sm border border-outline-variant relative"
                     onPress={() => handleNotificationPress(item)}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.notificationRowHeader}>
-                      <Text style={Typography.title}>{item.title}</Text>
-                      {!item.is_read ? <View style={styles.unreadIndicator} /> : null}
+                    <View className="flex-row justify-between items-center mb-1">
+                      <Text className="font-title text-[16px] font-bold text-on-surface pr-md flex-1" numberOfLines={1}>{item.title}</Text>
+                      {!item.is_read ? <View className="w-2.5 h-2.5 rounded-full bg-error" /> : null}
                     </View>
-                    <Text style={Typography.body}>{item.body}</Text>
+                    <Text className="font-body text-[14px] text-on-surface-variant mt-1">{item.body}</Text>
                   </TouchableOpacity>
                 ))}
                 {notificationResponse?.data?.next_cursor ? (
-                  <TouchableOpacity style={styles.notificationRetryButton} onPress={handleLoadMoreNotifications}>
-                    <Text style={styles.notificationRetryText}>{t('home.loadMore', 'Load more')}</Text>
+                  <TouchableOpacity className="mt-md bg-primary-container px-md py-sm rounded-full items-center justify-center" onPress={handleLoadMoreNotifications}>
+                    <Text className="font-label text-[13px] text-on-primary-fixed font-bold">{t('home.loadMore', 'Load more')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </ScrollView>
@@ -916,302 +1025,12 @@ const HomeScreen = () => {
 };
 
 const ActionIcon = ({ Icon, label, color, iconColor, onPress }: any) => (
-  <TouchableOpacity style={styles.actionIconItem} onPress={onPress}>
-     <View style={[styles.iconCircle, { backgroundColor: color }]}>
+  <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={onPress}>
+     <View style={{ backgroundColor: color }} className="w-16 h-16 rounded-[24px] justify-center items-center mb-2 shadow-sm">
         <Icon color={iconColor} size={24} />
      </View>
-     <Text style={styles.actionLabel}>{label}</Text>
+     <Text className="font-label text-[13px] font-bold text-on-surface-variant">{label}</Text>
   </TouchableOpacity>
 );
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  navHeader: { 
-    height: 72, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  tmcelLogo: {
-    width: 160,
-    height: 72,
-  },
-  headerRight: { flexDirection: 'row', gap: 16 },
-  headerIcon: { position: 'relative' },
-  notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.error, borderWidth: 2, borderColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
-  welcomeSection: { marginBottom: Spacing.xl },
-  glanceCard: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl, 
-    padding: Spacing.lg,
-    ...Elevation.ambientSoft,
-    marginBottom: Spacing.lg,
-  },
-  glanceHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
-  balancesContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
-  balanceItem: { flex: 1, alignItems: 'center' },
-  balanceValue: { 
-    // Increased balance value to 22px as per design requirements
-    fontSize: 22, 
-    fontWeight: '900', 
-    color: Colors.on_surface,
-    fontFamily: 'PlusJakartaSans_500Medium',
-  },
-  balanceLabel: { 
-    ...Typography.caption, 
-    fontWeight: '700', 
-    color: Colors.on_surface_variant, 
-    marginTop: 4, 
-    textTransform: 'uppercase',
-  },
-  balanceDivider: { width: 1, height: 30, backgroundColor: Colors.outline_variant },
-  rechargeCta: { 
-    backgroundColor: Colors.cta_primary_bg, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    minHeight: 60, 
-    borderRadius: BorderRadius.xl, 
-    gap: 8,
-  },
-  streakCard: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: Colors.surface_container_lowest,
-    padding: Spacing.md, 
-    borderRadius: BorderRadius.xl, 
-    ...Elevation.ambientSoft,
-    marginBottom: Spacing.xl,
-  },
-  streakIconContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary_container, justifyContent: 'center', alignItems: 'center' },
-  playButton: { 
-    backgroundColor: Colors.cta_secondary_bg, 
-    paddingHorizontal: 20, 
-    paddingVertical: 10, 
-    borderRadius: BorderRadius.md,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  section: { marginBottom: Spacing.xl },
-  bannerRow: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
-  bannerContainer: { marginRight: 12 },
-  promoBanner: { height: 180, borderRadius: BorderRadius.xl, overflow: 'hidden', backgroundColor: '#333' },
-  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', padding: 20, justifyContent: 'flex-end' },
-  bannerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
-  bannerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '900' },
-  bannerSubtitle: { color: '#fff', fontSize: 13, opacity: 0.9, marginTop: 4 },
-  bannerButton: { 
-    backgroundColor: Colors.cta_primary_bg, 
-    alignSelf: 'flex-start', 
-    paddingHorizontal: 20, 
-    paddingVertical: 10, 
-    borderRadius: 20, 
-    marginTop: 12,
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  bannerButtonText: { color: Colors.cta_primary_text, fontWeight: '900', fontSize: 12 },
-  quickActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  actionIconItem: { alignItems: 'center', flex: 1 },
-  // Increased icon circles to 64px to support premium, highly visible layout
-  iconCircle: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionLabel: { ...Typography.label, fontWeight: '700', color: Colors.on_surface_variant },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  sectionSubtitle: {
-    ...Typography.label,
-    color: Colors.on_surface_variant,
-    opacity: 0.8,
-  },
-  sectionActionButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.surface_container_high,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  sectionActionText: {
-    ...Typography.label,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  campaignStateCard: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Elevation.ambientSoft,
-  },
-  campaignCard: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.md,
-    ...Elevation.ambientSoft,
-  },
-  campaignCardBody: {
-    padding: Spacing.md,
-  },
-  campaignCardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
-  },
-  campaignBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    paddingRight: Spacing.sm,
-  },
-  campaignBadge: {
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  campaignBadgeText: {
-    ...Typography.caption,
-    color: Colors.on_primary_fixed,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  campaignPriority: {
-    ...Typography.caption,
-    color: Colors.on_surface_variant,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
-  favoriteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface_container_high,
-  },
-  campaignMetaRow: {
-    marginTop: Spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  campaignStatusText: {
-    ...Typography.label,
-    color: Colors.on_surface_variant,
-    fontWeight: '700',
-  },
-  campaignCtaText: {
-    ...Typography.label,
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-  campaignModalActions: {
-    flexDirection: 'row',
-    marginTop: Spacing.lg,
-  },
-  loyaltyCard: { backgroundColor: '#1a1c1c', padding: 24, borderRadius: BorderRadius.xl, marginBottom: Spacing.xl },
-  tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  tierLabel: { color: 'rgba(255,255,255,0.6)', ...Typography.caption, fontWeight: '900' },
-  tierName: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  tierPoints: { color: Colors.secondary, fontSize: 18, fontWeight: '900' },
-  progressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, marginBottom: 8 },
-  progressFill: { height: '100%', backgroundColor: Colors.secondary, borderRadius: 3 },
-  progressText: { color: 'rgba(255,255,255,0.5)', ...Typography.caption, fontWeight: '600' },
-  offersList: { gap: Spacing.md },
-  offerItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface_container_lowest, padding: 12, borderRadius: BorderRadius.xl, ...Elevation.ambientSoft },
-  offerIconPlaceholder: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.surface_container_high },
-  categoryItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface_container_high,
-    marginRight: 8,
-    opacity: 0.6,
-  },
-  categoryItemActive: {
-    backgroundColor: Colors.primary_container,
-    opacity: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  modalCard: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  notificationHeaderActions: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  modalLink: {
-    ...Typography.label,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  modalRow: {
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    ...Elevation.ambientSoft,
-  },
-  notificationRowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  unreadIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.error,
-  },
-  notificationStateContainer: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  notificationRetryButton: {
-    marginTop: Spacing.md,
-    backgroundColor: Colors.primary_container,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-  },
-  notificationRetryText: {
-    ...Typography.label,
-    color: Colors.on_primary_fixed,
-    fontWeight: '700',
-  },
-  emptyText: {
-    ...Typography.body,
-    color: Colors.on_surface_variant,
-  },
-});
 
 export default HomeScreen;

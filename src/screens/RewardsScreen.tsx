@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { 
   View,
   Text,
-  StyleSheet,
   SafeAreaView,
   ScrollView, 
   TouchableOpacity, 
@@ -11,7 +10,7 @@ import {
   Alert,
   Share
 } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
+import { MotiView } from 'moti';
 import { 
   Flame, 
   ChevronRight, 
@@ -78,8 +77,8 @@ const RewardsScreen = () => {
 
   if (isHomeLoading || isOffersLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View className="flex-1 justify-center items-center bg-surface">
+        <ActivityIndicator size="large" color="#111316" />
       </View>
     );
   }
@@ -162,82 +161,84 @@ const RewardsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.brandHeader}>
-          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+    <SafeAreaView className="flex-1 bg-surface">
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+        <View className="mb-sm">
+          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px] self-start" resizeMode="contain" />
         </View>
-        <View style={styles.header}>
-          <Text style={Typography.headline}>{t('rewards.title', 'Rewards Hub')}</Text>
-          <View style={styles.pointsBadge}>
-            <Star size={14} color={Colors.on_primary_fixed} fill={Colors.on_primary_fixed} />
-            <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900' }]}>
+        <View className="flex-row justify-between items-center mb-xl">
+          <Text className="font-headline text-[28px] font-bold text-on-surface">{t('rewards.title', 'Rewards Hub')}</Text>
+          <View className="flex-row items-center bg-primary-container px-3 py-1.5 rounded-full min-h-[32px] justify-center">
+            <Star size={14} color="#1c1600" fill="#1c1600" />
+            <Text className="font-label text-[13px] text-on-primary-fixed ml-1 font-black">
               {resolveYmBalance(loyalty).toLocaleString()} YM
             </Text>
           </View>
         </View>
 
         {/* Premium Streak Tracker */}
-        <View style={styles.streakCard}>
-          <View style={styles.streakHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Flame size={24} color={Colors.secondary} fill={Colors.secondary} />
-              <View style={{ marginLeft: 12 }}>
-                <Text style={Typography.title}>{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
-                <Text style={[Typography.label, { opacity: 0.6 }]}>{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
+        <MotiView
+          from={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          className="bg-surface-container-lowest p-lg rounded-xl mb-xl border border-outline-variant shadow-sm"
+        >
+          <View className="flex-row justify-between items-center mb-5">
+            <View className="flex-row items-center">
+              <Flame size={24} color="#2260a2" fill="#2260a2" />
+              <View className="ml-3">
+                <Text className="font-title text-[20px] font-bold text-on-surface">{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
+                <Text className="font-label text-[13px] text-on-surface-variant opacity-60">{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
               </View>
             </View>
-            <Award size={24} color={Colors.primary} />
+            <Award size={24} color="#111316" />
           </View>
           
-          <View style={styles.streakDays}>
+          <View className="flex-row justify-between items-center px-1">
             {[1, 2, 3, 4, 5, 6, 7].map((day) => {
               const active = day <= (gamification?.current_streak || 0);
               const isToday = day === (gamification?.current_streak || 0);
               return (
-                <View key={day} style={styles.dayContainer}>
-                  <View style={[
-                    styles.dayCircle,
-                    active && { backgroundColor: Colors.primary_container },
-                    isToday && { borderWidth: 2, borderColor: Colors.secondary }
-                  ]}>
-                    <Text style={[
-                      Typography.label,
-                      active ? { color: Colors.on_primary_fixed, fontWeight: '900' } : { opacity: 0.5 }
-                    ]}>{day}</Text>
+                <View key={day} className="items-center gap-2">
+                  <View className={`w-[42px] h-[42px] rounded-full bg-surface-container-high justify-center items-center ${
+                    active ? 'bg-primary-container' : ''
+                  } ${isToday ? 'border-2 border-secondary' : ''}`}>
+                    <Text className={`font-label text-[13px] text-on-surface ${
+                      active ? 'text-on-primary-fixed font-black' : 'opacity-50'
+                    }`}>{day}</Text>
                   </View>
-                  <Text style={[styles.dayLabel, active && { color: Colors.primary }]}>D{day}</Text>
+                  <Text className={`font-caption text-[11px] text-on-surface-variant font-bold ${active ? 'text-primary' : ''}`}>D{day}</Text>
                 </View>
               );
             })}
           </View>
-          <View style={styles.streakFooter}>
-            <Zap size={14} color={Colors.secondary} fill={Colors.secondary} />
-            <Text style={styles.streakFooterText}>
+          <View className="flex-row items-center mt-5 pt-4 border-t border-outline-variant gap-2">
+            <Zap size={14} color="#2260a2" fill="#2260a2" />
+            <Text className="font-caption text-[11px] font-semibold text-on-surface-variant">
                Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
             </Text>
           </View>
-        </View>
+        </MotiView>
 
-        <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('rewards.activeGames', 'Active Games')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg }}>
+        <View className="mb-xl">
+          <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('rewards.activeGames', 'Active Games')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-lg px-lg">
             {(safeGames.length > 0 ? safeGames : [primaryGame]).map((game: any) => (
               <TouchableOpacity
                 key={String(game.id)}
-                style={styles.gameCard}
+                className="w-[180px] mr-3 p-4 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm active:scale-95"
                 onPress={() => {
                   setSelectedGame(game);
                   setSpinVisible(true);
                 }}
               >
-                <Text style={[Typography.title, { fontSize: 14 }]} numberOfLines={1}>
+                <Text className="font-title text-[14px] font-bold text-on-surface" numberOfLines={1}>
                   {game.title}
                 </Text>
-                <Text style={[Typography.label, { opacity: 0.6, marginTop: 6 }]} numberOfLines={2}>
+                <Text className="font-label text-[12px] text-on-surface-variant opacity-60 mt-1.5" numberOfLines={2}>
                   {game.description || game.subtitle || game.type}
                 </Text>
-                <Text style={[Typography.label, { marginTop: 10, color: Colors.primary }]}>
+                <Text className="font-label text-[12px] mt-2.5 text-primary font-bold uppercase">
                   {game.type}
                 </Text>
               </TouchableOpacity>
@@ -246,82 +247,102 @@ const RewardsScreen = () => {
         </View>
 
         {/* Spin-the-Wheel Hero Section */}
-        <TouchableOpacity style={styles.spinHero} onPress={() => setSpinVisible(true)}>
-          <View style={styles.spinContent}>
-            <Text style={[Typography.headline, { color: Colors.on_primary_fixed, fontSize: 24 }]}>{t('rewards.spinTitle', 'Daily Spin')}</Text>
-            <Text style={[Typography.body, { color: Colors.on_primary_fixed, opacity: 0.8 }]}>
-              {t('rewards.spinSubtitle', 'Win up to 500 YelloMola!')}
-            </Text>
-            <View style={styles.spinCta}>
-              <Text style={[Typography.title, { color: '#000', fontWeight: '900' }]}>{t('rewards.spinNow', 'SPIN NOW')}</Text>
+        <MotiView
+          from={{ opacity: 0, translateY: 15 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 100 }}
+        >
+          <TouchableOpacity className="h-[200px] bg-primary-container rounded-xl flex-row overflow-hidden mb-xl shadow-md relative active:opacity-95" onPress={() => setSpinVisible(true)}>
+            <View className="flex-1 p-6 justify-center z-10">
+              <Text className="font-headline text-[24px] font-black text-on-primary-fixed">{t('rewards.spinTitle', 'Daily Spin')}</Text>
+              <Text className="font-body text-[16px] text-on-primary-fixed opacity-80 mt-1">
+                {t('rewards.spinSubtitle', 'Win up to 500 YelloMola!')}
+              </Text>
+              <View className="bg-surface px-6 py-3 rounded-full mt-4 align-self-start min-h-[46px] justify-center shadow-sm">
+                <Text className="font-title text-[13px] text-[#111316] font-black uppercase">{t('rewards.spinNow', 'SPIN NOW')}</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.spinIconContainer}>
-             <Star size={80} color="rgba(255, 255, 0, 0.1)" fill="rgba(255, 255, 0, 0.2)" />
-          </View>
-        </TouchableOpacity>
+            <View className="absolute -right-5 top-5 opacity-30">
+               <Star size={80} color="#ffcc00" fill="#ffcc00" />
+            </View>
+          </TouchableOpacity>
+        </MotiView>
 
         {/* Redemption Catalog Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>{t('rewards.featured', 'Featured Rewards')}</Text>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-               <Text style={[Typography.label, { color: Colors.primary }]}>{t('rewards.viewAll', 'VIEW ALL')}</Text>
-               <ChevronRight size={16} color={Colors.primary} />
+        <View className="mb-xl">
+          <View className="flex-row justify-between items-center mb-md">
+            <Text className="font-title text-[20px] font-bold text-on-surface">{t('rewards.featured', 'Featured Rewards')}</Text>
+            <TouchableOpacity className="flex-row items-center active:opacity-80">
+               <Text className="font-label text-[13px] text-primary font-bold uppercase">{t('rewards.viewAll', 'VIEW ALL')}</Text>
+               <ChevronRight size={16} color="#111316" />
             </TouchableOpacity>
           </View>
           
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.redeemScroll}>
-            {safeOffers.map((offer: any) => (
-              <TouchableOpacity 
-                key={offer.id} 
-                style={styles.redeemCard}
-                onPress={() => {
-                  track(
-                    'offer_click',
-                    { item_id: offer.id, placement: 'rewards_featured' },
-                    { screen: 'rewards', placement: 'rewards_featured' },
-                  );
-                  handleRedeem(offer);
-                }}
-                disabled={isRedeeming}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-lg px-lg">
+            {safeOffers.map((offer: any, idx: number) => (
+              <MotiView
+                key={offer.id}
+                from={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', damping: 15, delay: idx * 60 }}
+                className="w-[150px] mr-4 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant shadow-sm"
               >
-                <View style={styles.redeemImageContainer}>
-                   <Image 
-                     source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
-                     style={StyleSheet.absoluteFill}
-                     resizeMode="cover"
-                   />
-                </View>
-                <View style={styles.redeemInfo}>
-                  <Text style={[Typography.title, { fontSize: 13 }]} numberOfLines={1}>
-                    {offer.title}
-                  </Text>
-                  <View style={styles.priceRow}>
-                    <Star size={10} color={Colors.secondary} fill={Colors.secondary} />
-                    <Text style={[Typography.label, { marginLeft: 4, fontWeight: '900', color: Colors.secondary }]}>
-                       {formatMznCurrency(offer.price, language)}
-                    </Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    track(
+                      'offer_click',
+                      { item_id: offer.id, placement: 'rewards_featured' },
+                      { screen: 'rewards', placement: 'rewards_featured' },
+                    );
+                    handleRedeem(offer);
+                  }}
+                  disabled={isRedeeming}
+                  className="active:opacity-95"
+                >
+                  <View className="w-[150px] h-[110px] bg-surface-container-high relative">
+                     <Image 
+                       source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
+                       className="absolute inset-0 w-full h-full"
+                       resizeMode="cover"
+                     />
                   </View>
-                </View>
-              </TouchableOpacity>
+                  <View className="p-3">
+                    <Text className="font-title text-[13px] font-bold text-on-surface" numberOfLines={1}>
+                      {offer.title}
+                    </Text>
+                    <View className="flex-row items-center mt-1.5">
+                      <Star size={10} color="#2260a2" fill="#2260a2" />
+                      <Text className="font-label text-[12px] font-black text-secondary ml-1">
+                         {formatMznCurrency(offer.price, language)}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </MotiView>
             ))}
           </ScrollView>
         </View>
 
-        {/* Gamified Quests Placeholder */}
-        <View style={styles.section}>
-           <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('rewards.dailyQuests', 'Daily Quests')}</Text>
-           <TouchableOpacity style={styles.questCard} onPress={handleReferral}>
-              <View style={styles.questIcon}>
-                <Gift size={20} color={Colors.secondary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                 <Text style={Typography.title}>{t('rewards.referFriend', 'Refer a Friend')}</Text>
-                 <Text style={[Typography.label, { opacity: 0.6 }]}>{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
-              </View>
-              <ChevronRight size={20} color={Colors.outline} />
-           </TouchableOpacity>
+        {/* Gamified Quests */}
+        <View className="mb-xl">
+           <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('rewards.dailyQuests', 'Daily Quests')}</Text>
+           <MotiView
+             from={{ opacity: 0, translateY: 10 }}
+             animate={{ opacity: 1, translateY: 0 }}
+             transition={{ type: 'spring', damping: 15 }}
+             className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm"
+           >
+             <TouchableOpacity className="flex-row items-center p-4 active:opacity-95" onPress={handleReferral}>
+                <View className="w-11 h-11 rounded-xl bg-secondary/10 justify-center items-center">
+                  <Gift size={20} color="#2260a2" />
+                </View>
+                <View className="flex-1 ml-3">
+                   <Text className="font-title text-[16px] font-bold text-on-surface">{t('rewards.referFriend', 'Refer a Friend')}</Text>
+                   <Text className="font-label text-[13px] text-on-surface-variant opacity-60">{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
+                </View>
+                <ChevronRight size={20} color="rgba(26, 28, 28, 0.4)" />
+             </TouchableOpacity>
+           </MotiView>
         </View>
 
         <SpinWheelModal 
@@ -333,154 +354,5 @@ const RewardsScreen = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
-  brandHeader: {
-    marginBottom: Spacing.md,
-  },
-  tmcelLogo: {
-    width: 160,
-    height: 72,
-    alignSelf: 'flex-start',
-  },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    marginBottom: Spacing.xl 
-  },
-  pointsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary_container,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    minHeight: 32,
-  },
-  streakCard: {
-    backgroundColor: Colors.surface_container_lowest,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
-  },
-  streakHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  streakDays: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  dayContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  dayCircle: {
-    // Increased day circle width and height to 42px as requested for better visibility
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: Colors.surface_container_high,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayLabel: { ...Typography.caption, fontWeight: '700', color: Colors.on_surface_variant },
-  streakFooter: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginTop: 20, 
-    paddingTop: 16, 
-    borderTopWidth: 1, 
-    borderTopColor: Colors.outline_variant,
-    gap: 8
-  },
-  streakFooterText: { ...Typography.caption, fontWeight: '600', color: Colors.on_surface_variant },
-  spinHero: {
-    // Increased spin daily banner height to 200px for robust visual presentation
-    height: 200,
-    backgroundColor: Colors.primary_container,
-    borderRadius: BorderRadius.xl,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    marginBottom: Spacing.xl,
-    ...Elevation.ambientLift,
-  },
-  spinContent: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  spinCta: {
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.full,
-    marginTop: 16,
-    alignSelf: 'flex-start',
-    minHeight: 46,
-    justifyContent: 'center',
-  },
-  spinIconContainer: {
-    position: 'absolute',
-    right: -20,
-    top: 20,
-    opacity: 0.5,
-  },
-  section: { marginBottom: Spacing.xl },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  redeemScroll: { marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
-  redeemCard: {
-    width: 150,
-    marginRight: 16,
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    ...Elevation.ambientSoft,
-  },
-  redeemImageContainer: {
-    width: 150,
-    height: 110,
-    backgroundColor: Colors.surface_container_high,
-  },
-  redeemInfo: { padding: 12 },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  gameCard: {
-    width: 180,
-    marginRight: 12,
-    padding: 16,
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.lg,
-    ...Elevation.ambientSoft,
-  },
-  questCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl,
-    ...Elevation.ambientSoft,
-  },
-  questIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.secondary + '10', justifyContent: 'center', alignItems: 'center' },
-});
 
 export default RewardsScreen;

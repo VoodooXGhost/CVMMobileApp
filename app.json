@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./TmcelLauncherIcon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./TmcelLogo.png",
       "resizeMode": "contain",

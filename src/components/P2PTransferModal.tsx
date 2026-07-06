@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { View, Text, Modal, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { X, Send } from 'lucide-react-native';
 import { useP2pTransferMutation } from '../services/apiSlice';
 import { track } from '../services/analytics';
@@ -79,27 +78,27 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
   return (
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView 
-        style={styles.modalOverlay} 
+        className="flex-1 bg-black/50 justify-end" 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={Typography.headline}>{t('p2p.title', 'Send Money')}</Text>
+        <View className="bg-surface p-xl rounded-t-xl min-h-[400px]">
+          <View className="flex-row justify-between items-center mb-md border-b border-outline-variant pb-xs">
+            <Text className="font-headline text-[28px] font-bold text-on-surface">{t('p2p.title', 'Send Money')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <X size={24} color={Colors.on_surface} />
+              <X size={24} color="#1a1c1c" />
             </TouchableOpacity>
           </View>
           
-          <Text style={[Typography.body, { marginBottom: Spacing.xl }]}>
+          <Text className="font-body text-[16px] text-on-surface-variant mb-xl">
             {t('p2p.subtitle', 'Send YelloMola instantly to any Tmcel subscriber.')}
           </Text>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>{t('p2p.recipientNumber', 'Recipient Number')}</Text>
+          <View className="mb-lg">
+            <Text className="font-label text-[13px] text-on-surface-variant mb-xs">{t('p2p.recipientNumber', 'Recipient Number')}</Text>
             <TextInput
-              style={styles.input}
+              className="bg-surface-container-highest rounded-md p-md font-body text-[18px] color-on-surface border border-outline-variant"
               placeholder="e.g. 0831234567"
-              placeholderTextColor={Colors.outline}
+              placeholderTextColor="rgba(26, 28, 28, 0.4)"
               keyboardType="phone-pad"
               value={msisdn}
               onChangeText={setMsisdn}
@@ -107,12 +106,12 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
             />
           </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>{t('p2p.amountYm', 'Amount (YM)')}</Text>
+          <View className="mb-lg">
+            <Text className="font-label text-[13px] text-on-surface-variant mb-xs">{t('p2p.amountYm', 'Amount (YM)')}</Text>
             <TextInput
-              style={styles.input}
+              className="bg-surface-container-highest rounded-md p-md font-body text-[18px] color-on-surface border border-outline-variant"
               placeholder="0.00"
-              placeholderTextColor={Colors.outline}
+              placeholderTextColor="rgba(26, 28, 28, 0.4)"
               keyboardType="decimal-pad"
               value={amount}
               onChangeText={setAmount}
@@ -121,7 +120,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
           </View>
 
           <TouchableOpacity 
-            style={[styles.submitButton, isLoading && { opacity: 0.7 }]} 
+            className={`bg-[#ffcc00] flex-row justify-center items-center p-md rounded-full mt-xl gap-3 min-h-[60px] shadow-sm active:opacity-90 ${isLoading ? 'opacity-70' : ''}`}
             onPress={handleSend}
             disabled={isLoading}
           >
@@ -130,7 +129,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
             ) : (
               <>
                 <Send size={20} color="#000" />
-                <Text style={styles.submitButtonText}>{t('p2p.sendYelloMola', 'SEND YELLOMOLA')}</Text>
+                <Text className="color-[#000] font-black text-[16px]">{t('p2p.sendYelloMola', 'SEND YELLOMOLA')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -139,44 +138,5 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  container: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.xl,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    minHeight: 400,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  formGroup: { marginBottom: Spacing.lg },
-  label: { ...Typography.label, color: Colors.on_surface_variant, marginBottom: Spacing.xs },
-  input: {
-    backgroundColor: Colors.surface_container_highest,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: 18,
-    color: Colors.on_surface,
-    borderWidth: 1,
-    borderColor: Colors.outline_variant,
-  },
-  submitButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.full,
-    marginTop: Spacing.xl,
-    gap: 12,
-  },
-  submitButtonText: { color: '#000', fontWeight: '900', fontSize: 16 },
-});
 
 export default P2PTransferModal;

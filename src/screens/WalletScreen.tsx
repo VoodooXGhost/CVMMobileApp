@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius, Elevation } from '../theme/tokens';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Platform } from 'react-native';
+import { MotiView } from 'moti';
 import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
@@ -35,16 +35,16 @@ const WalletScreen = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View className="flex-1 justify-center items-center bg-surface">
+        <ActivityIndicator size="large" color="#111316" />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={Typography.body}>{t('wallet.loadError', 'Error loading wallet. Please try again.')}</Text>
+      <View className="flex-1 justify-center items-center bg-surface">
+        <Text className="font-body text-[16px] text-on-surface">{t('wallet.loadError', 'Error loading wallet. Please try again.')}</Text>
       </View>
     );
   }
@@ -60,7 +60,6 @@ const WalletScreen = () => {
       return;
     }
 
-    // Use standardized biometric prompt
     const success = await authenticate('Authenticate to reveal card details');
     if (success) {
       setRevealedCards({ ...revealedCards, [cardId]: true });
@@ -109,34 +108,41 @@ const WalletScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.brandHeader}>
-          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
+    <SafeAreaView className="flex-1 bg-surface">
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+        <View className="mb-sm">
+          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px] self-start" resizeMode="contain" />
         </View>
-        <View style={styles.header}>
-          <Text style={Typography.headline}>{t('wallet.title', 'Wallet')}</Text>
-          <TouchableOpacity style={styles.tokenBadge}>
-            <Text style={[Typography.label, { color: Colors.primary }]}>{Number(balance || 0).toLocaleString()} YM</Text>
+        <View className="flex-row justify-between items-center mb-lg">
+          <Text className="font-headline text-[28px] font-bold text-on-surface">{t('wallet.title', 'Wallet')}</Text>
+          <TouchableOpacity className="bg-primary-container px-3 py-1.5 rounded-full min-h-[32px] justify-center">
+            <Text className="font-label text-[13px] text-primary font-semibold">{Number(balance || 0).toLocaleString()} YM</Text>
           </TouchableOpacity>
         </View>
         
         {/* Total Balance Card */}
-        <View style={styles.balanceSection}>
-          <Text style={[Typography.label, { opacity: 0.6 }]}>{t('wallet.availableBalance', 'Available Balance')}</Text>
-          <Text style={[Typography.display, { fontSize: 36, marginTop: 4 }]}>{formatMznCurrency(totalBalance, language)}</Text>
-          <View style={styles.balanceFooter}>
-            <View style={styles.trendUp}>
-              <ArrowUpRight size={14} color={Colors.secondary} />
-              <Text style={[Typography.label, { color: Colors.secondary, marginLeft: 4 }]}>+{formatMznCurrency(1240, language)} {t('wallet.thisMonth', 'this month')}</Text>
+        <MotiView
+          from={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          className="p-xl bg-surface-container-lowest rounded-xl shadow-sm mb-xl border border-outline-variant"
+        >
+          <Text className="font-label text-[13px] text-on-surface-variant opacity-60 uppercase">{t('wallet.availableBalance', 'Available Balance')}</Text>
+          <Text className="font-display text-[36px] text-on-surface font-black mt-1">{formatMznCurrency(totalBalance, language)}</Text>
+          <View className="mt-3 pt-3 border-t border-outline-variant">
+            <View className="flex-row items-center">
+              <ArrowUpRight size={14} color="#2260a2" />
+              <Text className="font-label text-[13px] text-secondary ml-1 font-semibold">
+                +{formatMznCurrency(1240, language)} {t('wallet.thisMonth', 'this month')}
+              </Text>
             </View>
           </View>
-        </View>
+        </MotiView>
 
         {/* Action Grid */}
-        <View style={styles.actionGrid}>
+        <View className="flex-row justify-between mb-xl">
           <TouchableOpacity
-            style={styles.actionItem}
+            className="items-center flex-1 active:scale-95"
             onPress={() => {
               if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
                 Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
@@ -145,13 +151,13 @@ const WalletScreen = () => {
               setScanVisible(true);
             }}
           >
-            <View style={[styles.actionIcon, { backgroundColor: Colors.primary_container }]}>
-              <Scan color="#fff" size={24} />
+            <View className="w-16 h-16 rounded-[24px] bg-primary-container justify-center items-center mb-2 shadow-sm">
+              <Scan color="#111316" size={24} />
             </View>
-            <Text style={styles.actionLabel}>{t('wallet.scanToPay', 'Scan to Pay')}</Text>
+            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.scanToPay', 'Scan to Pay')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.actionItem}
+            className="items-center flex-1 active:scale-95"
             onPress={() => {
               if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
                 Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
@@ -160,22 +166,22 @@ const WalletScreen = () => {
               setP2pVisible(true);
             }}
           >
-            <View style={[styles.actionIcon, { backgroundColor: Colors.secondary }]}>
+            <View className="w-16 h-16 rounded-[24px] bg-secondary justify-center items-center mb-2 shadow-sm">
               <ArrowUpRight color="#fff" size={24} />
             </View>
-            <Text style={styles.actionLabel}>{t('wallet.sendMoney', 'Send Money')}</Text>
+            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send Money')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem}>
-            <View style={[styles.actionIcon, { backgroundColor: Colors.primary }]}>
+          <TouchableOpacity className="items-center flex-1 active:scale-95">
+            <View className="w-16 h-16 rounded-[24px] bg-primary justify-center items-center mb-2 shadow-sm">
               <CreditCard color="#fff" size={24} />
             </View>
-            <Text style={styles.actionLabel}>{t('wallet.virtualCard', 'Virtual Card')}</Text>
+            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.virtualCard', 'Virtual Card')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Virtual Card Section */}
-        <View style={styles.section}>
-          <Text style={[Typography.title, { marginBottom: Spacing.md }]}>{t('wallet.myCards', 'My Virtual Cards')}</Text>
+        <View className="mb-xl">
+          <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('wallet.myCards', 'My Virtual Cards')}</Text>
           {safeCards.map((card: any) => {
             const isRevealed = revealedCards[card.id];
             const isFrozen = card.status === 'FROZEN';
@@ -186,98 +192,110 @@ const WalletScreen = () => {
                 : '•••• •••• •••• ••••';
             
             return (
-              <View key={card.id} style={[styles.cardContainer, isFrozen && styles.frozenCard]}>
-                <View style={styles.virtualCard}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardBrand}>{card.type}</Text>
-                    <View style={styles.chip} />
+              <MotiView
+                key={card.id}
+                from={{ opacity: 0, translateY: 15 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', damping: 15 }}
+                className={`rounded-xl overflow-hidden bg-primary mb-lg shadow-md ${isFrozen ? 'opacity-60' : ''}`}
+              >
+                <View className="h-[190px] p-6 justify-between">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-white text-[16px] font-black uppercase tracking-wider">{card.type}</Text>
+                    <View className="w-10 h-7 bg-primary-container/85 rounded opacity-90" />
                   </View>
                   
-                  <View style={styles.cardNumberContainer}>
-                    <Text style={styles.cardNumber}>
+                  <View className="my-5">
+                    <Text className="text-white text-[22px] tracking-[4px] font-semibold text-center">
                       {isRevealed ? (rawCardNumber || maskedNumber) : maskedNumber}
                     </Text>
                   </View>
                   
-                  <View style={styles.cardFooter}>
+                  <View className="flex-row justify-between items-end">
                     <View>
-                      <Text style={styles.cardLabel}>{t('wallet.expiry', 'EXPIRY')}</Text>
-                      <Text style={styles.cardValue}>{card.expiry}</Text>
+                      <Text className="text-white/50 font-caption text-[10px] font-black uppercase mb-0.5">{t('wallet.expiry', 'EXPIRY')}</Text>
+                      <Text className="text-white text-[14px] font-semibold">{card.expiry}</Text>
                     </View>
                     {isRevealed && (
                       <View>
-                        <Text style={styles.cardLabel}>{t('wallet.cvv', 'CVV')}</Text>
-                        <Text style={styles.cardValue}>•••</Text>
+                        <Text className="text-white/50 font-caption text-[10px] font-black uppercase mb-0.5">{t('wallet.cvv', 'CVV')}</Text>
+                        <Text className="text-white text-[14px] font-semibold">•••</Text>
                       </View>
                     )}
-                    <View style={styles.visaIcon} />
+                    <View className="w-[45px] h-[15px] bg-white/20 rounded" />
                   </View>
                 </View>
 
                 {/* Card Controls */}
-                <View style={styles.cardControls}>
+                <View className="flex-row bg-surface-container-highest border-t border-white/5">
                   <TouchableOpacity 
-                    style={styles.controlButton} 
+                    className="flex-1 flex-row items-center justify-center py-4 gap-2 min-h-[52px] active:bg-white/5"
                     onPress={() => handleReveal(card.id)}
                   >
-                    {isRevealed ? <EyeOff size={20} color={Colors.on_surface} /> : <Eye size={20} color={Colors.on_surface} />}
-                    <Text style={styles.controlText}>{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
+                    {isRevealed ? <EyeOff size={20} color="#1a1c1c" /> : <Eye size={20} color="#1a1c1c" />}
+                    <Text className="text-[13px] font-black text-on-surface">{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
                   </TouchableOpacity>
                   
-                  <View style={styles.controlDivider} />
+                  <View className="w-[1px] h-[60%] bg-white/10 align-self-center" />
                   
                   <TouchableOpacity 
-                    style={styles.controlButton} 
+                    className="flex-1 flex-row items-center justify-center py-4 gap-2 min-h-[52px] active:bg-white/5"
                     onPress={() => handleToggleFreeze(card)}
                     disabled={freezingId === card.id || !runtimeConfig.flags.walletHighRiskActionsEnabled}
                   >
                     {isFrozen ? (
-                      <Unlock size={20} color={Colors.secondary} />
+                      <Unlock size={20} color="#2260a2" />
                     ) : (
-                      <Lock size={20} color={Colors.error} />
+                      <Lock size={20} color="#ba1a1a" />
                     )}
-                    <Text style={[styles.controlText, isFrozen && { color: Colors.secondary }]}>
+                    <Text className={`text-[13px] font-black ${isFrozen ? 'text-secondary' : 'text-on-surface'}`}>
                       {isFrozen ? t('wallet.unfreeze', 'Unfreeze') : t('wallet.freeze', 'Freeze')}
                     </Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </MotiView>
             );
           })}
         </View>
 
         {/* Transaction History */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={Typography.title}>{t('wallet.recentActivity', 'Recent Activity')}</Text>
+        <View className="mb-xl">
+          <View className="flex-row justify-between items-center mb-md">
+            <Text className="font-title text-[20px] font-bold text-on-surface">{t('wallet.recentActivity', 'Recent Activity')}</Text>
             <TouchableOpacity>
-              <ChevronRight size={20} color={Colors.on_surface_variant} />
+              <ChevronRight size={20} color="rgba(26, 28, 28, 0.6)" />
             </TouchableOpacity>
           </View>
           
-          <View style={styles.transactionList}>
-            {safeTransactions.length > 0 ? safeTransactions.map((tx: any) => (
-              <View key={tx.id} style={styles.transactionItem}>
-                <View style={[styles.txIconContainer, { backgroundColor: tx.amount < 0 ? '#FEF2F2' : '#F0FDF4' }]}>
+          <View className="space-y-sm">
+            {safeTransactions.length > 0 ? safeTransactions.map((tx: any, idx: number) => (
+              <MotiView
+                key={tx.id}
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', damping: 15, delay: idx * 60 }}
+                className="bg-surface-container-lowest p-md rounded-xl flex-row items-center shadow-sm border border-outline-variant"
+              >
+                <View className={`w-10 h-10 rounded-xl justify-center items-center ${tx.amount < 0 ? 'bg-[#FEF2F2]' : 'bg-[#F0FDF4]'}`}>
                   {tx.amount < 0 ? (
                     <ArrowUpRight size={18} color="#EF4444" />
                   ) : (
                     <ArrowDownLeft size={18} color="#22C55E" />
                   )}
                 </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[Typography.title, { fontSize: 15 }]} numberOfLines={1}>{tx.description}</Text>
-                  <Text style={[Typography.label, { color: Colors.on_surface_variant, fontSize: 11 }]}>
+                <View className="flex-1 ml-3">
+                  <Text className="font-title text-[15px] font-bold text-on-surface" numberOfLines={1}>{tx.description}</Text>
+                  <Text className="font-label text-[11px] text-on-surface-variant mt-0.5">
                     {new Date(tx.date).toLocaleDateString()} • {String(tx.type || 'activity').replace('_', ' ')}
                   </Text>
                 </View>
-                <Text style={[Typography.title, { color: tx.amount < 0 ? Colors.on_surface : Colors.secondary }]}>
+                <Text className={`font-title text-[15px] font-bold ${tx.amount < 0 ? 'text-on-surface' : 'text-secondary'}`}>
                   {tx.amount < 0 ? '' : '+'}{formatMznCurrency(Math.abs(Number(tx.amount || 0)), language)} • YM
                 </Text>
-              </View>
+              </MotiView>
             )) : (
-              <View style={styles.emptyState}>
-                <Text style={Typography.body}>{t('wallet.noTransactions', 'No recent transactions')}</Text>
+              <View className="p-10 items-center justify-center">
+                <Text className="font-body text-[16px] text-on-surface-variant">{t('wallet.noTransactions', 'No recent transactions')}</Text>
               </View>
             )}
           </View>
@@ -286,97 +304,13 @@ const WalletScreen = () => {
         <P2PTransferModal visible={p2pVisible} onClose={() => setP2pVisible(false)} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
         {freezeRetryCard ? (
-          <TouchableOpacity style={styles.retryBanner} onPress={() => handleToggleFreeze(freezeRetryCard)}>
-            <Text style={styles.retryBannerText}>{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
+          <TouchableOpacity className="bg-[#FEF2F2] rounded-md p-md items-center justify-center border border-error/20" onPress={() => handleToggleFreeze(freezeRetryCard)}>
+            <Text className="font-label text-[13px] text-error font-bold">{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 100 },
-  brandHeader: { marginBottom: Spacing.sm },
-  tmcelLogo: { width: 160, height: 72, alignSelf: 'flex-start' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  tokenBadge: { backgroundColor: Colors.primary_container, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, minHeight: 32, justifyContent: 'center' },
-  balanceSection: { 
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface_container_lowest,
-    borderRadius: BorderRadius.xl,
-    ...Elevation.ambientSoft,
-    marginBottom: Spacing.xl,
-  },
-  balanceFooter: { marginTop: 12, paddingTop: 12 },
-  trendUp: { flexDirection: 'row', alignItems: 'center' },
-  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
-  actionItem: { alignItems: 'center', flex: 1 },
-  // Bumped actionIcon width and height to 64px for premium, touch-friendly touch targets
-  actionIcon: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8, ...Elevation.ambientSoft },
-  actionLabel: { ...Typography.caption, fontWeight: '700', color: Colors.on_surface_variant, textTransform: 'uppercase' },
-  section: { marginBottom: Spacing.xl },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  cardContainer: {
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    backgroundColor: Colors.primary,
-    marginBottom: Spacing.lg,
-  },
-  frozenCard: { opacity: 0.7 },
-  virtualCard: {
-    height: 190,
-    padding: 24,
-    justifyContent: 'space-between',
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardBrand: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-  chip: { width: 40, height: 30, backgroundColor: Colors.primary_container, borderRadius: 6, opacity: 0.85 },
-  cardNumberContainer: { marginVertical: 20 },
-  cardNumber: { color: '#fff', fontSize: 22, letterSpacing: 4, fontWeight: '600' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  cardLabel: { color: 'rgba(255,255,255,0.5)', ...Typography.caption, fontWeight: '900', marginBottom: 2 },
-  cardValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  visaIcon: { width: 45, height: 15, backgroundColor: '#fff', opacity: 0.2, borderRadius: 2 },
-  cardControls: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface_container_highest,
-  },
-  controlButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-    minHeight: 52,
-  },
-  controlDivider: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'center' },
-  controlText: { fontSize: 13, fontWeight: '900', color: Colors.on_surface },
-  transactionList: { gap: Spacing.sm },
-  transactionItem: {
-    backgroundColor: Colors.surface_container_lowest,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    ...Elevation.ambientSoft,
-  },
-  txIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  emptyState: { padding: 40, alignItems: 'center' },
-  retryBanner: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  retryBannerText: {
-    ...Typography.label,
-    color: Colors.error,
-    fontWeight: '700',
-  },
-});
 
 export default WalletScreen;

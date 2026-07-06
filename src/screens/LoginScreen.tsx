@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   KeyboardAvoidingView,
@@ -10,7 +9,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme/tokens';
+import { MotiView } from 'moti';
 import { useAuth } from '../services/auth.context';
 import { AppButton, AppCard, AppInput } from '../components/Primitives';
 import { runtimeConfig } from '../config/runtime';
@@ -83,167 +82,122 @@ const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-        <View style={styles.header}>
-          <Image source={require('../../TmcelLogo.png')} style={styles.tmcelLogo} resizeMode="contain" />
-          <Text style={styles.titleText}>{t('login.title', 'The Digital Pulse')}</Text>
-          <Text style={styles.subtitleText}>{t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}</Text>
-        </View>
+    <SafeAreaView className="flex-1 bg-surface">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 p-lg justify-center gap-lg"
+      >
+        <MotiView
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 18 }}
+          className="mb-md gap-sm items-center"
+        >
+          <Image
+            source={require('../../TmcelLogo.png')}
+            className="w-full h-[140px] self-center"
+            resizeMode="contain"
+          />
+          <Text className="font-headline text-[28px] font-bold text-primary text-center">
+            {t('login.title', 'The Digital Pulse')}
+          </Text>
+          <Text className="font-body text-[16px] text-on-surface-variant text-center max-w-[90%]">
+            {t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}
+          </Text>
+        </MotiView>
 
-        <AppCard style={styles.loginCard} variant="nested">
-          <Text style={[Typography.title, styles.welcomeText]}>{t('login.welcomeBack', 'Welcome back')}</Text>
+        <MotiView
+          from={{ opacity: 0, translateY: 30 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 100 }}
+        >
+          <AppCard className="p-xl gap-md" variant="nested">
+            <Text className="font-title text-[20px] mb-sm text-on-surface font-semibold">
+              {t('login.welcomeBack', 'Welcome back')}
+            </Text>
 
-          {storedMsisdn ? (
-            // Returning PIN-only User UI
-            <View style={styles.returningUserContainer}>
-              <View style={styles.msisdnChip}>
-                <Text style={[Typography.body, styles.chipText]}>
-                  {maskMsisdn(storedMsisdn)}
+            {storedMsisdn ? (
+              // Returning PIN-only User UI
+              <View className="mb-sm">
+                <View className="flex-row justify-between items-center bg-surface-container-highest px-md py-sm rounded-md min-h-[52px]">
+                  <Text className="font-body text-[16px] font-semibold text-primary">
+                    {maskMsisdn(storedMsisdn)}
+                  </Text>
+                  <AppButton
+                    label={t('login.notYou', 'Not you?')}
+                    onPress={handleSwitchAccount}
+                    variant="ghost"
+                  />
+                </View>
+              </View>
+            ) : (
+              // First time/logged out flow: Enter MSISDN
+              <View className="gap-xs">
+                <Text className="font-label text-[13px] text-on-surface-variant uppercase">
+                  {t('login.msisdn', 'MSISDN')}
                 </Text>
-                <AppButton
-                  label={t('login.notYou', 'Not you?')}
-                  onPress={handleSwitchAccount}
-                  variant="ghost"
+                <AppInput
+                  placeholder={t('login.phonePlaceholder', 'Enter your phone number')}
+                  value={msisdn}
+                  onChangeText={setMsisdn}
+                  autoCapitalize="none"
+                  keyboardType="phone-pad"
                 />
               </View>
-            </View>
-          ) : (
-            // First time/logged out flow: Enter MSISDN
-            <View style={styles.inputContainer}>
-              <Text style={[Typography.label, styles.inputLabel]}>{t('login.msisdn', 'MSISDN')}</Text>
+            )}
+
+            <View className="gap-xs">
+              <Text className="font-label text-[13px] text-on-surface-variant uppercase">
+                {t('login.securePin', 'Secure PIN')}
+              </Text>
               <AppInput
-                placeholder={t('login.phonePlaceholder', 'Enter your phone number')}
-                value={msisdn}
-                onChangeText={setMsisdn}
-                autoCapitalize="none"
-                keyboardType="phone-pad"
+                placeholder={t('login.pinPlaceholder', 'Enter your PIN')}
+                value={pin}
+                onChangeText={setPin}
+                secureTextEntry
+                keyboardType="default"
               />
             </View>
-          )}
 
-          <View style={styles.inputContainer}>
-            <Text style={[Typography.label, styles.inputLabel]}>{t('login.securePin', 'Secure PIN')}</Text>
-            <AppInput
-              placeholder={t('login.pinPlaceholder', 'Enter your PIN')}
-              value={pin}
-              onChangeText={setPin}
-              secureTextEntry
-              keyboardType="default"
-            />
-          </View>
+            {isLoggingIn ? (
+              <View className="min-h-[60px] rounded-xl bg-cta-primary-bg justify-center items-center shadow-md">
+                <ActivityIndicator color="#111316" size="large" />
+              </View>
+            ) : (
+              <AppButton label={t('login.signIn', 'Sign In')} onPress={handleLogin} />
+            )}
 
-          {isLoggingIn ? (
-            <View style={styles.loadingButton}>
-              <ActivityIndicator color={Colors.cta_primary_text} size="large" />
+            <View className="mt-sm items-center gap-xs">
+              <Text className="font-body text-[16px] text-on-surface-variant">
+                {t('login.needHelp', 'Need help?')}
+              </Text>
+              <AppButton
+                label={t('login.resetPassword', 'Reset Password')}
+                onPress={() =>
+                  Alert.alert(
+                    t('login.support', 'Support'),
+                    t('login.supportMessage', 'Password reset is available through support channels.'),
+                  )
+                }
+                variant="ghost"
+              />
             </View>
-          ) : (
-            <AppButton label={t('login.signIn', 'Sign In')} onPress={handleLogin} />
-          )}
+          </AppCard>
+        </MotiView>
 
-          <View style={styles.footerRow}>
-            <Text style={[Typography.body, { color: Colors.on_surface_variant }]}>{t('login.needHelp', 'Need help?')}</Text>
-            <AppButton
-              label={t('login.resetPassword', 'Reset Password')}
-              onPress={() =>
-                Alert.alert(
-                  t('login.support', 'Support'),
-                  t('login.supportMessage', 'Password reset is available through support channels.'),
-                )
-              }
-              variant="ghost"
-            />
-          </View>
-        </AppCard>
-
-        <View style={styles.appFooter}>
-          <Text style={[Typography.label, { color: Colors.on_surface_variant }]}>Powered by EngageHub and CVM Intelligence</Text>
-        </View>
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 600, delay: 300 }}
+          className="items-center mt-sm"
+        >
+          <Text className="font-label text-[13px] text-on-surface-variant text-center">
+            Powered by EngageHub and CVM Intelligence
+          </Text>
+        </MotiView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
-  keyboardView: {
-    flex: 1,
-    padding: Spacing.lg,
-    justifyContent: 'center',
-    gap: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-    alignItems: 'center',
-  },
-  tmcelLogo: {
-    width: '100%',
-    height: 140,
-    alignSelf: 'center',
-  },
-  titleText: {
-    ...Typography.headline,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    textAlign: 'center',
-  },
-  subtitleText: {
-    ...Typography.body,
-    color: Colors.on_surface_variant,
-    textAlign: 'center',
-    maxWidth: '90%',
-  },
-  loginCard: {
-    padding: Spacing.xl,
-    gap: Spacing.md,
-  },
-  welcomeText: {
-    marginBottom: Spacing.sm,
-  },
-  returningUserContainer: {
-    marginBottom: Spacing.sm,
-  },
-  msisdnChip: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.surface_container_highest,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    minHeight: 52,
-  },
-  chipText: {
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  inputContainer: {
-    gap: Spacing.xs,
-  },
-  inputLabel: {
-    color: Colors.on_surface_variant,
-    textTransform: 'uppercase',
-  },
-  loadingButton: {
-    minHeight: 60,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.cta_primary_bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerRow: {
-    marginTop: Spacing.sm,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  appFooter: {
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-});
 
 export default LoginScreen;

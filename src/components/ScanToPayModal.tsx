@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Alert, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme/tokens';
+import { MotiView } from 'moti';
 import { X } from 'lucide-react-native';
 import { useRedeemOfferMutation } from '../services/apiSlice';
 import { track } from '../services/analytics';
@@ -28,7 +28,6 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
   const { authenticate } = useBiometricAuth();
 
-  // Keep the camera mount path free of native device modules and avoid known emulator-like environments.
   const cameraSupported = (() => {
     if (Platform.OS !== 'android') {
       return true;
@@ -174,16 +173,16 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const renderCameraContent = () => {
     if (!cameraSupported) {
       return (
-        <View style={styles.permissionContainer}>
-          <Text style={Typography.title}>{t('scan.unavailableTitle', 'Scan to Pay is unavailable here')}</Text>
-          <Text style={[Typography.body, styles.permissionCopy]}>
+        <View className="flex-1 justify-center items-center p-5">
+          <Text className="font-title text-[20px] font-bold text-on-surface">{t('scan.unavailableTitle', 'Scan to Pay is unavailable here')}</Text>
+          <Text className="font-body text-[16px] mt-3 text-center text-on-surface-variant">
             {t(
               'scan.unavailableBody',
               'This emulator does not provide a usable camera surface. Use a physical Android device to scan QR codes.',
             )}
           </Text>
-          <TouchableOpacity style={styles.grantButton} onPress={closeAndReset}>
-            <Text style={styles.grantText}>{t('common.done', 'Done')}</Text>
+          <TouchableOpacity className="mt-5 bg-primary px-6 py-3.5 rounded-full" onPress={closeAndReset}>
+            <Text className="font-bold color-[#000]">{t('common.done', 'Done')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -191,21 +190,21 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
 
     if (!permission.granted) {
       return (
-        <View style={styles.permissionContainer}>
-          <Text style={Typography.body}>{t('scan.cameraPermission', 'We need your permission to show the camera.')}</Text>
-          <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
-            <Text style={styles.grantText}>{t('scan.grantPermission', 'Grant Permission')}</Text>
+        <View className="flex-1 justify-center items-center p-5">
+          <Text className="font-body text-[16px] text-center text-on-surface">{t('scan.cameraPermission', 'We need your permission to show the camera.')}</Text>
+          <TouchableOpacity className="mt-5 bg-primary px-6 py-3.5 rounded-full" onPress={requestPermission}>
+            <Text className="font-bold color-[#000]">{t('scan.grantPermission', 'Grant Permission')}</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
     return (
-      <View style={styles.cameraContainer}>
+      <View className="flex-1 bg-black overflow-hidden rounded-t-xl">
         {isLoading ? (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={[Typography.title, { color: '#fff', marginTop: 16 }]}>{t('scan.processingPayment', 'Processing Payment...')}</Text>
+          <View className="absolute inset-0 bg-black/80 justify-center items-center z-20">
+            <ActivityIndicator size="large" color="#ffcc00" />
+            <Text className="font-title text-[20px] color-white mt-4">{t('scan.processingPayment', 'Processing Payment...')}</Text>
           </View>
         ) : (
           <CameraView
@@ -216,8 +215,17 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
             }}
             onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
           >
-            <View style={styles.scannerOverlay}>
-              <View style={styles.scannerTarget} />
+            <View className="flex-1 bg-black/50 justify-center items-center">
+              <MotiView
+                from={{ scale: 0.96, opacity: 0.8 }}
+                animate={{ scale: 1.04, opacity: 1 }}
+                transition={{
+                  loop: true,
+                  type: 'timing',
+                  duration: 1500,
+                }}
+                className="w-[250px] h-[250px] border-4 border-primary-container bg-transparent rounded-[24px]"
+              />
             </View>
           </CameraView>
         )}
@@ -227,11 +235,11 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={Typography.headline}>{t('scan.title', 'Scan to Pay')}</Text>
-          <TouchableOpacity onPress={closeAndReset} style={styles.closeBtn}>
-            <X size={24} color={Colors.on_surface} />
+      <View className="flex-1 bg-surface">
+        <View className="flex-row justify-between items-center p-xl pt-[60px] bg-surface z-10">
+          <Text className="font-headline text-[28px] font-bold text-on-surface">{t('scan.title', 'Scan to Pay')}</Text>
+          <TouchableOpacity onPress={closeAndReset} className="p-2 bg-surface-container-high rounded-full">
+            <X size={24} color="#1a1c1c" />
           </TouchableOpacity>
         </View>
 
@@ -240,71 +248,5 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.xl,
-    paddingTop: 60,
-    backgroundColor: Colors.surface,
-    zIndex: 10,
-  },
-  closeBtn: {
-    padding: 8,
-    backgroundColor: Colors.surface_container_high,
-    borderRadius: 20,
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  permissionCopy: {
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  grantButton: {
-    marginTop: 20,
-    backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: BorderRadius.full,
-  },
-  grantText: { fontWeight: '900', color: '#000' },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    overflow: 'hidden',
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  scannerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerTarget: {
-    width: 250,
-    height: 250,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    backgroundColor: 'transparent',
-    borderRadius: 20,
-  }
-});
 
 export default ScanToPayModal;

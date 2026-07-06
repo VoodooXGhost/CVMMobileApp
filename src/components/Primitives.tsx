@@ -4,11 +4,9 @@ import {
   Text,
   Pressable,
   TextInput,
-  StyleSheet,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import { BorderRadius, Colors, Elevation, Spacing, Typography } from '../theme/tokens';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
@@ -23,40 +21,27 @@ export const AppButton = ({
   variant?: ButtonVariant;
   disabled?: boolean;
 }) => {
-  const variantStyles =
+  const containerClasses =
     variant === 'secondary'
-      ? { backgroundColor: Colors.cta_secondary_bg, color: Colors.cta_secondary_text }
+      ? 'bg-cta-secondary-bg border border-cta-secondary-bg'
       : variant === 'ghost'
-        ? {
-            backgroundColor: 'rgba(17, 19, 22, 0.04)',
-            color: Colors.on_surface,
-            borderColor: 'rgba(17, 19, 22, 0.08)',
-          }
-        : { backgroundColor: Colors.cta_primary_bg, color: Colors.cta_primary_text };
+        ? 'bg-primary/5 border border-primary/10 min-h-[46px] px-md py-0 shadow-none'
+        : 'bg-cta-primary-bg border border-cta-primary-bg';
+
+  const textClasses =
+    variant === 'secondary'
+      ? 'text-cta-secondary-text'
+      : variant === 'ghost'
+        ? 'text-on-surface text-[15px]'
+        : 'text-cta-primary-text';
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.button,
-        variant === 'ghost' && styles.ghostButton,
-        {
-          backgroundColor: variantStyles.backgroundColor,
-          borderColor: variantStyles.borderColor,
-          opacity: disabled ? 0.5 : pressed ? 0.92 : 1,
-        },
-      ]}
+      className={`min-h-[60px] rounded-xl items-center justify-center px-lg shadow-sm ${containerClasses} ${disabled ? 'opacity-50' : 'active:opacity-80'}`}
     >
-      <Text
-        style={[
-          Typography.title,
-          {
-            color: variantStyles.color,
-            fontSize: variant === 'ghost' ? 15 : 16,
-          },
-        ]}
-      >
+      <Text className={`font-title text-[16px] text-center ${textClasses}`}>
         {label}
       </Text>
     </Pressable>
@@ -72,18 +57,25 @@ export const AppCard = ({
   style?: ViewStyle;
   variant?: 'default' | 'hero' | 'nested';
 }) => {
-  const backgroundColor =
+  const bgClass =
     variant === 'hero'
-      ? Colors.primary_container
+      ? 'bg-primary-container'
       : variant === 'nested'
-        ? Colors.surface_nested_2
-        : Colors.surface_nested_1;
+        ? 'bg-surface-nested-2'
+        : 'bg-surface-nested-1';
 
-  return <View style={[styles.card, { backgroundColor }, style]}>{children}</View>;
+  return (
+    <View
+      style={style}
+      className={`rounded-xl p-lg shadow-sm ${bgClass}`}
+    >
+      {children}
+    </View>
+  );
 };
 
 export const AppInput = React.forwardRef<TextInput, TextInputProps>(function AppInput(
-  { style, ...rest },
+  { style, className, ...rest },
   ref,
 ) {
   const [focused, setFocused] = React.useState(false);
@@ -99,50 +91,11 @@ export const AppInput = React.forwardRef<TextInput, TextInputProps>(function App
         setFocused(false);
         rest.onBlur?.(event);
       }}
-      placeholderTextColor={`${Colors.on_surface}66`}
-      style={[
-        styles.input,
-        focused && { borderColor: Colors.focus_ghost, borderWidth: 1 },
-        style as any,
-      ]}
+      placeholderTextColor="rgba(26, 28, 28, 0.4)"
+      className={`h-[60px] rounded-md bg-surface-container-high px-md text-on-surface font-body text-[16px] border ${
+        focused ? 'border-focus-ghost' : 'border-transparent'
+      } ${className || ''}`}
+      style={style}
     />
   );
-});
-
-const styles = StyleSheet.create({
-  button: {
-    // Increased minHeight to 60px for a more touch-friendly, premium feel matching enterprise standards
-    minHeight: 60,
-    borderRadius: BorderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    ...Elevation.ambientSoft,
-  },
-  ghostButton: {
-    minHeight: 46,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 0,
-    borderWidth: 0,
-    elevation: 0,
-    shadowColor: 'transparent',
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    overflow: 'hidden',
-  },
-  card: {
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    ...Elevation.ambientSoft,
-  },
-  input: {
-    // Increased height to 60px to match buttons and improve spacing/readability
-    height: 60,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surface_container_high,
-    paddingHorizontal: Spacing.md,
-    color: Colors.on_surface,
-    ...Typography.body,
-  },
 });

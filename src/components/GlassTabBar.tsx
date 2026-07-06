@@ -1,17 +1,73 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Platform } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography, Elevation } from '../theme/tokens';
+import { View, TouchableOpacity, Text, Platform } from 'react-native';
 import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useI18n } from '../services/i18n';
 
-// GlassTabBar: Custom floating pill-shaped tab bar with icon highlighting.
-// useWindowDimensions hook (not Dimensions.get) is used here intentionally:
-// module-level Dimensions calls fail in Release APK builds before the JS bridge is ready.
+const TabItem = ({
+  isFocused,
+  renderIcon,
+  label,
+  onPress,
+}: {
+  isFocused: boolean;
+  renderIcon: (color: string) => React.ReactNode;
+  label: string;
+  onPress: () => void;
+}) => {
+  const scale = useSharedValue(isFocused ? 1.12 : 1.0);
+
+  React.useEffect(() => {
+    scale.value = withSpring(isFocused ? 1.12 : 1.0, {
+      damping: 15,
+      stiffness: 150,
+    });
+  }, [isFocused]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="items-center justify-center flex-1 min-w-[56px]"
+      activeOpacity={0.8}
+    >
+      <Animated.View
+        style={animatedStyle}
+        className={`w-11 h-11 rounded-full items-center justify-center ${
+          isFocused ? 'bg-cta-primary-bg shadow-md' : 'bg-transparent'
+        }`}
+      >
+        {renderIcon(isFocused ? '#1c1600' : 'rgba(26, 28, 28, 0.6)')}
+      </Animated.View>
+      <Text
+        className={`font-label text-[10px] uppercase mt-1 ${
+          isFocused ? 'text-on-surface font-semibold' : 'text-on-surface-variant'
+        }`}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
   const { t } = useI18n();
   return (
-    <View style={styles.container}>
-      <View style={styles.tabBarPill}>
+    <View className="absolute bottom-xl left-0 right-0 items-center justify-center bg-transparent">
+      <View
+        className="flex-row w-[92%] h-[68px] bg-glass-surface rounded-full px-sm items-center justify-around shadow-lg"
+        style={
+          Platform.OS === 'web'
+            ? { boxShadow: '0px 12px 24px rgba(26, 28, 28, 0.08)' }
+            : undefined
+        }
+      >
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -38,80 +94,26 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
             return null;
           };
 
+          const label =
+            index === 4
+              ? t('nav.account', 'Account')
+              : index === 2
+                ? t('nav.store', 'Store')
+                : options.title || route.name;
+
           return (
-            <TouchableOpacity
+            <TabItem
               key={route.key}
+              isFocused={isFocused}
+              renderIcon={renderIcon}
+              label={label}
               onPress={onPress}
-              style={styles.tabItem}
-              activeOpacity={0.7}
-            >
-              <View style={[
-                  styles.iconContainer,
-                  isFocused && styles.activeIconContainer
-              ]}>
-                {renderIcon(isFocused ? Colors.on_primary_fixed : Colors.on_surface + '99')}
-              </View>
-              <Text
-                style={[
-                  Typography.label,
-                  {
-                    color: isFocused ? Colors.on_surface : Colors.on_surface_variant,
-                    marginTop: 4,
-                    fontSize: 10,
-                    textTransform: 'uppercase',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {index === 4 ? t('nav.account', 'Account') : index === 2 ? t('nav.store', 'Store') : (options.title || route.name)}
-              </Text>
-            </TouchableOpacity>
+            />
           );
         })}
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: Spacing.xl,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  tabBarPill: {
-    flexDirection: 'row',
-    width: '92%',
-    height: 68,
-    backgroundColor: Colors.glass_surface,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    ...Elevation.ambientLift,
-    ...(Platform.OS === 'web' && { boxShadow: '0px 12px 24px rgba(26, 28, 28, 0.08)' }),
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    minWidth: 56,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeIconContainer: {
-    backgroundColor: Colors.cta_primary_bg,
-    ...Elevation.softLift,
-  },
-});
 
 export default GlassTabBar;
