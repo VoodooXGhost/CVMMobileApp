@@ -5,7 +5,6 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  useWindowDimensions,
   ActivityIndicator,
   Image,
   Modal,
@@ -56,6 +55,9 @@ import {
   saveCampaignFavorites,
   saveCampaignStatus,
 } from '../services/campaigns';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 
 /**
  * HomeScreen Component
@@ -88,7 +90,11 @@ const HomeScreen = () => {
   const [isNotifLoading, setIsNotifLoading] = useState(false);
   const [notifImpressionIds, setNotifImpressionIds] = useState<Record<string, boolean>>({});
   
-  const { width } = useWindowDimensions();
+  const { ss, rs, width, height } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+  const spacing = getResponsiveSpacing(sizeClass);
+
   const {
     data: notificationResponse,
     isFetching: isFetchingNotifications,
@@ -444,7 +450,7 @@ const HomeScreen = () => {
   if (error) {
     return (
       <View className="flex-1 justify-center items-center bg-surface">
-        <Text className="font-body text-[16px] text-on-surface">Error loading dashboard. Please try again.</Text>
+        <Text style={{ fontSize: ss(16) }} className="font-body text-on-surface">Error loading dashboard. Please try again.</Text>
       </View>
     );
   }
@@ -452,23 +458,23 @@ const HomeScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-surface">
       {/* Custom Header */}
-      <View className="h-[72px] flex-row items-center justify-between px-lg bg-surface">
+      <View style={{ height: layout.headerHeight }} className="flex-row items-center justify-between px-md bg-surface">
         <View className="flex-row items-center gap-[10px]">
-          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px]" resizeMode="contain" />
+          <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight }} resizeMode="contain" />
         </View>
         <View className="flex-row gap-16">
           <TouchableOpacity className="relative" onPress={() => setSearchVisible(true)}>
-            <Search size={20} color="#1a1c1c" />
+            <Search size={rs(20)} color="#1a1c1c" />
           </TouchableOpacity>
           <TouchableOpacity className="relative" onPress={handleOpenNotifications}>
-            <Bell size={20} color="#1a1c1c" />
+            <Bell size={rs(20)} color="#1a1c1c" />
             {unreadVisibleCount > 0 ? <View className="absolute -top-[2px] -right-[2px] w-2 h-2 rounded-full bg-error border-2 border-surface" /> : null}
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView 
-        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome Section */}
@@ -476,12 +482,12 @@ const HomeScreen = () => {
           from={{ opacity: 0, translateY: -10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 400 }}
-          className="mb-xl"
+          className="mb-lg"
         >
-          <Text className="font-body text-[18px] text-on-surface-variant opacity-60 leading-[26px]">
+          <Text style={{ fontSize: ss(16) }} className="font-body text-on-surface-variant opacity-60 leading-[26px]">
             {t('home.greetingPrefix', 'Ola')}, {profile?.first_name || t('common.customer', 'Customer')}
           </Text>
-          <Text className="font-headline text-[28px] mt-1 font-bold">
+          <Text style={{ fontSize: ss(24) }} className="font-headline mt-1 font-bold">
             {t('home.dayAtGlance', 'Your day at a glance')}
           </Text>
         </MotiView>
@@ -491,14 +497,14 @@ const HomeScreen = () => {
           from={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15, delay: 50 }}
-          className="bg-surface-container-lowest rounded-xl p-lg shadow-sm mb-lg"
+          className="bg-surface-container-lowest rounded-xl p-md shadow-sm mb-md"
         >
-          <View className="flex-row justify-between mb-md">
-            <Text className="font-label text-[13px] font-black text-on-surface-variant">
+          <View className="flex-row justify-between mb-sm">
+            <Text style={{ fontSize: ss(12) }} className="font-label font-black text-on-surface-variant">
               {t('home.myBalances', 'MY BALANCES')}
             </Text>
             <TouchableOpacity onPress={() => refetch()}>
-              <Text className="font-label text-[13px] color-[#111316]">
+              <Text style={{ fontSize: ss(12) }} className="font-label color-[#111316]">
                 {t('common.refresh', 'Refresh')}
               </Text>
             </TouchableOpacity>
@@ -506,38 +512,38 @@ const HomeScreen = () => {
           
           <View className="flex-row items-center justify-between mb-md">
             <View className="flex-1 items-center">
-              <Text className="text-[22px] font-black text-on-surface font-display">
+              <Text style={{ fontSize: ss(20) }} className="font-black text-on-surface font-display">
                 {formatMznCurrency(profile?.balances?.airtime, language)}
               </Text>
-              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+              <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
                 {t('home.airtime', 'Airtime')}
               </Text>
             </View>
             <View className="w-[1px] h-[30px] bg-outline-variant" />
             <View className="flex-1 items-center">
-              <Text className="text-[22px] font-black text-on-surface font-display">
+              <Text style={{ fontSize: ss(20) }} className="font-black text-on-surface font-display">
                 {profile?.balances?.data || '0GB'}
               </Text>
-              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+              <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
                 {t('home.data', 'Data')}
               </Text>
             </View>
             <View className="w-[1px] h-[30px] bg-outline-variant" />
             <View className="flex-1 items-center">
-              <Text className="text-[22px] font-black text-secondary font-display">
+              <Text style={{ fontSize: ss(20) }} className="font-black text-secondary font-display">
                 {resolveYmBalance(loyalty).toLocaleString()}
               </Text>
-              <Text className="font-caption text-[11px] font-bold text-on-surface-variant mt-1 uppercase">
+              <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
                 YM
               </Text>
             </View>
           </View>
 
-          <TouchableOpacity className="bg-cta-primary-bg flex-row items-center justify-center min-h-[60px] rounded-xl gap-2 shadow-sm active:opacity-90" onPress={() => navigation.navigate('Wallet')}>
-            <Text className="font-label text-[13px] text-[#111316] font-black uppercase">
+          <TouchableOpacity style={{ minHeight: layout.buttonHeight }} className="bg-cta-primary-bg flex-row items-center justify-center rounded-xl gap-2 shadow-sm active:opacity-90" onPress={() => navigation.navigate('Wallet')}>
+            <Text style={{ fontSize: ss(12) }} className="font-label text-[#111316] font-black uppercase">
               {t('home.quickRecharge', 'QUICK RECHARGE')}
             </Text>
-            <ChevronRight size={16} color="#111316" />
+            <ChevronRight size={rs(16)} color="#111316" />
           </TouchableOpacity>
         </MotiView>
 
@@ -547,21 +553,21 @@ const HomeScreen = () => {
             from={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 15, delay: 100 }}
-            className="flex-row items-center bg-surface-container-lowest p-md rounded-xl shadow-sm mb-xl"
+            className="flex-row items-center bg-surface-container-lowest p-md rounded-xl shadow-sm mb-lg"
           >
-             <View className="w-11 h-11 rounded-full bg-primary-container justify-center items-center">
-                <Flame size={20} color="#2260a2" fill="#2260a2" />
+             <View style={{ width: rs(44), height: rs(44) }} className="rounded-full bg-primary-container justify-center items-center">
+                <Flame size={rs(20)} color="#2260a2" fill="#2260a2" />
              </View>
              <View className="flex-1 ml-3">
-                <Text className="font-title text-[20px] text-on-surface font-semibold">
+                <Text style={{ fontSize: ss(18) }} className="font-title text-on-surface font-semibold">
                   {gamification.current_streak} {t('home.dayStreak', 'Day Streak!')}
                 </Text>
-                <Text className="font-label text-[13px] text-on-surface-variant opacity-60">
+                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">
                   {gamification.milestone_target - gamification.current_streak} {t('home.daysToNextReward', 'days to next reward')}
                 </Text>
              </View>
-             <TouchableOpacity className="bg-cta-secondary-bg px-5 py-2.5 rounded-md min-h-[44px] justify-center active:opacity-90" onPress={() => navigation.navigate('Rewards')}>
-                <Text className="font-label text-[13px] text-white font-bold">
+             <TouchableOpacity style={{ minHeight: layout.buttonHeight - 16 }} className="bg-cta-secondary-bg px-5 rounded-md justify-center active:opacity-90" onPress={() => navigation.navigate('Rewards')}>
+                <Text style={{ fontSize: ss(12) }} className="font-label text-white font-bold">
                   {t('home.play', 'PLAY')}
                 </Text>
              </TouchableOpacity>
@@ -569,17 +575,18 @@ const HomeScreen = () => {
         )}
 
         {/* FR-1.2 Dynamic CVM Banner (MAB Optimized) */}
-        <View className="mb-xl">
+        <View className="mb-lg">
           <ScrollView 
             horizontal 
             pagingEnabled 
             showsHorizontalScrollIndicator={false}
-            className="-mx-lg px-lg"
+            contentContainerStyle={{ paddingHorizontal: spacing.md }}
+            className="-mx-md"
           >
             {hero_banners?.map((banner: any) => (
               <TouchableOpacity
                 key={banner.id}
-                style={{ width: width - 32 }}
+                style={{ width: width - spacing.md * 2 }}
                 className="mr-3"
                 onPress={() => {
                   track(
@@ -590,7 +597,7 @@ const HomeScreen = () => {
                   navigation.navigate('Marketplace');
                 }}
               >
-                 <View className="h-[180px] rounded-xl overflow-hidden bg-zinc-800 relative">
+                 <View style={{ height: width * 0.46 }} className="rounded-xl overflow-hidden bg-zinc-800 relative">
                     <Image 
                       source={{ uri: banner.image_url }} 
                       className="absolute inset-0 w-full h-full"
@@ -598,13 +605,13 @@ const HomeScreen = () => {
                     />
                     <View className="absolute inset-0 bg-black/35 p-5 justify-end">
                       <View className="flex-row items-center gap-1 mb-2">
-                        <Zap size={12} color="#fff" fill="#fff" />
-                        <Text className="text-white text-[10px] font-black uppercase">JUST FOR YOU</Text>
+                        <Zap size={rs(12)} color="#fff" fill="#fff" />
+                        <Text style={{ fontSize: ss(10) }} className="text-white font-black uppercase">JUST FOR YOU</Text>
                       </View>
-                      <Text className="text-white text-[24px] font-black leading-7" numberOfLines={1}>{banner.title}</Text>
-                      <Text className="text-white text-[13px] opacity-90 mt-1" numberOfLines={1}>{banner.subtitle}</Text>
-                      <View className="bg-cta-primary-bg self-start px-5 py-2.5 rounded-full mt-3 min-h-[40px] justify-center shadow-sm">
-                        <Text className="text-cta-primary-text font-black text-[12px] uppercase">
+                      <Text style={{ fontSize: ss(22) }} className="text-white font-black leading-7" numberOfLines={1}>{banner.title}</Text>
+                      <Text style={{ fontSize: ss(12) }} className="text-white opacity-90 mt-1" numberOfLines={1}>{banner.subtitle}</Text>
+                      <View style={{ minHeight: rs(36) }} className="bg-cta-primary-bg self-start px-5 rounded-full mt-3 justify-center shadow-sm">
+                        <Text style={{ fontSize: ss(11) }} className="text-cta-primary-text font-black uppercase">
                           {heroVariant === 'unlock_offer' ? 'UNLOCK OFFER' : 'CLAIM NOW'}
                         </Text>
                       </View>
@@ -616,27 +623,27 @@ const HomeScreen = () => {
         </View>
 
         {/* Quick Actions */}
-        <View className="mb-xl">
-          <Text className="font-title text-[20px] mb-md font-semibold">{t('home.quickActions', 'Quick Actions')}</Text>
+        <View className="mb-lg">
+          <Text style={{ fontSize: ss(18) }} className="font-title mb-md font-semibold">{t('home.quickActions', 'Quick Actions')}</Text>
           <View className="flex-row justify-between">
-            <ActionIcon Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
-            <ActionIcon Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
-            <ActionIcon Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" onPress={() => navigation.navigate('Rewards')} />
-            <ActionIcon Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" onPress={() => navigation.navigate('Rewards')} />
+            <ActionIcon sizeClass={sizeClass} Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
+            <ActionIcon sizeClass={sizeClass} Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
+            <ActionIcon sizeClass={sizeClass} Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" onPress={() => navigation.navigate('Rewards')} />
+            <ActionIcon sizeClass={sizeClass} Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" onPress={() => navigation.navigate('Rewards')} />
           </View>
         </View>
 
         {/* Campaign Feed */}
-        <View className="mb-xl">
+        <View className="mb-lg">
           <View className="flex-row items-start justify-between mb-sm gap-sm">
             <View className="flex-1">
-              <Text className="font-title text-[20px] mb-1 font-semibold">{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
-              <Text className="font-label text-[13px] text-on-surface-variant opacity-80">
+              <Text style={{ fontSize: ss(18) }} className="font-title mb-1 font-semibold">{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
+              <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-80">
                 {t('home.campaignsSubtitle', 'Browse offers and launch the next step from your phone.')}
               </Text>
             </View>
             <TouchableOpacity onPress={refetchCampaigns} className="self-start bg-surface-container-high rounded-full px-md py-sm active:opacity-80">
-              <Text className="font-label text-[13px] text-primary font-bold">{t('common.refresh', 'Refresh')}</Text>
+              <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">{t('common.refresh', 'Refresh')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -653,7 +660,7 @@ const HomeScreen = () => {
                 }`}
                 onPress={() => setCampaignFilter(filter.key)}
               >
-                <Text className={`font-label text-[13px] ${campaignFilter === filter.key ? 'text-primary font-semibold' : 'text-on-surface-variant'}`}>
+                <Text style={{ fontSize: ss(12) }} className={`font-label ${campaignFilter === filter.key ? 'text-primary font-semibold' : 'text-on-surface-variant'}`}>
                   {filter.label}
                 </Text>
               </TouchableOpacity>
@@ -661,16 +668,16 @@ const HomeScreen = () => {
           </ScrollView>
 
           {campaignErrorMessage ? (
-            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
-              <Text className="font-body text-[16px] text-on-surface">{campaignErrorMessage}</Text>
+            <View className="bg-surface-container-lowest rounded-xl p-md mb-md shadow-sm items-center justify-center">
+              <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface">{campaignErrorMessage}</Text>
             </View>
           ) : isCampaignsFetching && campaigns.length === 0 ? (
-            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
+            <View className="bg-surface-container-lowest rounded-xl p-md mb-md shadow-sm items-center justify-center">
               <ActivityIndicator size="small" color="#111316" />
             </View>
           ) : visibleCampaigns.length === 0 ? (
-            <View className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm items-center justify-center">
-              <Text className="font-body text-[16px] text-on-surface">
+            <View className="bg-surface-container-lowest rounded-xl p-md mb-md shadow-sm items-center justify-center">
+              <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface">
                 {t('home.campaignEmpty', 'No campaigns available right now.')}
               </Text>
             </View>
@@ -693,12 +700,12 @@ const HomeScreen = () => {
                   >
                     <View className="flex-row justify-between items-start mb-sm">
                       <View className="flex-row items-center gap-2 flex-1 pr-sm">
-                        <View className="bg-primary-container rounded-full px-2.5 py-1.5">
-                          <Text className="font-caption text-[11px] text-on-primary-fixed font-black uppercase">
+                        <View className="bg-primary-container rounded-full px-2.5 py-1">
+                          <Text style={{ fontSize: ss(9) }} className="font-caption text-on-primary-fixed font-black uppercase">
                             {campaign.category}
                           </Text>
                         </View>
-                        <Text className="font-caption text-[11px] text-on-surface-variant uppercase font-bold">
+                        <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase font-bold">
                           {campaign.priority}
                         </Text>
                       </View>
@@ -710,27 +717,27 @@ const HomeScreen = () => {
                         }}
                       >
                         <Star
-                          size={16}
+                          size={rs(15)}
                           color={isSaved ? '#2260a2' : 'rgba(26, 28, 28, 0.6)'}
                           fill={isSaved ? '#2260a2' : 'transparent'}
                         />
                       </TouchableOpacity>
                     </View>
-                    <Text className="font-title text-[20px] font-bold text-on-surface">{campaign.title}</Text>
-                    <Text className="font-body text-[16px] text-on-surface-variant mt-1 leading-[22px]">
+                    <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{campaign.title}</Text>
+                    <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant mt-1 leading-[20px]">
                       {campaign.summary}
                     </Text>
-                    <Text className="font-label text-[13px] text-on-surface-variant opacity-70 mt-2">
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-70 mt-2">
                       {campaign.eligibility}
                     </Text>
-                    <Text className="font-label text-[13px] mt-2.5 text-primary font-semibold">
+                    <Text style={{ fontSize: ss(12) }} className="font-label mt-2 text-primary font-semibold">
                       {t('home.campaignActionPreview', 'Action preview')}: {getCampaignActionPreview(campaign)}
                     </Text>
-                    <Text className="font-label text-[13px] mt-1 text-on-surface-variant opacity-60">
+                    <Text style={{ fontSize: ss(11) }} className="font-label mt-1 text-on-surface-variant opacity-60">
                       {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
                     </Text>
                     <View className="mt-md flex-row justify-between items-center gap-sm">
-                      <Text className="font-label text-[13px] text-on-surface-variant font-bold">
+                      <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant font-bold">
                         {currentStatus === 'success'
                           ? t('common.success', 'Success')
                           : currentStatus === 'failed'
@@ -739,7 +746,7 @@ const HomeScreen = () => {
                               ? t('home.campaignPending', 'Pending')
                               : t('home.campaignAvailable', 'Available')}
                       </Text>
-                      <Text className="font-label text-[13px] text-primary font-black uppercase">
+                      <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-black uppercase">
                         {campaign.cta_label}
                       </Text>
                     </View>
@@ -755,32 +762,32 @@ const HomeScreen = () => {
           from={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15 }}
-          className="bg-[#1a1c1c] p-6 rounded-xl mb-xl shadow-md"
+          className="bg-[#1a1c1c] p-5 rounded-xl mb-lg shadow-md"
         >
            <View className="flex-row justify-between items-center mb-4">
               <View>
-                <Text className="text-white/60 font-caption text-[11px] font-black uppercase">
+                <Text style={{ fontSize: ss(10) }} className="text-white/60 font-caption font-black uppercase">
                   {t('home.currentTier', 'CURRENT TIER')}
                 </Text>
-                <Text className="text-white text-[22px] font-black mt-1">
+                <Text style={{ fontSize: ss(20) }} className="text-white font-black mt-1">
                   {loyalty?.current_tier || 'Bronze'}
                 </Text>
               </View>
-              <Text className="text-secondary text-[18px] font-black">
+              <Text style={{ fontSize: ss(16) }} className="text-secondary font-black">
                 {resolveYmBalance(loyalty).toLocaleString()} YM
               </Text>
            </View>
-           <View className="h-1.5 bg-white/10 rounded-full mb-2">
+           <View style={{ height: rs(6) }} className="bg-white/10 rounded-full mb-2">
               <View style={{ width: `${loyalty?.progress_percentage || 0}%` }} className="h-full bg-secondary rounded-full" />
            </View>
-           <Text className="text-white/50 font-caption text-[11px] font-semibold">
+           <Text style={{ fontSize: ss(10) }} className="text-white/50 font-caption font-semibold">
               {resolvePointsToNext(loyalty).toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
            </Text>
         </MotiView>
 
         {/* Market Sneak Peek */}
-        <View className="mb-xl">
-           <Text className="font-title text-[20px] mb-md font-semibold">
+        <View className="mb-lg">
+           <Text style={{ fontSize: ss(18) }} className="font-title mb-md font-semibold">
              {t('home.marketplacePicks', 'Marketplace Picks')}
            </Text>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-md">
@@ -792,11 +799,11 @@ const HomeScreen = () => {
                   }`}
                   onPress={() => setActiveCategory(cat)}
                 >
-                  <Text className={`font-label text-[13px] ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
+                  <Text style={{ fontSize: ss(12) }} className={`font-label ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
                 </TouchableOpacity>
               ))}
            </ScrollView>
-           <View className="gap-md">
+            <View className="gap-md">
               {filteredOffers.slice(0, 3).map((offer: any, idx: number) => (
                 <MotiView
                   key={offer.id}
@@ -816,16 +823,16 @@ const HomeScreen = () => {
                       navigation.navigate('Marketplace');
                     }}
                   >
-                     <View className="w-11 h-11 rounded-xl bg-surface-container-high justify-center items-center" />
+                     <View style={{ width: rs(44), height: rs(44) }} className="rounded-xl bg-surface-container-high justify-center items-center" />
                      <View className="flex-1 ml-3">
-                        <Text className="font-title text-[16px] font-bold text-on-surface" numberOfLines={1}>
+                        <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface" numberOfLines={1}>
                           {offer.title}
                         </Text>
-                        <Text className="font-label text-[13px] text-primary mt-1 font-semibold">
+                        <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
                           {formatMznCurrency(offer.price, language)} • YM
                         </Text>
                      </View>
-                     <ChevronRight size={20} color="rgba(26, 28, 28, 0.4)" />
+                     <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.4)" />
                   </TouchableOpacity>
                 </MotiView>
               ))}
@@ -836,13 +843,13 @@ const HomeScreen = () => {
       {/* Search Modal */}
       <Modal visible={searchVisible} transparent animationType="slide" onRequestClose={() => setSearchVisible(false)}>
         <View className="flex-1 justify-end bg-black/35">
-          <View className="bg-surface rounded-t-xl p-lg max-h-[70%]">
+          <View className="bg-surface rounded-t-xl p-md max-h-[70%]">
             <View className="flex-row justify-between items-center mb-md">
-              <Text className="font-title text-[20px] font-bold text-on-surface">
+              <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">
                 {t('home.searchOffers', 'Search Offers')}
               </Text>
               <TouchableOpacity onPress={() => setSearchVisible(false)}>
-                <Text className="font-label text-[13px] text-primary font-bold">Close</Text>
+                <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">Close</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-md">
@@ -854,20 +861,20 @@ const HomeScreen = () => {
                   }`}
                   onPress={() => setActiveCategory(cat)}
                 >
-                  <Text className={`font-label text-[13px] ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
+                  <Text style={{ fontSize: ss(12) }} className={`font-label ${activeCategory === cat ? 'text-primary font-bold' : ''}`}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {filteredOffers.length === 0 ? (
-              <Text className="font-body text-[16px] text-on-surface-variant p-4 text-center">
+              <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant p-4 text-center">
                 {t('home.noOffersCategory', 'No offers match this category yet.')}
               </Text>
             ) : (
               <ScrollView className="space-y-sm">
                 {filteredOffers.slice(0, 6).map((offer: any) => (
                   <View key={`filtered-${offer.id}`} className="bg-surface-container-lowest rounded-md p-md mb-sm shadow-sm">
-                    <Text className="font-title text-[16px] font-bold text-on-surface">{offer.title}</Text>
-                    <Text className="font-label text-[13px] text-primary mt-1 font-semibold">
+                    <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">{offer.title}</Text>
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
                       {formatMznCurrency(offer.price, language)} • YM
                     </Text>
                   </View>
@@ -889,48 +896,50 @@ const HomeScreen = () => {
           <View className="bg-surface rounded-xl p-lg w-full max-w-[90%] shadow-lg">
             <View className="flex-row justify-between items-center mb-md border-b border-outline-variant pb-md">
               <View className="flex-1 pr-sm">
-                <Text className="font-title text-[20px] font-bold text-on-surface">
+                <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">
                   {t('home.campaignConfirmTitle', 'Confirm campaign action')}
                 </Text>
-                <Text className="font-label text-[13px] text-on-surface-variant opacity-60 mt-1">
+                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 mt-1">
                   {selectedCampaign ? selectedCampaign.title : ''}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setCampaignActionVisible(false)}>
-                <Text className="font-label text-[13px] text-primary font-bold">{t('common.close', 'Close')}</Text>
+                <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">{t('common.close', 'Close')}</Text>
               </TouchableOpacity>
             </View>
             {selectedCampaign ? (
               <View className="gap-sm">
-                <Text className="font-body text-[16px] text-on-surface leading-5">
+                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface leading-5">
                   {t('home.campaignConfirmBody', 'You are about to launch {action}. Continue?').replace(
                     '{action}',
                     getCampaignActionPreview(selectedCampaign),
                   )}
                 </Text>
                 <View className="bg-surface-container-high p-sm rounded-md mt-sm gap-1">
-                  <Text className="font-label text-[13px] text-on-surface font-semibold">
+                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface font-semibold">
                     {t('home.campaignActionType', 'Action type')}: {selectedCampaign.action_type.toUpperCase()}
                   </Text>
-                  <Text className="font-label text-[13px] text-on-surface-variant">
+                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
                     Status: {selectedCampaign.saved ? t('common.saved', 'Saved') : t('common.notSaved', 'Not saved')}
                   </Text>
-                  <Text className="font-label text-[13px] text-on-surface-variant">
+                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
                     {selectedCampaign.eligibility}
                   </Text>
                 </View>
                 <View className="flex-row gap-sm mt-lg">
                   <TouchableOpacity
-                    className="flex-1 min-h-[50px] bg-surface-container-highest rounded-xl justify-center items-center"
+                    style={{ minHeight: rs(44) }}
+                    className="flex-1 bg-surface-container-highest rounded-xl justify-center items-center"
                     onPress={() => setCampaignActionVisible(false)}
                   >
-                    <Text className="font-label text-[13px] text-on-surface font-bold">{t('common.cancel', 'Cancel')}</Text>
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface font-bold">{t('common.cancel', 'Cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    className="flex-1 min-h-[50px] bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
+                    style={{ minHeight: rs(44) }}
+                    className="flex-1 bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
                     onPress={launchSelectedCampaign}
                   >
-                    <Text className="font-label text-[13px] text-cta-primary-text font-black uppercase">
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-cta-primary-text font-black uppercase">
                       {t('home.campaignLaunch', 'Launch action')}
                     </Text>
                   </TouchableOpacity>
@@ -951,38 +960,38 @@ const HomeScreen = () => {
         <View className="flex-1 justify-end bg-black/35">
           <View className="bg-surface rounded-t-xl p-lg max-h-[75%]">
             <View className="flex-row justify-between items-center mb-md pb-xs border-b border-outline-variant">
-              <Text className="font-title text-[20px] font-bold text-on-surface">{t('home.notificationsTitle', 'Notifications')}</Text>
+              <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{t('home.notificationsTitle', 'Notifications')}</Text>
               <View className="flex-row gap-3 items-center">
                 <TouchableOpacity
                   onPress={handleMarkAllNotificationsRead}
                   disabled={isMarkingAllRead || unreadVisibleCount === 0}
                 >
-                  <Text className={`font-label text-[13px] text-primary font-bold ${unreadVisibleCount === 0 ? 'opacity-40' : ''}`}>
+                  <Text style={{ fontSize: ss(12) }} className={`font-label text-primary font-bold ${unreadVisibleCount === 0 ? 'opacity-40' : ''}`}>
                     {t('home.markAllRead', 'Mark all as read')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                  <Text className="font-label text-[13px] text-primary font-bold">Close</Text>
+                  <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">Close</Text>
                 </TouchableOpacity>
               </View>
             </View>
             {isNotifLoading || isFetchingNotifications ? (
               <View className="py-lg items-center">
                 <ActivityIndicator size="small" color="#111316" />
-                <Text className="font-body text-[16px] text-on-surface mt-2">
+                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface mt-2">
                   {t('home.notificationsLoading', 'Loading notifications...')}
                 </Text>
               </View>
             ) : notificationError ? (
               <View className="py-lg items-center">
-                <Text className="font-body text-[16px] text-on-surface">{notificationError}</Text>
+                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface">{notificationError}</Text>
                 <TouchableOpacity className="mt-md bg-primary-container px-md py-sm rounded-full" onPress={handleRefreshNotifications}>
-                  <Text className="font-label text-[13px] text-on-primary-fixed font-bold">{t('home.retry', 'Retry')}</Text>
+                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-primary-fixed font-bold">{t('home.retry', 'Retry')}</Text>
                 </TouchableOpacity>
               </View>
             ) : filteredNotifications.length === 0 ? (
               <View className="py-lg items-center">
-                <Text className="font-body text-[16px] text-on-surface-variant">
+                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant">
                   {t('home.notificationsEmpty', 'No notifications available right now.')}
                 </Text>
               </View>
@@ -1004,15 +1013,15 @@ const HomeScreen = () => {
                     activeOpacity={0.8}
                   >
                     <View className="flex-row justify-between items-center mb-1">
-                      <Text className="font-title text-[16px] font-bold text-on-surface pr-md flex-1" numberOfLines={1}>{item.title}</Text>
+                      <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface pr-md flex-1" numberOfLines={1}>{item.title}</Text>
                       {!item.is_read ? <View className="w-2.5 h-2.5 rounded-full bg-error" /> : null}
                     </View>
-                    <Text className="font-body text-[14px] text-on-surface-variant mt-1">{item.body}</Text>
+                    <Text style={{ fontSize: ss(12) }} className="font-body text-on-surface-variant mt-1">{item.body}</Text>
                   </TouchableOpacity>
                 ))}
                 {notificationResponse?.data?.next_cursor ? (
                   <TouchableOpacity className="mt-md bg-primary-container px-md py-sm rounded-full items-center justify-center" onPress={handleLoadMoreNotifications}>
-                    <Text className="font-label text-[13px] text-on-primary-fixed font-bold">{t('home.loadMore', 'Load more')}</Text>
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-on-primary-fixed font-bold">{t('home.loadMore', 'Load more')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </ScrollView>
@@ -1024,13 +1033,19 @@ const HomeScreen = () => {
   );
 };
 
-const ActionIcon = ({ Icon, label, color, iconColor, onPress }: any) => (
-  <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={onPress}>
-     <View style={{ backgroundColor: color }} className="w-16 h-16 rounded-[24px] justify-center items-center mb-2 shadow-sm">
-        <Icon color={iconColor} size={24} />
-     </View>
-     <Text className="font-label text-[13px] font-bold text-on-surface-variant">{label}</Text>
-  </TouchableOpacity>
-);
+const ActionIcon = ({ sizeClass, Icon, label, color, iconColor, onPress }: any) => {
+  const { ss, rs } = useResponsiveScale();
+  const isCompact = sizeClass === 'compact';
+  const size = isCompact ? rs(54) : rs(64);
+  const iconSize = isCompact ? rs(20) : rs(24);
+  return (
+    <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={onPress}>
+       <View style={{ backgroundColor: color, width: size, height: size }} className="rounded-[20px] justify-center items-center mb-2 shadow-sm">
+          <Icon color={iconColor} size={iconSize} />
+       </View>
+       <Text style={{ fontSize: ss(12) }} className="font-label font-bold text-on-surface-variant">{label}</Text>
+    </TouchableOpacity>
+  );
+};
 
 export default HomeScreen;

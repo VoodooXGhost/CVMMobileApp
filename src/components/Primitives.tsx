@@ -7,6 +7,9 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout } from '../theme/responsive';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
@@ -21,27 +24,39 @@ export const AppButton = ({
   variant?: ButtonVariant;
   disabled?: boolean;
 }) => {
+  const { ss } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+
   const containerClasses =
     variant === 'secondary'
       ? 'bg-cta-secondary-bg border border-cta-secondary-bg'
       : variant === 'ghost'
-        ? 'bg-primary/5 border border-primary/10 min-h-[46px] px-md py-0 shadow-none'
+        ? 'bg-primary/5 border border-primary/10 px-md py-0 shadow-none'
         : 'bg-cta-primary-bg border border-cta-primary-bg';
 
   const textClasses =
     variant === 'secondary'
       ? 'text-cta-secondary-text'
       : variant === 'ghost'
-        ? 'text-on-surface text-[15px]'
+        ? 'text-on-surface'
         : 'text-cta-primary-text';
+
+  // Compute responsive font size based on variant and device context
+  const fontSize = variant === 'ghost' ? ss(14) : ss(15);
+  const minHeight = variant === 'ghost' ? layout.buttonHeight - 8 : layout.buttonHeight;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`min-h-[60px] rounded-xl items-center justify-center px-lg shadow-sm ${containerClasses} ${disabled ? 'opacity-50' : 'active:opacity-80'}`}
+      className={`rounded-xl items-center justify-center px-lg shadow-sm ${containerClasses} ${disabled ? 'opacity-50' : 'active:opacity-80'}`}
+      style={{ minHeight }}
     >
-      <Text className={`font-title text-[16px] text-center ${textClasses}`}>
+      <Text
+        style={{ fontSize }}
+        className={`font-title text-center ${textClasses}`}
+      >
         {label}
       </Text>
     </Pressable>
@@ -51,10 +66,12 @@ export const AppButton = ({
 export const AppCard = ({
   children,
   style,
+  className,
   variant = 'default',
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
+  className?: string;
   variant?: 'default' | 'hero' | 'nested';
 }) => {
   const bgClass =
@@ -67,7 +84,7 @@ export const AppCard = ({
   return (
     <View
       style={style}
-      className={`rounded-xl p-lg shadow-sm ${bgClass}`}
+      className={`rounded-xl shadow-sm ${bgClass} ${className || ''}`}
     >
       {children}
     </View>
@@ -79,6 +96,10 @@ export const AppInput = React.forwardRef<TextInput, TextInputProps>(function App
   ref,
 ) {
   const [focused, setFocused] = React.useState(false);
+  const { ss } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+
   return (
     <TextInput
       ref={ref}
@@ -92,10 +113,17 @@ export const AppInput = React.forwardRef<TextInput, TextInputProps>(function App
         rest.onBlur?.(event);
       }}
       placeholderTextColor="rgba(26, 28, 28, 0.4)"
-      className={`h-[60px] rounded-md bg-surface-container-high px-md text-on-surface font-body text-[16px] border ${
+      className={`rounded-md bg-surface-container-high px-md text-on-surface font-body border ${
         focused ? 'border-focus-ghost' : 'border-transparent'
       } ${className || ''}`}
-      style={style}
+      style={[
+        {
+          height: layout.inputHeight,
+          fontSize: ss(15),
+        },
+        style,
+      ]}
     />
   );
 });
+

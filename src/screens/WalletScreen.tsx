@@ -11,6 +11,9 @@ import { track } from '../services/analytics';
 import { runtimeConfig } from '../config/runtime';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 
 /**
  * WalletScreen Component
@@ -28,6 +31,11 @@ const WalletScreen = () => {
   const [p2pVisible, setP2pVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
   const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
+
+  const { ss, rs, width } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+  const spacing = getResponsiveSpacing(sizeClass);
 
   useEffect(() => {
     track('screen_view', { name: 'wallet' }, { screen: 'wallet' });
@@ -109,14 +117,14 @@ const WalletScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }}>
         <View className="mb-sm">
-          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px] self-start" resizeMode="contain" />
+          <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
-        <View className="flex-row justify-between items-center mb-lg">
-          <Text className="font-headline text-[28px] font-bold text-on-surface">{t('wallet.title', 'Wallet')}</Text>
-          <TouchableOpacity className="bg-primary-container px-3 py-1.5 rounded-full min-h-[32px] justify-center">
-            <Text className="font-label text-[13px] text-primary font-semibold">{Number(balance || 0).toLocaleString()} YM</Text>
+        <View className="flex-row justify-between items-center mb-md">
+          <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('wallet.title', 'Wallet')}</Text>
+          <TouchableOpacity style={{ minHeight: rs(32) }} className="bg-primary-container px-3 rounded-full justify-center">
+            <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">{Number(balance || 0).toLocaleString()} YM</Text>
           </TouchableOpacity>
         </View>
         
@@ -125,14 +133,14 @@ const WalletScreen = () => {
           from={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15 }}
-          className="p-xl bg-surface-container-lowest rounded-xl shadow-sm mb-xl border border-outline-variant"
+          className="p-md bg-surface-container-lowest rounded-xl shadow-sm mb-lg border border-outline-variant"
         >
-          <Text className="font-label text-[13px] text-on-surface-variant opacity-60 uppercase">{t('wallet.availableBalance', 'Available Balance')}</Text>
-          <Text className="font-display text-[36px] text-on-surface font-black mt-1">{formatMznCurrency(totalBalance, language)}</Text>
+          <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 uppercase">{t('wallet.availableBalance', 'Available Balance')}</Text>
+          <Text style={{ fontSize: ss(30) }} className="font-display text-on-surface font-black mt-1">{formatMznCurrency(totalBalance, language)}</Text>
           <View className="mt-3 pt-3 border-t border-outline-variant">
             <View className="flex-row items-center">
-              <ArrowUpRight size={14} color="#2260a2" />
-              <Text className="font-label text-[13px] text-secondary ml-1 font-semibold">
+              <ArrowUpRight size={rs(14)} color="#2260a2" />
+              <Text style={{ fontSize: ss(12) }} className="font-label text-secondary ml-1 font-semibold">
                 +{formatMznCurrency(1240, language)} {t('wallet.thisMonth', 'this month')}
               </Text>
             </View>
@@ -140,7 +148,7 @@ const WalletScreen = () => {
         </MotiView>
 
         {/* Action Grid */}
-        <View className="flex-row justify-between mb-xl">
+        <View className="flex-row justify-between mb-lg">
           <TouchableOpacity
             className="items-center flex-1 active:scale-95"
             onPress={() => {
@@ -151,10 +159,10 @@ const WalletScreen = () => {
               setScanVisible(true);
             }}
           >
-            <View className="w-16 h-16 rounded-[24px] bg-primary-container justify-center items-center mb-2 shadow-sm">
-              <Scan color="#111316" size={24} />
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary-container justify-center items-center mb-2 shadow-sm">
+              <Scan color="#111316" size={rs(22)} />
             </View>
-            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.scanToPay', 'Scan to Pay')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.scanToPay', 'Scan to Pay')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="items-center flex-1 active:scale-95"
@@ -166,22 +174,22 @@ const WalletScreen = () => {
               setP2pVisible(true);
             }}
           >
-            <View className="w-16 h-16 rounded-[24px] bg-secondary justify-center items-center mb-2 shadow-sm">
-              <ArrowUpRight color="#fff" size={24} />
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-secondary justify-center items-center mb-2 shadow-sm">
+              <ArrowUpRight color="#fff" size={rs(22)} />
             </View>
-            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send Money')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send Money')}</Text>
           </TouchableOpacity>
           <TouchableOpacity className="items-center flex-1 active:scale-95">
-            <View className="w-16 h-16 rounded-[24px] bg-primary justify-center items-center mb-2 shadow-sm">
-              <CreditCard color="#fff" size={24} />
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary justify-center items-center mb-2 shadow-sm">
+              <CreditCard color="#fff" size={rs(22)} />
             </View>
-            <Text className="font-caption text-[11px] font-bold text-on-surface-variant uppercase">{t('wallet.virtualCard', 'Virtual Card')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.virtualCard', 'Virtual Card')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Virtual Card Section */}
-        <View className="mb-xl">
-          <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('wallet.myCards', 'My Virtual Cards')}</Text>
+        <View className="mb-lg">
+          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('wallet.myCards', 'My Virtual Cards')}</Text>
           {safeCards.map((card: any) => {
             const isRevealed = revealedCards[card.id];
             const isFrozen = card.status === 'FROZEN';
@@ -197,29 +205,29 @@ const WalletScreen = () => {
                 from={{ opacity: 0, translateY: 15 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'spring', damping: 15 }}
-                className={`rounded-xl overflow-hidden bg-primary mb-lg shadow-md ${isFrozen ? 'opacity-60' : ''}`}
+                className={`rounded-xl overflow-hidden bg-primary mb-md shadow-md ${isFrozen ? 'opacity-60' : ''}`}
               >
-                <View className="h-[190px] p-6 justify-between">
+                <View style={{ height: width * 0.48 }} className="p-5 justify-between">
                   <View className="flex-row justify-between items-center">
-                    <Text className="text-white text-[16px] font-black uppercase tracking-wider">{card.type}</Text>
+                    <Text style={{ fontSize: ss(14) }} className="text-white font-black uppercase tracking-wider">{card.type}</Text>
                     <View className="w-10 h-7 bg-primary-container/85 rounded opacity-90" />
                   </View>
                   
-                  <View className="my-5">
-                    <Text className="text-white text-[22px] tracking-[4px] font-semibold text-center">
+                  <View className="my-3">
+                    <Text style={{ fontSize: ss(18) }} className="text-white tracking-[4px] font-semibold text-center">
                       {isRevealed ? (rawCardNumber || maskedNumber) : maskedNumber}
                     </Text>
                   </View>
                   
                   <View className="flex-row justify-between items-end">
                     <View>
-                      <Text className="text-white/50 font-caption text-[10px] font-black uppercase mb-0.5">{t('wallet.expiry', 'EXPIRY')}</Text>
-                      <Text className="text-white text-[14px] font-semibold">{card.expiry}</Text>
+                      <Text style={{ fontSize: ss(9) }} className="text-white/50 font-caption font-black uppercase mb-0.5">{t('wallet.expiry', 'EXPIRY')}</Text>
+                      <Text style={{ fontSize: ss(13) }} className="text-white font-semibold">{card.expiry}</Text>
                     </View>
                     {isRevealed && (
                       <View>
-                        <Text className="text-white/50 font-caption text-[10px] font-black uppercase mb-0.5">{t('wallet.cvv', 'CVV')}</Text>
-                        <Text className="text-white text-[14px] font-semibold">•••</Text>
+                        <Text style={{ fontSize: ss(9) }} className="text-white/50 font-caption font-black uppercase mb-0.5">{t('wallet.cvv', 'CVV')}</Text>
+                        <Text style={{ fontSize: ss(13) }} className="text-white font-semibold">•••</Text>
                       </View>
                     )}
                     <View className="w-[45px] h-[15px] bg-white/20 rounded" />
@@ -229,26 +237,28 @@ const WalletScreen = () => {
                 {/* Card Controls */}
                 <View className="flex-row bg-surface-container-highest border-t border-white/5">
                   <TouchableOpacity 
-                    className="flex-1 flex-row items-center justify-center py-4 gap-2 min-h-[52px] active:bg-white/5"
+                    style={{ minHeight: layout.buttonHeight - 8 }}
+                    className="flex-1 flex-row items-center justify-center py-3 gap-2 active:bg-white/5"
                     onPress={() => handleReveal(card.id)}
                   >
-                    {isRevealed ? <EyeOff size={20} color="#1a1c1c" /> : <Eye size={20} color="#1a1c1c" />}
-                    <Text className="text-[13px] font-black text-on-surface">{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
+                    {isRevealed ? <EyeOff size={rs(18)} color="#1a1c1c" /> : <Eye size={rs(18)} color="#1a1c1c" />}
+                    <Text style={{ fontSize: ss(12) }} className="font-black text-on-surface">{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
                   </TouchableOpacity>
                   
                   <View className="w-[1px] h-[60%] bg-white/10 align-self-center" />
                   
                   <TouchableOpacity 
-                    className="flex-1 flex-row items-center justify-center py-4 gap-2 min-h-[52px] active:bg-white/5"
+                    style={{ minHeight: layout.buttonHeight - 8 }}
+                    className="flex-1 flex-row items-center justify-center py-3 gap-2 active:bg-white/5"
                     onPress={() => handleToggleFreeze(card)}
                     disabled={freezingId === card.id || !runtimeConfig.flags.walletHighRiskActionsEnabled}
                   >
                     {isFrozen ? (
-                      <Unlock size={20} color="#2260a2" />
+                      <Unlock size={rs(18)} color="#2260a2" />
                     ) : (
-                      <Lock size={20} color="#ba1a1a" />
+                      <Lock size={rs(18)} color="#ba1a1a" />
                     )}
-                    <Text className={`text-[13px] font-black ${isFrozen ? 'text-secondary' : 'text-on-surface'}`}>
+                    <Text style={{ fontSize: ss(12) }} className={`font-black ${isFrozen ? 'text-secondary' : 'text-on-surface'}`}>
                       {isFrozen ? t('wallet.unfreeze', 'Unfreeze') : t('wallet.freeze', 'Freeze')}
                     </Text>
                   </TouchableOpacity>
@@ -259,11 +269,11 @@ const WalletScreen = () => {
         </View>
 
         {/* Transaction History */}
-        <View className="mb-xl">
+        <View className="mb-lg">
           <View className="flex-row justify-between items-center mb-md">
-            <Text className="font-title text-[20px] font-bold text-on-surface">{t('wallet.recentActivity', 'Recent Activity')}</Text>
+            <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{t('wallet.recentActivity', 'Recent Activity')}</Text>
             <TouchableOpacity>
-              <ChevronRight size={20} color="rgba(26, 28, 28, 0.6)" />
+              <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.6)" />
             </TouchableOpacity>
           </View>
           
@@ -276,26 +286,26 @@ const WalletScreen = () => {
                 transition={{ type: 'spring', damping: 15, delay: idx * 60 }}
                 className="bg-surface-container-lowest p-md rounded-xl flex-row items-center shadow-sm border border-outline-variant"
               >
-                <View className={`w-10 h-10 rounded-xl justify-center items-center ${tx.amount < 0 ? 'bg-[#FEF2F2]' : 'bg-[#F0FDF4]'}`}>
+                <View style={{ width: rs(36), height: rs(36) }} className={`rounded-xl justify-center items-center ${tx.amount < 0 ? 'bg-[#FEF2F2]' : 'bg-[#F0FDF4]'}`}>
                   {tx.amount < 0 ? (
-                    <ArrowUpRight size={18} color="#EF4444" />
+                    <ArrowUpRight size={rs(16)} color="#EF4444" />
                   ) : (
-                    <ArrowDownLeft size={18} color="#22C55E" />
+                    <ArrowDownLeft size={rs(16)} color="#22C55E" />
                   )}
                 </View>
                 <View className="flex-1 ml-3">
-                  <Text className="font-title text-[15px] font-bold text-on-surface" numberOfLines={1}>{tx.description}</Text>
-                  <Text className="font-label text-[11px] text-on-surface-variant mt-0.5">
+                  <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface" numberOfLines={1}>{tx.description}</Text>
+                  <Text style={{ fontSize: ss(11) }} className="font-label text-on-surface-variant mt-0.5">
                     {new Date(tx.date).toLocaleDateString()} • {String(tx.type || 'activity').replace('_', ' ')}
                   </Text>
                 </View>
-                <Text className={`font-title text-[15px] font-bold ${tx.amount < 0 ? 'text-on-surface' : 'text-secondary'}`}>
+                <Text style={{ fontSize: ss(14) }} className={`font-title font-bold ${tx.amount < 0 ? 'text-on-surface' : 'text-secondary'}`}>
                   {tx.amount < 0 ? '' : '+'}{formatMznCurrency(Math.abs(Number(tx.amount || 0)), language)} • YM
                 </Text>
               </MotiView>
             )) : (
               <View className="p-10 items-center justify-center">
-                <Text className="font-body text-[16px] text-on-surface-variant">{t('wallet.noTransactions', 'No recent transactions')}</Text>
+                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant">{t('wallet.noTransactions', 'No recent transactions')}</Text>
               </View>
             )}
           </View>
@@ -305,7 +315,7 @@ const WalletScreen = () => {
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
         {freezeRetryCard ? (
           <TouchableOpacity className="bg-[#FEF2F2] rounded-md p-md items-center justify-center border border-error/20" onPress={() => handleToggleFreeze(freezeRetryCard)}>
-            <Text className="font-label text-[13px] text-error font-bold">{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
+            <Text style={{ fontSize: ss(12) }} className="font-label text-error font-bold">{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>

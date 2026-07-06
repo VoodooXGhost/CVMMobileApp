@@ -3,6 +3,9 @@ import { View, TouchableOpacity, Text, Platform } from 'react-native';
 import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useI18n } from '../services/i18n';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout } from '../theme/responsive';
 
 const TabItem = ({
   isFocused,
@@ -16,6 +19,7 @@ const TabItem = ({
   onPress: () => void;
 }) => {
   const scale = useSharedValue(isFocused ? 1.12 : 1.0);
+  const { rs, ss } = useResponsiveScale();
 
   React.useEffect(() => {
     scale.value = withSpring(isFocused ? 1.12 : 1.0, {
@@ -30,22 +34,29 @@ const TabItem = ({
     };
   });
 
+  const btnSize = rs(44);
+  const fontSize = ss(10);
+
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="items-center justify-center flex-1 min-w-[56px]"
+      className="items-center justify-center flex-1 min-w-[48px]"
       activeOpacity={0.8}
     >
       <Animated.View
-        style={animatedStyle}
-        className={`w-11 h-11 rounded-full items-center justify-center ${
+        style={[
+          animatedStyle,
+          { width: btnSize, height: btnSize }
+        ]}
+        className={`rounded-full items-center justify-center ${
           isFocused ? 'bg-cta-primary-bg shadow-md' : 'bg-transparent'
         }`}
       >
         {renderIcon(isFocused ? '#1c1600' : 'rgba(26, 28, 28, 0.6)')}
       </Animated.View>
       <Text
-        className={`font-label text-[10px] uppercase mt-1 ${
+        style={{ fontSize }}
+        className={`font-label uppercase mt-1 ${
           isFocused ? 'text-on-surface font-semibold' : 'text-on-surface-variant'
         }`}
         numberOfLines={1}
@@ -58,15 +69,26 @@ const TabItem = ({
 
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
   const { t } = useI18n();
+  const { rs } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+
+  const containerWidth = sizeClass === 'compact' ? '94%' : '88%';
+  const bottomDistance = sizeClass === 'compact' ? rs(16) : rs(24);
+
   return (
-    <View className="absolute bottom-xl left-0 right-0 items-center justify-center bg-transparent">
+    <View
+      style={{ bottom: bottomDistance }}
+      className="absolute left-0 right-0 items-center justify-center bg-transparent"
+    >
       <View
-        className="flex-row w-[92%] h-[68px] bg-glass-surface rounded-full px-sm items-center justify-around shadow-lg"
-        style={
+        style={[
           Platform.OS === 'web'
             ? { boxShadow: '0px 12px 24px rgba(26, 28, 28, 0.08)' }
-            : undefined
-        }
+            : undefined,
+          { width: containerWidth, height: layout.tabBarHeight }
+        ]}
+        className="flex-row bg-glass-surface rounded-full px-sm items-center justify-around shadow-lg"
       >
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
@@ -85,7 +107,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
           };
 
           const renderIcon = (color: string) => {
-            const iconSize = 22;
+            const iconSize = rs(20);
             if (index === 0) return <Home size={iconSize} color={color} />;
             if (index === 1) return <Wallet size={iconSize} color={color} />;
             if (index === 2) return <Store size={iconSize} color={color} />;

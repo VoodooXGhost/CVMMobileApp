@@ -15,10 +15,16 @@ import { AppButton, AppCard, AppInput } from '../components/Primitives';
 import { runtimeConfig } from '../config/runtime';
 import { useI18n } from '../services/i18n';
 import { resolveLocalizedApiError } from '../services/apiErrors';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout } from '../theme/responsive';
 
 const LoginScreen = () => {
   const { t } = useI18n();
   const { signIn, storedMsisdn, clearMsisdn } = useAuth();
+  const { ss, rs, height } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
   
   const [msisdn, setMsisdn] = useState('');
   const [pin, setPin] = useState('');
@@ -81,27 +87,35 @@ const LoginScreen = () => {
     return num;
   };
 
+  const logoHeight = height * 0.12;
+
   return (
     <SafeAreaView className="flex-1 bg-surface">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 p-lg justify-center gap-lg"
+        className="flex-1 p-md justify-center gap-md"
       >
         <MotiView
           from={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 18 }}
-          className="mb-md gap-sm items-center"
+          className="mb-md gap-xs items-center"
         >
           <Image
             source={require('../../TmcelLogo.png')}
-            className="w-full h-[140px] self-center"
+            style={{ width: '100%', height: logoHeight }}
             resizeMode="contain"
           />
-          <Text className="font-headline text-[28px] font-bold text-primary text-center">
+          <Text
+            style={{ fontSize: ss(26) }}
+            className="font-headline font-bold text-primary text-center"
+          >
             {t('login.title', 'The Digital Pulse')}
           </Text>
-          <Text className="font-body text-[16px] text-on-surface-variant text-center max-w-[90%]">
+          <Text
+            style={{ fontSize: ss(14) }}
+            className="font-body text-on-surface-variant text-center max-w-[85%]"
+          >
             {t('login.subtitle', 'Premium telecom experiences built for your lifestyle.')}
           </Text>
         </MotiView>
@@ -111,16 +125,25 @@ const LoginScreen = () => {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 15, delay: 100 }}
         >
-          <AppCard className="p-xl gap-md" variant="nested">
-            <Text className="font-title text-[20px] mb-sm text-on-surface font-semibold">
+          <AppCard className="p-md gap-sm" variant="nested">
+            <Text
+              style={{ fontSize: ss(18) }}
+              className="font-title text-on-surface font-semibold"
+            >
               {t('login.welcomeBack', 'Welcome back')}
             </Text>
 
             {storedMsisdn ? (
               // Returning PIN-only User UI
               <View className="mb-sm">
-                <View className="flex-row justify-between items-center bg-surface-container-highest px-md py-sm rounded-md min-h-[52px]">
-                  <Text className="font-body text-[16px] font-semibold text-primary">
+                <View
+                  style={{ minHeight: rs(50) }}
+                  className="flex-row justify-between items-center bg-surface-container-highest px-md py-xs rounded-md"
+                >
+                  <Text
+                    style={{ fontSize: ss(14) }}
+                    className="font-body font-semibold text-primary"
+                  >
                     {maskMsisdn(storedMsisdn)}
                   </Text>
                   <AppButton
@@ -133,7 +156,10 @@ const LoginScreen = () => {
             ) : (
               // First time/logged out flow: Enter MSISDN
               <View className="gap-xs">
-                <Text className="font-label text-[13px] text-on-surface-variant uppercase">
+                <Text
+                  style={{ fontSize: ss(11) }}
+                  className="font-label text-on-surface-variant uppercase"
+                >
                   {t('login.msisdn', 'MSISDN')}
                 </Text>
                 <AppInput
@@ -147,7 +173,10 @@ const LoginScreen = () => {
             )}
 
             <View className="gap-xs">
-              <Text className="font-label text-[13px] text-on-surface-variant uppercase">
+              <Text
+                style={{ fontSize: ss(11) }}
+                className="font-label text-on-surface-variant uppercase"
+              >
                 {t('login.securePin', 'Secure PIN')}
               </Text>
               <AppInput
@@ -160,7 +189,10 @@ const LoginScreen = () => {
             </View>
 
             {isLoggingIn ? (
-              <View className="min-h-[60px] rounded-xl bg-cta-primary-bg justify-center items-center shadow-md">
+              <View
+                style={{ minHeight: layout.buttonHeight }}
+                className="rounded-xl bg-cta-primary-bg justify-center items-center shadow-md"
+              >
                 <ActivityIndicator color="#111316" size="large" />
               </View>
             ) : (
@@ -168,7 +200,10 @@ const LoginScreen = () => {
             )}
 
             <View className="mt-sm items-center gap-xs">
-              <Text className="font-body text-[16px] text-on-surface-variant">
+              <Text
+                style={{ fontSize: ss(14) }}
+                className="font-body text-on-surface-variant"
+              >
                 {t('login.needHelp', 'Need help?')}
               </Text>
               <AppButton
@@ -191,7 +226,10 @@ const LoginScreen = () => {
           transition={{ duration: 600, delay: 300 }}
           className="items-center mt-sm"
         >
-          <Text className="font-label text-[13px] text-on-surface-variant text-center">
+          <Text
+            style={{ fontSize: ss(12) }}
+            className="font-label text-on-surface-variant text-center"
+          >
             Powered by EngageHub and CVM Intelligence
           </Text>
         </MotiView>

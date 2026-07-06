@@ -11,6 +11,9 @@ import { formatMznCurrency } from '../services/formatters';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 
 /**
  * MarketplaceScreen Component (Formerly ShopScreen)
@@ -21,13 +24,17 @@ import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors
 const MarketplaceScreen = () => {
   const { language, t } = useI18n();
   const navigation = useNavigation<any>();
-  const { width } = useWindowDimensions();
   const { data: shopData, isLoading, error } = useGetOffersDataQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = React.useState(allCategory);
   const [cardCtaVariant, setCardCtaVariant] = React.useState('hot_badge');
   const { authenticate } = useBiometricAuth();
+
+  const { ss, rs, width } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+  const spacing = getResponsiveSpacing(sizeClass);
   const { offers, categories } = shopData?.data || {};
   const safeOffers = Array.isArray(offers) ? offers : [];
 
@@ -158,21 +165,21 @@ const MarketplaceScreen = () => {
     );
   };
 
-  const cardWidth = (width - 48) / 2;
+  const cardWidth = (width - spacing.md * 2 - spacing.md) / 2;
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }}>
         <View className="mb-sm">
-          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px] self-start" resizeMode="contain" />
+          <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
-        <Text className="font-headline text-[28px] font-bold text-on-surface">{t('marketplace.title', 'Marketplace')}</Text>
-        <Text className="font-body text-[16px] text-on-surface-variant mb-lg opacity-70">
+        <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('marketplace.title', 'Marketplace')}</Text>
+        <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant mb-lg opacity-70">
           {t('marketplace.subtitle', 'Exclusive Tmcel deals tailored for you.')}
         </Text>
 
         {/* Categories Horizontal Scroll */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-xl">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-lg">
           {[allCategory, ...(categories || [])].map((cat: string) => {
             const isActive = activeCategory.toLowerCase() === cat.toLowerCase();
             return (
@@ -181,25 +188,29 @@ const MarketplaceScreen = () => {
                 className="items-center mr-5 active:scale-95"
                 onPress={() => setActiveCategory(cat)}
               >
-                <View className={`w-16 h-16 rounded-[24px] bg-surface-container-highest justify-center items-center shadow-sm ${
-                  isActive ? 'bg-primary-container' : ''
-                }`}>
+                <View 
+                  style={[
+                    { width: rs(54), height: rs(54) },
+                    isActive ? { backgroundColor: '#ffcc00' } : null
+                  ]}
+                  className="rounded-[20px] bg-surface-container-highest justify-center items-center shadow-sm"
+                >
                   {getCategoryIcon(cat, isActive)}
                 </View>
-                <Text className={`font-label text-[13px] mt-2 ${isActive ? 'font-black' : 'font-normal'}`}>{cat}</Text>
+                <Text style={{ fontSize: ss(12) }} className={`font-label mt-2 ${isActive ? 'font-black' : 'font-normal'}`}>{cat}</Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
         {/* Trending Deals Section */}
-        <View className="mb-xl">
+        <View className="mb-lg">
           <View className="flex-row justify-between items-center mb-md">
-            <Text className="font-title text-[20px] font-bold text-on-surface">
+            <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">
               {activeCategory === allCategory ? t('marketplace.trendingDeals', 'Trending Deals') : `${activeCategory} ${t('marketplace.trendingDeals', 'Trending Deals')}`}
             </Text>
             <TouchableOpacity className="active:opacity-80">
-              <Text className="font-label text-[13px] text-primary font-bold">{t('marketplace.seeAll', 'See All')}</Text>
+              <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">{t('marketplace.seeAll', 'See All')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -228,26 +239,26 @@ const MarketplaceScreen = () => {
                   disabled={isRedeeming || !Number.isFinite(Number(product?.id))}
                   className="active:opacity-95"
                 >
-                  <View className="h-[140px] bg-surface-container-high relative">
+                  <View style={{ height: rs(100) }} className="bg-surface-container-high relative">
                     <Image 
                       source={{ uri: product.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
                       className="absolute inset-0 w-full h-full"
                       resizeMode="cover"
                     />
                     <View className="absolute top-2 right-2 bg-error px-1.5 py-0.5 rounded">
-                      <Text className="color-white text-[10px] font-black uppercase">
+                      <Text style={{ fontSize: ss(9) }} className="color-white font-black uppercase">
                         {cardCtaVariant === 'deal_badge' ? 'DEAL' : 'HOT'}
                       </Text>
                     </View>
                   </View>
                   <View className="p-md">
-                    <Text className="font-label text-[13px] font-black text-on-surface" numberOfLines={1}>{product.title}</Text>
-                    <Text className="font-title text-[16px] font-bold text-primary mt-1">
+                    <Text style={{ fontSize: ss(12) }} className="font-label font-black text-on-surface" numberOfLines={1}>{product.title}</Text>
+                    <Text style={{ fontSize: ss(14) }} className="font-title text-primary mt-1 font-bold">
                       {Number.isFinite(Number(product?.price)) ? formatMznCurrency(product.price, language) : 'N/A'}
                     </Text>
                     <View className="flex-row items-center mt-2 gap-1">
-                      <Star color="#2260a2" size={10} fill="#2260a2" />
-                      <Text className="font-label text-[10px] text-on-surface-variant font-semibold">
+                      <Star color="#2260a2" size={rs(10)} fill="#2260a2" />
+                      <Text style={{ fontSize: ss(10) }} className="font-label text-on-surface-variant font-semibold">
                         {t('marketplace.earnYm', 'Earn {amount} YM').replace('{amount}', String(Math.round(product.price * 0.1)))}
                       </Text>
                     </View>
@@ -259,25 +270,25 @@ const MarketplaceScreen = () => {
         </View>
 
         {/* Exclusive Bundles */}
-        <View className="mb-xl">
-          <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('marketplace.exclusiveBundles', 'Exclusive Bundles')}</Text>
+        <View className="mb-lg">
+          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('marketplace.exclusiveBundles', 'Exclusive Bundles')}</Text>
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 15 }}
             className="flex-row items-center p-md bg-surface-container-lowest rounded-xl mb-md shadow-sm border border-outline-variant"
           >
-            <View className="w-[56px] h-[56px] rounded-md bg-primary/20 justify-center items-center">
-              <Smartphone color="#111316" size={24} />
+            <View style={{ width: rs(44), height: rs(44) }} className="rounded-md bg-primary/20 justify-center items-center">
+              <Smartphone color="#111316" size={rs(22)} />
             </View>
             <View className="flex-1 ml-3">
-              <Text className="font-title text-[16px] font-bold text-on-surface">Tmcel XtraTime Data</Text>
-              <Text className="font-body text-[12px] text-on-surface-variant mt-0.5">{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
-              <Text className="font-title text-[18px] text-primary mt-1 font-bold">{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">Tmcel XtraTime Data</Text>
+              <Text style={{ fontSize: ss(11) }} className="font-body text-on-surface-variant mt-0.5">{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
+              <Text style={{ fontSize: ss(13) }} className="font-title text-primary mt-1 font-bold">{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
             </View>
-            <View className="flex-row items-center bg-secondary px-2.5 py-1.5 rounded-full min-h-[32px]">
-              <Star color="#fff" size={12} fill="#fff" />
-              <Text className="font-label text-[11px] text-white ml-1 font-bold">{t('marketplace.preview', 'Preview')}</Text>
+            <View style={{ minHeight: rs(28) }} className="flex-row items-center bg-secondary px-2.5 rounded-full">
+              <Star color="#fff" size={rs(12)} fill="#fff" />
+              <Text style={{ fontSize: ss(10) }} className="font-label text-white ml-1 font-bold">{t('marketplace.preview', 'Preview')}</Text>
             </View>
           </MotiView>
 
@@ -287,17 +298,17 @@ const MarketplaceScreen = () => {
             transition={{ type: 'spring', damping: 15, delay: 50 }}
             className="flex-row items-center p-md bg-surface-container-lowest rounded-xl mb-md shadow-sm border border-outline-variant"
           >
-            <View className="w-[56px] h-[56px] rounded-md bg-secondary/20 justify-center items-center">
-              <Wifi color="#2260a2" size={24} />
+            <View style={{ width: rs(44), height: rs(44) }} className="rounded-md bg-secondary/20 justify-center items-center">
+              <Wifi color="#2260a2" size={rs(22)} />
             </View>
             <View className="flex-1 ml-3">
-              <Text className="font-title text-[16px] font-bold text-on-surface">Home Pro Fibre</Text>
-              <Text className="font-body text-[12px] text-on-surface-variant mt-0.5">{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
-              <Text className="font-title text-[18px] text-primary mt-1 font-bold">{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">Home Pro Fibre</Text>
+              <Text style={{ fontSize: ss(11) }} className="font-body text-on-surface-variant mt-0.5">{t('marketplace.catalogPreviewOnly', 'Catalog preview only')}</Text>
+              <Text style={{ fontSize: ss(13) }} className="font-title text-primary mt-1 font-bold">{t('marketplace.pendingMapping', 'Pending live offer mapping')}</Text>
             </View>
-            <View className="flex-row items-center bg-primary px-2.5 py-1.5 rounded-full min-h-[32px]">
-              <Star color="#111316" size={12} fill="#111316" />
-              <Text className="font-label text-[11px] text-[#111316] ml-1 font-bold">{t('marketplace.preview', 'Preview')}</Text>
+            <View style={{ minHeight: rs(28) }} className="flex-row items-center bg-primary px-2.5 rounded-full">
+              <Star color="#111316" size={rs(12)} fill="#111316" />
+              <Text style={{ fontSize: ss(10) }} className="font-label text-[#111316] ml-1 font-bold">{t('marketplace.preview', 'Preview')}</Text>
             </View>
           </MotiView>
         </View>

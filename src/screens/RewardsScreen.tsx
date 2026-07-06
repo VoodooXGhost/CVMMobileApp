@@ -29,6 +29,9 @@ import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getPrimaryGame } from '../services/games';
 import { resolveYmBalance } from '../services/loyalty';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
+import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 
 const RewardsScreen = () => {
   const { language, t } = useI18n();
@@ -39,6 +42,11 @@ const RewardsScreen = () => {
   const [spinVisible, setSpinVisible] = useState(false);
   const { authenticate } = useBiometricAuth();
   const [selectedGame, setSelectedGame] = useState<any>(null);
+
+  const { ss, rs, width } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const layout = getResponsiveLayout(sizeClass);
+  const spacing = getResponsiveSpacing(sizeClass);
 
   const homeData = homeResponse?.data || {};
   const { gamification, loyalty } = homeData;
@@ -162,15 +170,15 @@ const RewardsScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }} showsVerticalScrollIndicator={false}>
         <View className="mb-sm">
-          <Image source={require('../../TmcelLogo.png')} className="w-[160px] h-[72px] self-start" resizeMode="contain" />
+          <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
-        <View className="flex-row justify-between items-center mb-xl">
-          <Text className="font-headline text-[28px] font-bold text-on-surface">{t('rewards.title', 'Rewards Hub')}</Text>
-          <View className="flex-row items-center bg-primary-container px-3 py-1.5 rounded-full min-h-[32px] justify-center">
-            <Star size={14} color="#1c1600" fill="#1c1600" />
-            <Text className="font-label text-[13px] text-on-primary-fixed ml-1 font-black">
+        <View className="flex-row justify-between items-center mb-md">
+          <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('rewards.title', 'Rewards Hub')}</Text>
+          <View style={{ minHeight: rs(32) }} className="flex-row items-center bg-primary-container px-3 rounded-full justify-center">
+            <Star size={rs(14)} color="#1c1600" fill="#1c1600" />
+            <Text style={{ fontSize: ss(12) }} className="font-label text-on-primary-fixed ml-1 font-black">
               {resolveYmBalance(loyalty).toLocaleString()} YM
             </Text>
           </View>
@@ -181,17 +189,17 @@ const RewardsScreen = () => {
           from={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15 }}
-          className="bg-surface-container-lowest p-lg rounded-xl mb-xl border border-outline-variant shadow-sm"
+          className="bg-surface-container-lowest p-md rounded-xl mb-lg border border-outline-variant shadow-sm"
         >
-          <View className="flex-row justify-between items-center mb-5">
+          <View className="flex-row justify-between items-center mb-4">
             <View className="flex-row items-center">
-              <Flame size={24} color="#2260a2" fill="#2260a2" />
+              <Flame size={rs(22)} color="#2260a2" fill="#2260a2" />
               <View className="ml-3">
-                <Text className="font-title text-[20px] font-bold text-on-surface">{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
-                <Text className="font-label text-[13px] text-on-surface-variant opacity-60">{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
+                <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
+                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
               </View>
             </View>
-            <Award size={24} color="#111316" />
+            <Award size={rs(22)} color="#111316" />
           </View>
           
           <View className="flex-row justify-between items-center px-1">
@@ -200,45 +208,51 @@ const RewardsScreen = () => {
               const isToday = day === (gamification?.current_streak || 0);
               return (
                 <View key={day} className="items-center gap-2">
-                  <View className={`w-[42px] h-[42px] rounded-full bg-surface-container-high justify-center items-center ${
-                    active ? 'bg-primary-container' : ''
-                  } ${isToday ? 'border-2 border-secondary' : ''}`}>
-                    <Text className={`font-label text-[13px] text-on-surface ${
+                  <View 
+                    style={[
+                      { width: rs(36), height: rs(36) },
+                      active ? { backgroundColor: '#ffcc00' } : null,
+                      isToday ? { borderWidth: 2, borderColor: '#2260a2' } : null
+                    ]}
+                    className="rounded-full bg-surface-container-high justify-center items-center"
+                  >
+                    <Text style={{ fontSize: ss(12) }} className={`font-label text-on-surface ${
                       active ? 'text-on-primary-fixed font-black' : 'opacity-50'
                     }`}>{day}</Text>
                   </View>
-                  <Text className={`font-caption text-[11px] text-on-surface-variant font-bold ${active ? 'text-primary' : ''}`}>D{day}</Text>
+                  <Text style={{ fontSize: ss(10) }} className={`font-caption text-on-surface-variant font-bold ${active ? 'text-primary' : ''}`}>D{day}</Text>
                 </View>
               );
             })}
           </View>
           <View className="flex-row items-center mt-5 pt-4 border-t border-outline-variant gap-2">
-            <Zap size={14} color="#2260a2" fill="#2260a2" />
-            <Text className="font-caption text-[11px] font-semibold text-on-surface-variant">
+            <Zap size={rs(14)} color="#2260a2" fill="#2260a2" />
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-semibold text-on-surface-variant">
                Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
             </Text>
           </View>
         </MotiView>
 
-        <View className="mb-xl">
-          <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('rewards.activeGames', 'Active Games')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-lg px-lg">
+        <View className="mb-lg">
+          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('rewards.activeGames', 'Active Games')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.md }} className="-mx-md">
             {(safeGames.length > 0 ? safeGames : [primaryGame]).map((game: any) => (
               <TouchableOpacity
                 key={String(game.id)}
-                className="w-[180px] mr-3 p-4 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm active:scale-95"
+                style={{ width: rs(140) }}
+                className="mr-3 p-4 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm active:scale-95"
                 onPress={() => {
                   setSelectedGame(game);
                   setSpinVisible(true);
                 }}
               >
-                <Text className="font-title text-[14px] font-bold text-on-surface" numberOfLines={1}>
+                <Text style={{ fontSize: ss(13) }} className="font-title font-bold text-on-surface" numberOfLines={1}>
                   {game.title}
                 </Text>
-                <Text className="font-label text-[12px] text-on-surface-variant opacity-60 mt-1.5" numberOfLines={2}>
+                <Text style={{ fontSize: ss(11) }} className="font-label text-on-surface-variant opacity-60 mt-1.5" numberOfLines={2}>
                   {game.description || game.subtitle || game.type}
                 </Text>
-                <Text className="font-label text-[12px] mt-2.5 text-primary font-bold uppercase">
+                <Text style={{ fontSize: ss(11) }} className="font-label mt-2.5 text-primary font-bold uppercase">
                   {game.type}
                 </Text>
               </TouchableOpacity>
@@ -252,40 +266,41 @@ const RewardsScreen = () => {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 15, delay: 100 }}
         >
-          <TouchableOpacity className="h-[200px] bg-primary-container rounded-xl flex-row overflow-hidden mb-xl shadow-md relative active:opacity-95" onPress={() => setSpinVisible(true)}>
-            <View className="flex-1 p-6 justify-center z-10">
-              <Text className="font-headline text-[24px] font-black text-on-primary-fixed">{t('rewards.spinTitle', 'Daily Spin')}</Text>
-              <Text className="font-body text-[16px] text-on-primary-fixed opacity-80 mt-1">
+          <TouchableOpacity style={{ height: width * 0.46 }} className="bg-primary-container rounded-xl flex-row overflow-hidden mb-lg shadow-md relative active:opacity-95" onPress={() => setSpinVisible(true)}>
+            <View className="flex-1 p-5 justify-center z-10">
+              <Text style={{ fontSize: ss(22) }} className="font-headline font-black text-on-primary-fixed">{t('rewards.spinTitle', 'Daily Spin')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-body text-on-primary-fixed opacity-80 mt-1">
                 {t('rewards.spinSubtitle', 'Win up to 500 YelloMola!')}
               </Text>
-              <View className="bg-surface px-6 py-3 rounded-full mt-4 align-self-start min-h-[46px] justify-center shadow-sm">
-                <Text className="font-title text-[13px] text-[#111316] font-black uppercase">{t('rewards.spinNow', 'SPIN NOW')}</Text>
+              <View style={{ minHeight: rs(36) }} className="bg-surface px-6 rounded-full mt-4 align-self-start justify-center shadow-sm">
+                <Text style={{ fontSize: ss(11) }} className="font-title text-[#111316] font-black uppercase">{t('rewards.spinNow', 'SPIN NOW')}</Text>
               </View>
             </View>
             <View className="absolute -right-5 top-5 opacity-30">
-               <Star size={80} color="#ffcc00" fill="#ffcc00" />
+               <Star size={rs(80)} color="#ffcc00" fill="#ffcc00" />
             </View>
           </TouchableOpacity>
         </MotiView>
 
         {/* Redemption Catalog Section */}
-        <View className="mb-xl">
+        <View className="mb-lg">
           <View className="flex-row justify-between items-center mb-md">
-            <Text className="font-title text-[20px] font-bold text-on-surface">{t('rewards.featured', 'Featured Rewards')}</Text>
+            <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{t('rewards.featured', 'Featured Rewards')}</Text>
             <TouchableOpacity className="flex-row items-center active:opacity-80">
-               <Text className="font-label text-[13px] text-primary font-bold uppercase">{t('rewards.viewAll', 'VIEW ALL')}</Text>
-               <ChevronRight size={16} color="#111316" />
+               <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold uppercase">{t('rewards.viewAll', 'VIEW ALL')}</Text>
+               <ChevronRight size={rs(16)} color="#111316" />
             </TouchableOpacity>
           </View>
           
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-lg px-lg">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.md }} className="-mx-md">
             {safeOffers.map((offer: any, idx: number) => (
               <MotiView
                 key={offer.id}
                 from={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', damping: 15, delay: idx * 60 }}
-                className="w-[150px] mr-4 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant shadow-sm"
+                style={{ width: rs(120) }}
+                className="mr-4 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant shadow-sm"
               >
                 <TouchableOpacity 
                   onPress={() => {
@@ -299,7 +314,7 @@ const RewardsScreen = () => {
                   disabled={isRedeeming}
                   className="active:opacity-95"
                 >
-                  <View className="w-[150px] h-[110px] bg-surface-container-high relative">
+                  <View style={{ width: rs(120), height: rs(80) }} className="bg-surface-container-high relative">
                      <Image 
                        source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
                        className="absolute inset-0 w-full h-full"
@@ -307,12 +322,12 @@ const RewardsScreen = () => {
                      />
                   </View>
                   <View className="p-3">
-                    <Text className="font-title text-[13px] font-bold text-on-surface" numberOfLines={1}>
+                    <Text style={{ fontSize: ss(12) }} className="font-title font-bold text-on-surface" numberOfLines={1}>
                       {offer.title}
                     </Text>
                     <View className="flex-row items-center mt-1.5">
-                      <Star size={10} color="#2260a2" fill="#2260a2" />
-                      <Text className="font-label text-[12px] font-black text-secondary ml-1">
+                      <Star size={rs(10)} color="#2260a2" fill="#2260a2" />
+                      <Text style={{ fontSize: ss(11) }} className="font-label font-black text-secondary ml-1">
                          {formatMznCurrency(offer.price, language)}
                       </Text>
                     </View>
@@ -324,8 +339,8 @@ const RewardsScreen = () => {
         </View>
 
         {/* Gamified Quests */}
-        <View className="mb-xl">
-           <Text className="font-title text-[20px] font-bold text-on-surface mb-md">{t('rewards.dailyQuests', 'Daily Quests')}</Text>
+        <View className="mb-lg">
+           <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('rewards.dailyQuests', 'Daily Quests')}</Text>
            <MotiView
              from={{ opacity: 0, translateY: 10 }}
              animate={{ opacity: 1, translateY: 0 }}
@@ -333,14 +348,14 @@ const RewardsScreen = () => {
              className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm"
            >
              <TouchableOpacity className="flex-row items-center p-4 active:opacity-95" onPress={handleReferral}>
-                <View className="w-11 h-11 rounded-xl bg-secondary/10 justify-center items-center">
-                  <Gift size={20} color="#2260a2" />
+                <View style={{ width: rs(36), height: rs(36) }} className="rounded-xl bg-secondary/10 justify-center items-center">
+                  <Gift size={rs(20)} color="#2260a2" />
                 </View>
                 <View className="flex-1 ml-3">
-                   <Text className="font-title text-[16px] font-bold text-on-surface">{t('rewards.referFriend', 'Refer a Friend')}</Text>
-                   <Text className="font-label text-[13px] text-on-surface-variant opacity-60">{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
+                   <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">{t('rewards.referFriend', 'Refer a Friend')}</Text>
+                   <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
                 </View>
-                <ChevronRight size={20} color="rgba(26, 28, 28, 0.4)" />
+                <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.4)" />
              </TouchableOpacity>
            </MotiView>
         </View>
