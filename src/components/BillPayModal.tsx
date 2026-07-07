@@ -1,0 +1,181 @@
+import React, { useState } from 'react';
+import { View, Text, Modal, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { X, ChevronDown } from 'lucide-react-native';
+import { AppInput, AppButton } from './Primitives';
+import { usePayBillMutation } from '../services/apiSlice';
+import { useResponsiveScale } from '../hooks/useResponsiveScale';
+import { useI18n } from '../services/i18n';
+import { Colors } from '../theme/tokens';
+
+interface BillPayModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
+  const { t } = useI18n();
+  const { ss } = useResponsiveScale();
+  const [billerCode, setBillerCode] = useState('EDM'); // Default to EDM (Electricity)
+  const [reference, setReference] = useState('');
+  const [amount, setAmount] = useState('');
+  const [showBillerList, setShowBillerList] = useState(false);
+  const [payBill, { isLoading }] = usePayBillMutation();
+
+  const billers = [
+    { code: 'EDM', name: 'Electricidade de Moçambique' },
+    { code: 'FIPAG', name: 'FIPAG (Water)' },
+    { code: 'DSTV', name: 'DStv Mozambique' },
+    { code: 'TVCABO', name: 'TV Cabo' },
+    { code: 'TDM', name: 'Telecomunicações de Moçambique' },
+  ];
+
+  const handleSelectBiller = (code: string) => {
+    setBillerCode(code);
+    setShowBillerList(false);
+  };
+
+  const handlePay = async () => {
+    const numAmount = parseFloat(amount);
+    if (!reference.trim()) {
+      Alert.alert(t('common.error', 'Error'), t('wallet.enterReference', 'Please enter a valid bill reference/contract number.'));
+      return;
+    }
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert(t('common.error', 'Error'), t('wallet.enterAmount', 'Please enter a valid payment amount.'));
+      return;
+    }
+
+    try {
+      const response = await payBill({
+        biller_code: billerCode,
+        amount: numAmount,
+        reference: reference.trim(),
+      }).unwrap();
+
+      Alert.alert(
+        t('common.success', 'Success'),
+        t('wallet.billSuccess', 'Successfully paid MZN {amount} to {biller}. Receipt: {receipt}')
+          .replace('{amount}', String(numAmount))
+          .replace('{biller}', billerCode)
+          .replace('{receipt}', response.data?.receipt || ''),
+        [{ text: 'OK', onPress: () => {
+          setReference('');
+          setAmount('');
+          onClose();
+        }}]
+      );
+    } catch (error: any) {
+      Alert.alert(
+        t('common.error', 'Error'),
+        error?.data?.detail || error?.message || t('wallet.paymentFailed', 'Bill payment failed. Please try again.')
+      );
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={{ backgroundColor: Colors.surface, borderTopLeftRadius: ss(24), borderTopRightRadius: ss(24), padding: ss(24), maxHeight: '85%' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: ss(24) }}>
+            <Text style={{ fontSize: ss(20), fontWeight: '700', color: Colors.primary }}>
+              {t('wallet.payBills', 'Pay Bills (eMola)')}
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={24} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: ss(16), paddingBottom: ss(24) }}>
+            {/* Biller Selector Dropdown */}
+            <View style={{ zIndex: 10 }}>
+              <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
+                {t('wallet.selectBiller', 'Select Biller Service')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowBillerList(!showBillerList)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: ss(14),
+                  borderWidth: 1,
+                  borderColor: Colors.outline,
+                  borderRadius: ss(8),
+                  backgroundColor: '#ffffff',
+                }}
+              >
+                <Text style={{ fontSize: ss(14), fontWeight: '600', color: Colors.primary }}>
+                  {billers.find((b) => b.code === billerCode)?.name || billerCode}
+                </Text>
+                <ChevronDown size={20} color={Colors.primary} />
+              </TouchableOpacity>
+
+              {showBillerList && (
+                <View style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#ffffff',
+                  borderWidth: 1,
+                  borderColor: Colors.outline,
+                  borderRadius: ss(8),
+                  marginTop: ss(4),
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}>
+                  {billers.map((b) => (
+                    <TouchableOpacity
+                      key={b.code}
+                      onPress={() => handleSelectBiller(b.code)}
+                      style={{ padding: ss(14), borderBottomWidth: 1, borderBottomColor: Colors.outline_variant }}
+                    >
+                      <Text style={{ fontSize: ss(14), fontWeight: '500', color: Colors.primary }}>
+                        {b.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Reference Number */}
+            <View>
+              <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
+                {t('wallet.referenceNumber', 'Reference / Contract Number')}
+              </Text>
+              <AppInput
+                placeholder="e.g. 142859201"
+                keyboardType="numeric"
+                value={reference}
+                onChangeText={setReference}
+              />
+            </View>
+
+            {/* Amount */}
+            <View>
+              <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
+                {t('wallet.amountMzn', 'Amount (MZN)')}
+              </Text>
+              <AppInput
+                placeholder="0.00"
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+              />
+            </View>
+
+            <AppButton
+              label={isLoading ? 'Processing...' : t('wallet.payNowBtn', 'Pay Bill')}
+              onPress={handlePay}
+              disabled={isLoading}
+            />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}

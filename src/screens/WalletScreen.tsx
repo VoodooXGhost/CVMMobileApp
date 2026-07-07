@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Platform } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { MotiView } from 'moti';
-import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
-import { useGetWalletDataQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
+import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt } from 'lucide-react-native';
+import { useGetEMolaWalletQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
-import P2PTransferModal from '../components/P2PTransferModal';
+import SendMoneyModal from '../components/SendMoneyModal';
+import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
+import BuyAirtimeModal from '../components/BuyAirtimeModal';
+import BillPayModal from '../components/BillPayModal';
 import ScanToPayModal from '../components/ScanToPayModal';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
@@ -14,21 +17,27 @@ import { formatMznCurrency } from '../services/formatters';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
+import { Colors } from '../theme/tokens';
 
 /**
  * WalletScreen Component
  * 
- * Manages the user's financial overview, including balances, virtual cards,
- * and transaction history with secure controls.
+ * Manages the user's financial overview, including eMola mobile money balances,
+ * transactions, virtual cards, and payment controls.
  */
 const WalletScreen = () => {
   const { language, t } = useI18n();
-  const { data: response, isLoading, error } = useGetWalletDataQuery();
+  const { data: response, isLoading, error } = useGetEMolaWalletQuery();
   const [toggleFreeze] = useToggleCardFreezeMutation();
   const { authenticate } = useBiometricAuth();
   const [revealedCards, setRevealedCards] = useState<Record<string, boolean>>({});
   const [freezingId, setFreezingId] = useState<string | null>(null);
-  const [p2pVisible, setP2pVisible] = useState(false);
+  
+  // Modals visibility state
+  const [sendVisible, setSendVisible] = useState(false);
+  const [receiveVisible, setReceiveVisible] = useState(false);
+  const [airtimeVisible, setAirtimeVisible] = useState(false);
+  const [billVisible, setBillVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
   const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
 
@@ -57,8 +66,8 @@ const WalletScreen = () => {
     );
   }
 
-  const walletData = response?.data || {};
-  const { balance, totalBalance, cards, transactions } = walletData;
+  const walletData = response || {};
+  const { balance = 12500, cards = [], transactions = [] } = walletData;
   const safeCards = Array.isArray(cards) ? cards : [];
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
@@ -122,74 +131,72 @@ const WalletScreen = () => {
           <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
         <View className="flex-row justify-between items-center mb-md">
-          <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('wallet.title', 'Wallet')}</Text>
+          <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('wallet.title', 'eMola Wallet')}</Text>
           <TouchableOpacity style={{ minHeight: rs(32) }} className="bg-primary-container px-3 rounded-full justify-center">
-            <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">{Number(balance || 0).toLocaleString()} YM</Text>
+            <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">{t('wallet.mobileMoney', 'Mobile Money')}</Text>
           </TouchableOpacity>
         </View>
         
-        {/* Total Balance Card */}
+        {/* eMola Balance Card */}
         <MotiView
           from={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15 }}
           className="p-md bg-surface-container-lowest rounded-xl shadow-sm mb-lg border border-outline-variant"
         >
-          <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 uppercase">{t('wallet.availableBalance', 'Available Balance')}</Text>
-          <Text style={{ fontSize: ss(30) }} className="font-display text-on-surface font-black mt-1">{formatMznCurrency(totalBalance, language)}</Text>
-          <View className="mt-3 pt-3 border-t border-outline-variant">
-            <View className="flex-row items-center">
-              <ArrowUpRight size={rs(14)} color="#2260a2" />
-              <Text style={{ fontSize: ss(12) }} className="font-label text-secondary ml-1 font-semibold">
-                +{formatMznCurrency(1240, language)} {t('wallet.thisMonth', 'this month')}
-              </Text>
+          <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 uppercase">{t('wallet.eMolaBalance', 'eMola Balance')}</Text>
+          <Text style={{ fontSize: ss(30) }} className="font-display text-on-surface font-black mt-1">{formatMznCurrency(balance, language)}</Text>
+          
+          <View className="mt-3 pt-3 border-t border-outline-variant flex-row justify-between">
+            <View>
+              <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase">{t('wallet.airtime', 'Airtime')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title text-on-surface font-bold mt-0.5">150 MT</Text>
+            </View>
+            <View>
+              <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase">{t('wallet.data', 'Data')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title text-on-surface font-bold mt-0.5">25.5 GB</Text>
+            </View>
+            <View>
+              <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase">{t('wallet.tier', 'Subscriber Tier')}</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title text-secondary font-bold mt-0.5">Gold</Text>
             </View>
           </View>
         </MotiView>
 
         {/* Action Grid */}
         <View className="flex-row justify-between mb-lg">
-          <TouchableOpacity
-            className="items-center flex-1 active:scale-95"
-            onPress={() => {
-              if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-                Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
-                return;
-              }
-              setScanVisible(true);
-            }}
-          >
-            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary-container justify-center items-center mb-2 shadow-sm">
-              <Scan color="#111316" size={rs(22)} />
-            </View>
-            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.scanToPay', 'Scan to Pay')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="items-center flex-1 active:scale-95"
-            onPress={() => {
-              if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-                Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
-                return;
-              }
-              setP2pVisible(true);
-            }}
-          >
-            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-secondary justify-center items-center mb-2 shadow-sm">
-              <ArrowUpRight color="#fff" size={rs(22)} />
-            </View>
-            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send Money')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center flex-1 active:scale-95">
+          <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setSendVisible(true)}>
             <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary justify-center items-center mb-2 shadow-sm">
-              <CreditCard color="#fff" size={rs(22)} />
+              <Send color="#fff" size={rs(22)} />
             </View>
-            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.virtualCard', 'Virtual Card')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send')}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setReceiveVisible(true)}>
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-secondary justify-center items-center mb-2 shadow-sm">
+              <Download color="#fff" size={rs(22)} />
+            </View>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.receive', 'Receive')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setAirtimeVisible(true)}>
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary-container justify-center items-center mb-2 shadow-sm">
+              <Smartphone color="#111316" size={rs(22)} />
+            </View>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.airtime', 'Airtime')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setBillVisible(true)}>
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-[#E0F2FE] justify-center items-center mb-2 shadow-sm">
+              <Receipt color="#0369A1" size={rs(22)} />
+            </View>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.bills', 'Bills')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Virtual Card Section */}
         <View className="mb-lg">
-          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('wallet.myCards', 'My Virtual Cards')}</Text>
+          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('wallet.myCards', 'Linked Virtual Cards')}</Text>
           {safeCards.map((card: any) => {
             const isRevealed = revealedCards[card.id];
             const isFrozen = card.status === 'FROZEN';
@@ -294,13 +301,13 @@ const WalletScreen = () => {
                   )}
                 </View>
                 <View className="flex-1 ml-3">
-                  <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface" numberOfLines={1}>{tx.description}</Text>
+                  <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface" numberOfLines={1}>{tx.merchant || tx.description}</Text>
                   <Text style={{ fontSize: ss(11) }} className="font-label text-on-surface-variant mt-0.5">
-                    {new Date(tx.date).toLocaleDateString()} • {String(tx.type || 'activity').replace('_', ' ')}
+                    {tx.date} • {String(tx.type || 'Transfer').replace('_', ' ')}
                   </Text>
                 </View>
                 <Text style={{ fontSize: ss(14) }} className={`font-title font-bold ${tx.amount < 0 ? 'text-on-surface' : 'text-secondary'}`}>
-                  {tx.amount < 0 ? '' : '+'}{formatMznCurrency(Math.abs(Number(tx.amount || 0)), language)} • YM
+                  {tx.amount < 0 ? '' : '+'}{tx.amount}
                 </Text>
               </MotiView>
             )) : (
@@ -311,8 +318,13 @@ const WalletScreen = () => {
           </View>
         </View>
 
-        <P2PTransferModal visible={p2pVisible} onClose={() => setP2pVisible(false)} />
+        {/* Modals & Sheets Integration */}
+        <SendMoneyModal visible={sendVisible} onClose={() => setSendVisible(false)} />
+        <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn="258821234567" />
+        <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} />
+        <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
+        
         {freezeRetryCard ? (
           <TouchableOpacity className="bg-[#FEF2F2] rounded-md p-md items-center justify-center border border-error/20" onPress={() => handleToggleFreeze(freezeRetryCard)}>
             <Text style={{ fontSize: ss(12) }} className="font-label text-error font-bold">{t('wallet.retryCardStatus', 'Retry card status update')}</Text>

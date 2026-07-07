@@ -436,6 +436,62 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Notifications'],
     }),
+    getEMolaWallet: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/emola/wallet', '/api/emola/wallet'],
+          api,
+          extraOptions,
+          'getEMolaWallet',
+        ),
+      providesTags: ['Wallet'],
+    }),
+    initiateTransfer: builder.mutation<any, { recipient_msisdn: string; amount: number }>({
+      queryFn: (body, api, extraOptions) =>
+        mutationWithFallback(
+          [
+            { url: '/api/v1/mobile/v1/emola/transfer', method: 'POST', body },
+            { url: '/api/emola/transfer', method: 'POST', body },
+          ],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Wallet', 'Home'],
+    }),
+    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string }>({
+      queryFn: (body, api, extraOptions) =>
+        mutationWithFallback(
+          [
+            { url: '/api/v1/mobile/v1/emola/airtime', method: 'POST', body },
+            { url: '/api/emola/airtime', method: 'POST', body },
+          ],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Wallet', 'Home'],
+    }),
+    payBill: builder.mutation<any, { biller_code: string; amount: number; reference: string }>({
+      queryFn: (body, api, extraOptions) =>
+        mutationWithFallback(
+          [
+            { url: '/api/v1/mobile/v1/emola/bill-pay', method: 'POST', body },
+            { url: '/api/emola/bill-pay', method: 'POST', body },
+          ],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Wallet', 'Home'],
+    }),
+    getCvmMarketplace: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/marketplace', '/api/marketplace'],
+          api,
+          extraOptions,
+          'getCvmMarketplace',
+        ),
+      providesTags: ['Shop', 'Campaigns'],
+    }),
   }),
 });
 
@@ -453,4 +509,9 @@ export const {
   useGetNotificationsQuery,
   useMarkNotificationsReadMutation,
   useMarkAllNotificationsReadMutation,
+  useGetEMolaWalletQuery,
+  useInitiateTransferMutation,
+  useBuyAirtimeMutation,
+  usePayBillMutation,
+  useGetCvmMarketplaceQuery,
 } = apiSlice;
