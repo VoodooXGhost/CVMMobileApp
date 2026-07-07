@@ -18,10 +18,23 @@ import { resolveLocalizedApiError } from '../services/apiErrors';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout } from '../theme/responsive';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-const LoginScreen = () => {
+type RootStackParamList = {
+  Login: undefined;
+  MsisdnLinking: {
+    googleSub: string;
+    googleEmail: string;
+    googleName: string;
+  };
+};
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useI18n();
-  const { signIn, storedMsisdn, clearMsisdn } = useAuth();
+  const { signIn, signInWithGoogle, storedMsisdn, clearMsisdn } = useAuth();
   const { ss, rs, height } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
   const layout = getResponsiveLayout(sizeClass);
@@ -68,6 +81,31 @@ const LoginScreen = () => {
           resolveLocalizedApiError(t, error, t('login.checkCredentials', 'Check your credentials and try again.')),
         );
       }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoggingIn(true);
+    try {
+      if (signInWithGoogle) {
+        const response = await signInWithGoogle();
+        if (response && response.linked === false) {
+          navigation.navigate('MsisdnLinking', {
+            googleSub: response.google_sub,
+            googleEmail: response.google_email,
+            googleName: response.google_name,
+          });
+        }
+      } else {
+        console.warn('signInWithGoogle is not implemented yet in useAuth');
+      }
+    } catch (error: any) {
+      Alert.alert(
+        t('login.signInFailed', 'Sign in failed'),
+        error?.message || t('login.checkCredentials', 'Failed to sign in with Google.')
+      );
     } finally {
       setIsLoggingIn(false);
     }

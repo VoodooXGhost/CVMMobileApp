@@ -13,7 +13,7 @@ const SECURE_KEYS = new Set(['userToken', 'refreshToken']);
 const FILE_STORE_NAME = 'tmcel-platform-storage.json';
 
 const getFileStorePath = () => {
-  const baseDirectory = FileSystem.documentDirectory;
+  const baseDirectory = (FileSystem as any).documentDirectory;
   if (!baseDirectory) return null;
   return `${baseDirectory}${FILE_STORE_NAME}`;
 };
@@ -37,7 +37,7 @@ const writeFileStore = async (nextStore: Record<string, string>) => {
   if (!path) return;
   try {
     await FileSystem.writeAsStringAsync(path, JSON.stringify(nextStore), {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: (FileSystem as any).EncodingType?.UTF8 || 'utf8',
     });
   } catch (_error) {
     // File-backed storage is best-effort for non-sensitive app state.

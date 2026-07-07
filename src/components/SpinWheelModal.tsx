@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, useWindowDimensions, Platform, Alert, ActivityIndicator } from 'react-native';
 import { X, Star } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing as ReanimatedEasing, cancelAnimation } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing as ReanimatedEasing, cancelAnimation, runOnJS } from 'react-native-reanimated';
 import { usePlayGameMutation } from '../services/apiSlice';
 import Svg, { Path, G, Text as SvgText, Circle } from 'react-native-svg';
 import { useI18n } from '../services/i18n';
@@ -83,8 +83,8 @@ const SpinWheelModal = ({ visible, onClose, game }: SpinWheelModalProps) => {
       }, (finished) => {
         if (finished) {
           // Wrap setting state back on JS thread
-          Animated.runOnJS(setResult)(response?.data ?? response);
-          Animated.runOnJS(setIsSpinning)(false);
+          runOnJS(setResult)(response?.data ?? response);
+          runOnJS(setIsSpinning)(false);
         }
       });
     } catch (error: any) {

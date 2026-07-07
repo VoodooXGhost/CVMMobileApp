@@ -13,7 +13,7 @@ import {
 
 import { store } from './src/store';
 import { AuthProvider, useAuth } from './src/services/auth.context';
-import LoginScreen from './src/screens/LoginScreen';
+import AuthNavigator from './src/navigation/AuthNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Colors } from './src/theme/tokens';
 import { validateRuntimeConfig } from './src/config/runtime';
@@ -56,7 +56,10 @@ const AppContent = () => {
   if (!token) {
     return (
       <View style={{ flex: 1 }}>
-        <LoginScreen />
+        <NavigationContainer>
+          <AuthNavigator />
+          <StatusBar style="dark" />
+        </NavigationContainer>
       </View>
     );
   }

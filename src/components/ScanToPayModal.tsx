@@ -33,7 +33,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
       return true;
     }
 
-    const platformConstants = Platform.constants as Record<string, string | undefined>;
+    const platformConstants = Platform.constants as any;
     const platformBits = [
       platformConstants.Brand,
       platformConstants.Manufacturer,

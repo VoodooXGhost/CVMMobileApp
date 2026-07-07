@@ -145,6 +145,10 @@ export const getStoredAuthTokens = async () => {
   };
 };
 
+export const getSessionProvenance = async () => {
+  return await platformStorage.getItemAsync(SESSION_PROVENANCE_KEY);
+};
+
 export const shouldRefreshStoredSession = async () => {
   const { accessToken, refreshToken } = await getStoredAuthTokens();
   return Boolean(refreshToken) && (!accessToken || isExpiringSoon(accessToken));
@@ -161,17 +165,20 @@ export const refreshAuthSession = async () => {
       { refreshToken, deviceId },
       { timeout: 10_000, headers: getZeroRateRequestHeaders() },
     );
-    const { accessToken, refreshToken: nextRefreshToken, userData } = mapAuthPayload(response.data);
-    if (!accessToken || typeof accessToken !== 'string') {
+    const refreshedData = response.data;
+    if (!refreshedData?.access_token && !refreshedData?.accessToken && !refreshedData?.token) {
       throw new Error('Refresh response did not include an access token.');
     }
+    const { refreshToken: nextRefreshToken, userData } = mapAuthPayload(refreshedData);
+    logger.log('Session refresh successful', { newAccessToken: !!refreshedData?.access_token });
+    const finalAccessToken = refreshedData.access_token || refreshedData.accessToken || refreshedData.token;
     await persistAuthSession({
-      accessToken,
+      accessToken: finalAccessToken,
       refreshToken: nextRefreshToken ?? refreshToken,
       userData,
       provenance: 'refresh',
     });
-    return { accessToken, refreshToken: nextRefreshToken ?? refreshToken, userData };
+    return { accessToken: finalAccessToken, refreshToken: nextRefreshToken ?? refreshToken, userData };
   } catch (error: any) {
     logger.warn('Refresh session failed', { status: error?.response?.status });
     return null;
@@ -186,7 +193,7 @@ const normalizeDeviceToken = async () => {
 const getExpoPushTokenIfAvailable = async () => {
   // BlueStacks and local debug builds do not have a real push provider attached.
   // Keep the registration path stable, but let production operators wire the real token source later.
-  logger.info('Push token lookup skipped in this build path');
+  logger.log('Push token lookup skipped in this build path');
   return null;
 };
 

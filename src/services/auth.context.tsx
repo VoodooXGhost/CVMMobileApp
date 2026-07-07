@@ -18,6 +18,7 @@ import {
   refreshAuthSession,
   subscribeAuthSessionInvalidation,
   shouldRefreshStoredSession,
+  getSessionProvenance,
 } from './session';
 
 interface AuthContextType {
@@ -26,6 +27,8 @@ interface AuthContextType {
   storedMsisdn: string | null;
   // signIn uses MSISDN + PIN — Option A mobile-first auth
   signIn: (msisdn: string, pin: string) => Promise<void>;
+  signInWithGoogle: () => Promise<any>;
+  linkGoogleAccount: (googleSub: string, msisdn: string, otp: string, email?: string, birthday?: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearMsisdn: () => Promise<void>;
   isLoading: boolean;
@@ -95,12 +98,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               refreshed.userData?.msisdn ?? refreshed.userData?.username ?? refreshed.userData?.email ?? null,
             );
           } else {
+            const provenance = await getSessionProvenance();
+            if (provenance === 'google') {
+              try {
+                const { googleSignInSilently } = require('./googleAuth');
+                const idToken = await googleSignInSilently();
+                const googleResponse = await axios.post(`${API_URL}/api/v1/mobile/auth/google`, { id_token: idToken }, {
+                  headers: { 'Content-Type': 'application/json' },
+                });
+                
+                if (googleResponse.data && googleResponse.data.linked !== false) {
+                  const { accessToken: newAccessToken, refreshToken: newRefreshToken, userData: newUserData } = mapSessionAuthPayload(googleResponse.data);
+                  if (newAccessToken) {
+                    await persistAuthSession({ accessToken: newAccessToken, refreshToken: newRefreshToken, userData: newUserData, provenance: 'google' });
+                    setToken(newAccessToken);
+                    setUser(newUserData ?? parsedUser);
+                    if (newUserData?.msisdn) {
+                      await persistStoredMsisdn(newUserData.msisdn);
+                      setStoredMsisdn(newUserData.msisdn);
+                    }
+                    await setAnalyticsIdentity(newUserData?.msisdn ?? newUserData?.username ?? newUserData?.email ?? null);
+                    return;
+                  }
+                }
+              } catch (e) {
+                logger.warn('Google silent sign in failed during loadToken', e);
+              }
+            }
             await clearAuthSession();
             setToken(null);
             setUser(null);
             await setAnalyticsIdentity(null);
           }
         } else {
+          const provenance = await getSessionProvenance();
+          if (provenance === 'google') {
+            try {
+              const { googleSignInSilently } = require('./googleAuth');
+              const idToken = await googleSignInSilently();
+              const googleResponse = await axios.post(`${API_URL}/api/v1/mobile/auth/google`, { id_token: idToken }, {
+                headers: { 'Content-Type': 'application/json' },
+              });
+              
+              if (googleResponse.data && googleResponse.data.linked !== false) {
+                const { accessToken: newAccessToken, refreshToken: newRefreshToken, userData: newUserData } = mapSessionAuthPayload(googleResponse.data);
+                if (newAccessToken) {
+                  await persistAuthSession({ accessToken: newAccessToken, refreshToken: newRefreshToken, userData: newUserData, provenance: 'google' });
+                  setToken(newAccessToken);
+                  setUser(newUserData ?? parsedUser);
+                  if (newUserData?.msisdn) {
+                    await persistStoredMsisdn(newUserData.msisdn);
+                    setStoredMsisdn(newUserData.msisdn);
+                  }
+                  await setAnalyticsIdentity(newUserData?.msisdn ?? newUserData?.username ?? newUserData?.email ?? null);
+                  return;
+                }
+              }
+            } catch (e) {
+              logger.warn('Google silent sign in failed during loadToken', e);
+            }
+          }
           await clearAuthSession();
           setToken(null);
           setUser(null);
@@ -117,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // If any shared API request invalidates the session, move the app back to the login shell.
-    return subscribeAuthSessionInvalidation(() => {
+    const unsubscribe = subscribeAuthSessionInvalidation(() => {
       try {
         setToken(null);
         setUser(null);
@@ -126,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logger.warn('Session invalidation handling failed', error);
       }
     });
+    return () => { unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -247,8 +305,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const { googleSignIn } = require('./googleAuth');
+      const idToken = await googleSignIn();
+      
+      const response = await axios.post(`${API_URL}/api/v1/mobile/auth/google`, { id_token: idToken }, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.data && response.data.linked === false) {
+        return response.data; // Needs linking
+      }
+
+      const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
+      if (accessToken) {
+        await persistAuthSession({ accessToken, refreshToken, userData, provenance: 'google' });
+        setToken(accessToken);
+        setUser(userData ?? null);
+        await setAnalyticsIdentity(userData?.msisdn ?? userData?.username ?? userData?.email);
+        return { success: true };
+      }
+    } catch (error) {
+      logger.error('Google Sign-In backend verification failed', error);
+      throw error;
+    }
+  };
+
+  const linkGoogleAccount = async (googleSub: string, msisdn: string, otp: string, email?: string, birthday?: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/v1/mobile/auth/google/link`, {
+        google_sub: googleSub,
+        msisdn,
+        otp,
+        email,
+        birthday,
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const { accessToken, refreshToken, userData } = mapSessionAuthPayload(response.data);
+      if (accessToken) {
+        await persistAuthSession({ accessToken, refreshToken, userData, provenance: 'google' });
+        await persistStoredMsisdn(msisdn);
+        setStoredMsisdn(msisdn);
+        
+        setToken(accessToken);
+        setUser(userData ?? null);
+        await setAnalyticsIdentity(userData?.msisdn ?? userData?.username ?? userData?.email ?? msisdn);
+      }
+    } catch (error) {
+      logger.error('Failed to link Google account', error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
+      const { googleSignOut } = require('./googleAuth');
+      await googleSignOut();
       await revokeRemoteSession();
     } catch (_error) {
       // Remote revoke is best-effort; local session clear still proceeds.
@@ -269,7 +384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, storedMsisdn, signIn, signOut, clearMsisdn, isLoading }}>
+    <AuthContext.Provider value={{ token, user, storedMsisdn, signIn, signInWithGoogle, linkGoogleAccount, signOut, clearMsisdn, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
