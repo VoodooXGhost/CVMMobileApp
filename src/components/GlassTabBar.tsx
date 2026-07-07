@@ -36,8 +36,8 @@ const TabItem = ({
     };
   });
 
-  const btnSize = isCompact ? rs(34) : rs(42);
-  const fontSize = ss(9);
+  const btnSize = isCompact ? 36 : 44;
+  const fontSize = isCompact ? 9 : 11;
 
   return (
     <TouchableOpacity
@@ -57,8 +57,8 @@ const TabItem = ({
         {renderIcon(isFocused ? '#1c1600' : 'rgba(26, 28, 28, 0.6)')}
       </Animated.View>
       <Text
-        style={{ fontSize }}
-        className={`font-label uppercase mt-0.5 ${
+        style={{ fontSize, marginTop: 2 }}
+        className={`font-label uppercase ${
           isFocused ? 'text-on-surface font-semibold' : 'text-on-surface-variant'
         }`}
         numberOfLines={1}
@@ -71,12 +71,11 @@ const TabItem = ({
 
 const GlassTabBar = ({ state, descriptors, navigation }: any) => {
   const { t } = useI18n();
-  const { rs } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
   const layout = getResponsiveLayout(sizeClass);
 
   const containerWidth = sizeClass === 'compact' ? '94%' : '88%';
-  const bottomDistance = sizeClass === 'compact' ? rs(16) : rs(24);
+  const bottomDistance = sizeClass === 'compact' ? 12 : 20;
 
   return (
     <View
@@ -110,7 +109,7 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
 
           const renderIcon = (color: string) => {
             const isCompact = sizeClass === 'compact';
-            const iconSize = isCompact ? rs(16) : rs(20);
+            const iconSize = isCompact ? 18 : 22;
             if (index === 0) return <Home size={iconSize} color={color} />;
             if (index === 1) return <Wallet size={iconSize} color={color} />;
             if (index === 2) return <Store size={iconSize} color={color} />;
