@@ -18,11 +18,13 @@ const TabItem = ({
   label: string;
   onPress: () => void;
 }) => {
-  const scale = useSharedValue(isFocused ? 1.12 : 1.0);
+  const scale = useSharedValue(isFocused ? 1.08 : 1.0);
   const { rs, ss } = useResponsiveScale();
+  const { sizeClass } = useWindowSizeClass();
+  const isCompact = sizeClass === 'compact';
 
   React.useEffect(() => {
-    scale.value = withSpring(isFocused ? 1.12 : 1.0, {
+    scale.value = withSpring(isFocused ? 1.08 : 1.0, {
       damping: 15,
       stiffness: 150,
     });
@@ -34,8 +36,8 @@ const TabItem = ({
     };
   });
 
-  const btnSize = rs(44);
-  const fontSize = ss(10);
+  const btnSize = isCompact ? rs(34) : rs(42);
+  const fontSize = ss(9);
 
   return (
     <TouchableOpacity
@@ -49,14 +51,14 @@ const TabItem = ({
           { width: btnSize, height: btnSize }
         ]}
         className={`rounded-full items-center justify-center ${
-          isFocused ? 'bg-cta-primary-bg shadow-md' : 'bg-transparent'
+          isFocused ? 'bg-cta-primary-bg shadow-sm' : 'bg-transparent'
         }`}
       >
         {renderIcon(isFocused ? '#1c1600' : 'rgba(26, 28, 28, 0.6)')}
       </Animated.View>
       <Text
         style={{ fontSize }}
-        className={`font-label uppercase mt-1 ${
+        className={`font-label uppercase mt-0.5 ${
           isFocused ? 'text-on-surface font-semibold' : 'text-on-surface-variant'
         }`}
         numberOfLines={1}
@@ -107,7 +109,8 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
           };
 
           const renderIcon = (color: string) => {
-            const iconSize = rs(20);
+            const isCompact = sizeClass === 'compact';
+            const iconSize = isCompact ? rs(16) : rs(20);
             if (index === 0) return <Home size={iconSize} color={color} />;
             if (index === 1) return <Wallet size={iconSize} color={color} />;
             if (index === 2) return <Store size={iconSize} color={color} />;

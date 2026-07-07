@@ -60,7 +60,7 @@ export const getResponsiveLayout = (sizeClass: SizeClass) => {
     buttonHeight: isCompact ? 48 : 60, // 48dp satisfies Android's touch target guidelines (min 48dp)
     inputHeight: isCompact ? 48 : 60,
     headerHeight: isCompact ? 56 : 72,
-    tabBarHeight: isCompact ? 60 : 68,
+    tabBarHeight: isCompact ? 64 : 76,
     logoWidth: isCompact ? 120 : 160,
     logoHeight: isCompact ? 54 : 72,
   };
