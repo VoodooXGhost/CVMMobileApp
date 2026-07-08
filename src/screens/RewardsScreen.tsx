@@ -17,10 +17,17 @@ import {
   Star,
   Zap,
   Gift,
-  Award
+  UserCheck,
+  Video,
+  Link,
+  Users,
+  Sparkles
 } from 'lucide-react-native';
 import { useGetHomeDataQuery, useGetOffersDataQuery, useGetGamesDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
+import LoyaltyTierCard from '../components/LoyaltyTierCard';
+import QuestRow from '../components/QuestRow';
+import RewardCatalogCard from '../components/RewardCatalogCard';
 import { shouldTrackImpression, track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
@@ -42,23 +49,19 @@ const RewardsScreen = () => {
   const [spinVisible, setSpinVisible] = useState(false);
   const { authenticate } = useBiometricAuth();
   const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const { ss, rs, width } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
   const layout = getResponsiveLayout(sizeClass);
   const spacing = getResponsiveSpacing(sizeClass);
 
-  const homeData = homeResponse?.data || {};
+  const homeData = homeResponse?.data || homeResponse || {};
   const { gamification, loyalty } = homeData;
-  const offersData = offersResponse?.data || {};
+  const offersData = offersResponse?.data || offersResponse || {};
   const { offers } = offersData;
   const safeOffers = Array.isArray(offers) ? offers : [];
-  const gamesData = gamesResponse?.data || {};
-  const safeGames = Array.isArray(gamesData?.active_games)
-    ? gamesData.active_games
-    : Array.isArray(gamesData?.games)
-      ? gamesData.games
-      : [];
+  const gamesData = gamesResponse?.data || gamesResponse || {};
   const primaryGame = getPrimaryGame(gamesData);
 
   useEffect(() => {
@@ -98,9 +101,10 @@ const RewardsScreen = () => {
       return;
     }
 
-    const prompt = t('rewards.redeemPrompt', 'Redeem {title} for {amount} and use YM?')
+    const prompt = t('rewards.redeemPrompt', 'Redeem {title} for {amount} YM?')
       .replace('{title}', String(offer.title))
-      .replace('{amount}', formatMznCurrency(offer.price, language));
+      .replace('{amount}', offer.price.toLocaleString());
+    
     Alert.alert(
       t('rewards.confirmRedemption', 'Confirm Redemption'),
       prompt,
@@ -168,23 +172,30 @@ const RewardsScreen = () => {
     );
   };
 
+  // Extract unique categories from offers
+  const offerCategories = ['All', ...Array.from(new Set(safeOffers.map((o: any) => o.category).filter(Boolean)))];
+  
+  // Filter offers based on activeCategory
+  const filteredOffers = activeCategory === 'All' 
+    ? safeOffers 
+    : safeOffers.filter((o: any) => o.category === activeCategory);
+
+  const canSpinToday = gamification?.can_spin_today !== false;
+
   return (
     <SafeAreaView className="flex-1 bg-surface">
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }} showsVerticalScrollIndicator={false}>
         <View className="mb-sm">
           <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
+
+        {/* 1. Header & Loyalty Tier Card */}
         <View className="flex-row justify-between items-center mb-md">
           <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('rewards.title', 'Rewards Hub')}</Text>
-          <View style={{ minHeight: rs(32) }} className="flex-row items-center bg-primary-container px-3 rounded-full justify-center">
-            <Star size={rs(14)} color="#1c1600" fill="#1c1600" />
-            <Text style={{ fontSize: ss(12) }} className="font-label text-on-primary-fixed ml-1 font-black">
-              {resolveYmBalance(loyalty).toLocaleString()} YM
-            </Text>
-          </View>
         </View>
+        <LoyaltyTierCard loyalty={loyalty} />
 
-        {/* Premium Streak Tracker */}
+        {/* 2. Premium Streak Tracker */}
         <MotiView
           from={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -193,13 +204,15 @@ const RewardsScreen = () => {
         >
           <View className="flex-row justify-between items-center mb-4">
             <View className="flex-row items-center">
-              <Flame size={rs(22)} color="#2260a2" fill="#2260a2" />
+              <Flame size={rs(20)} color="#ea580c" fill="#ea580c" />
               <View className="ml-3">
-                <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
-                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
+                <Text style={{ fontSize: ss(16) }} className="font-title font-bold text-on-surface">{gamification?.current_streak || 0} {t('rewards.dayStreak', 'Day Streak')}</Text>
+                <Text style={{ fontSize: ss(11) }} className="font-label text-on-surface-variant opacity-60">{t('rewards.multiplier', 'YelloMola multiplier: 1.2x')}</Text>
               </View>
             </View>
-            <Award size={rs(22)} color="#111316" />
+            <View className="bg-amber-500/10 px-3 py-1 rounded-full">
+              <Text style={{ fontSize: ss(10) }} className="font-label text-amber-600 font-bold uppercase tracking-wider">Active</Text>
+            </View>
           </View>
           
           <View className="flex-row justify-between items-center px-1">
@@ -207,17 +220,17 @@ const RewardsScreen = () => {
               const active = day <= (gamification?.current_streak || 0);
               const isToday = day === (gamification?.current_streak || 0);
               return (
-                <View key={day} className="items-center gap-2">
+                <View key={day} className="items-center gap-1.5">
                   <View 
                     style={[
-                      { width: rs(36), height: rs(36) },
+                      { width: rs(34), height: rs(34) },
                       active ? { backgroundColor: '#ffcc00' } : null,
-                      isToday ? { borderWidth: 2, borderColor: '#2260a2' } : null
+                      isToday ? { borderWidth: 2, borderColor: '#ea580c' } : null
                     ]}
                     className="rounded-full bg-surface-container-high justify-center items-center"
                   >
-                    <Text style={{ fontSize: ss(12) }} className={`font-label text-on-surface ${
-                      active ? 'text-on-primary-fixed font-black' : 'opacity-50'
+                    <Text style={{ fontSize: ss(11) }} className={`font-label text-on-surface ${
+                      active ? 'text-[#1c1600] font-black' : 'opacity-50'
                     }`}>{day}</Text>
                   </View>
                   <Text style={{ fontSize: ss(10) }} className={`font-caption text-on-surface-variant font-bold ${active ? 'text-primary' : ''}`}>D{day}</Text>
@@ -225,85 +238,140 @@ const RewardsScreen = () => {
               );
             })}
           </View>
-          <View className="flex-row items-center mt-5 pt-4 border-t border-outline-variant gap-2">
-            <Zap size={rs(14)} color="#2260a2" fill="#2260a2" />
+          <View className="flex-row items-center mt-4 pt-3 border-t border-outline-variant gap-2">
+            <Zap size={rs(12)} color="#ea580c" fill="#ea580c" />
             <Text style={{ fontSize: ss(10) }} className="font-caption font-semibold text-on-surface-variant">
                Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
             </Text>
           </View>
         </MotiView>
 
-        <View className="mb-lg">
-          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('rewards.activeGames', 'Active Games')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.md }} className="-mx-md">
-            {(safeGames.length > 0 ? safeGames : [primaryGame]).map((game: any) => (
-              <TouchableOpacity
-                key={String(game.id)}
-                style={{ width: rs(140) }}
-                className="mr-3 p-4 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm active:scale-95"
-                onPress={() => {
-                  setSelectedGame(game);
-                  setSpinVisible(true);
-                }}
-              >
-                <Text style={{ fontSize: ss(13) }} className="font-title font-bold text-on-surface" numberOfLines={1}>
-                  {game.title}
-                </Text>
-                <Text style={{ fontSize: ss(11) }} className="font-label text-on-surface-variant opacity-60 mt-1.5" numberOfLines={2}>
-                  {game.description || game.subtitle || game.type}
-                </Text>
-                <Text style={{ fontSize: ss(11) }} className="font-label mt-2.5 text-primary font-bold uppercase">
-                  {game.type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Spin-the-Wheel Hero Section */}
+        {/* 3. Spin-the-Wheel Hero Section */}
         <MotiView
           from={{ opacity: 0, translateY: 15 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 15, delay: 100 }}
+          className="mb-lg"
         >
-          <TouchableOpacity style={{ height: width * 0.46 }} className="bg-primary-container rounded-xl flex-row overflow-hidden mb-lg shadow-md relative active:opacity-95" onPress={() => setSpinVisible(true)}>
+          <TouchableOpacity 
+            style={{ height: width * 0.44 }} 
+            className="bg-primary-container rounded-2xl flex-row overflow-hidden shadow-md relative active:opacity-95" 
+            onPress={() => setSpinVisible(true)}
+          >
             <View className="flex-1 p-5 justify-center z-10">
-              <Text style={{ fontSize: ss(22) }} className="font-headline font-black text-on-primary-fixed">{t('rewards.spinTitle', 'Daily Spin')}</Text>
-              <Text style={{ fontSize: ss(14) }} className="font-body text-on-primary-fixed opacity-80 mt-1">
-                {t('rewards.spinSubtitle', 'Win up to 500 YelloMola!')}
+              <View className="flex-row items-center gap-2 mb-1">
+                <Sparkles size={rs(16)} color="#1c1600" />
+                <Text style={{ fontSize: ss(11) }} className="font-label text-[#1c1600] uppercase tracking-wider font-black">
+                  Daily Challenge
+                </Text>
+              </View>
+              <Text style={{ fontSize: ss(22) }} className="font-headline font-black text-[#1c1600]">{t('rewards.spinTitle', 'Daily Spin Wheel')}</Text>
+              <Text style={{ fontSize: ss(13) }} className="font-body text-[#1c1600] opacity-80 mt-0.5">
+                {canSpinToday 
+                  ? t('rewards.spinSubtitle', 'Spend 50 YM for a guaranteed prize!') 
+                  : t('rewards.spinLocked', 'You already spun today. Return tomorrow!')}
               </Text>
-              <View style={{ minHeight: rs(36) }} className="bg-surface px-6 rounded-full mt-4 align-self-start justify-center shadow-sm">
-                <Text style={{ fontSize: ss(11) }} className="font-title text-[#111316] font-black uppercase">{t('rewards.spinNow', 'SPIN NOW')}</Text>
+              
+              <View style={{ minHeight: rs(34) }} className="bg-[#1c1600] px-5 rounded-lg mt-4 align-self-start justify-center shadow-sm">
+                <Text style={{ fontSize: ss(10) }} className="font-title text-white font-black uppercase tracking-widest">
+                  {canSpinToday ? t('rewards.spinNow', 'SPIN NOW') : 'LOCKED'}
+                </Text>
               </View>
             </View>
-            <View className="absolute -right-5 top-5 opacity-30">
-               <Star size={rs(80)} color="#ffcc00" fill="#ffcc00" />
+            
+            {/* Background design elements */}
+            <View className="absolute -right-10 -bottom-10 opacity-15 rotate-12">
+               <Star size={rs(140)} color="#1c1600" fill="#1c1600" />
             </View>
           </TouchableOpacity>
         </MotiView>
 
-        {/* Redemption Catalog Section */}
+        {/* 4. Gamified Quests */}
+        <View className="mb-lg">
+           <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('rewards.dailyQuests', 'Daily Challenges & Quests')}</Text>
+           
+           <QuestRow 
+             title={t('rewards.referFriend', 'Refer a Friend')}
+             description={t('rewards.earnPerReferral', 'Earn 500 YM for every successful registration')}
+             rewardText="500 YM"
+             progress={1}
+             target={3}
+             onPress={handleReferral}
+             icon={<Users size={rs(20)} color="#1c1600" />}
+           />
+
+           <QuestRow 
+             title={t('rewards.completeProfile', 'Complete Your Profile')}
+             description={t('rewards.completeProfileDesc', 'Fill in your name, email and details to qualify')}
+             rewardText="150 YM"
+             progress={1}
+             target={1}
+             icon={<UserCheck size={rs(20)} color="#1c1600" />}
+           />
+
+           <QuestRow 
+             title={t('rewards.watchVideo', 'Watch Partner Promo')}
+             description={t('rewards.watchVideoDesc', 'Watch a 15-second partner video booster')}
+             rewardText="100 YM"
+             progress={0}
+             target={1}
+             onPress={() => Alert.alert(t('common.info', 'Info'), t('quests.videoUnavailable', 'Partner video streams are currently updating. Please check back later.'))}
+             icon={<Video size={rs(20)} color="#1c1600" />}
+           />
+
+           <QuestRow 
+             title={t('rewards.linkAccount', 'Link mKesh Account')}
+             description={t('rewards.linkAccountDesc', 'Connect your mobile wallet for instant CVM benefits')}
+             rewardText="250 YM"
+             progress={0}
+             target={1}
+             onPress={() => Alert.alert(t('common.info', 'Info'), t('quests.mkeshLinkInProgress', 'Redirecting to secure wallet linkage portal...'))}
+             icon={<Link size={rs(20)} color="#1c1600" />}
+           />
+        </View>
+
+        {/* 5. Redemption Catalog Section */}
         <View className="mb-lg">
           <View className="flex-row justify-between items-center mb-md">
             <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{t('rewards.featured', 'Featured Rewards')}</Text>
-            <TouchableOpacity className="flex-row items-center active:opacity-80">
-               <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold uppercase">{t('rewards.viewAll', 'VIEW ALL')}</Text>
-               <ChevronRight size={rs(16)} color="#111316" />
-            </TouchableOpacity>
           </View>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.md }} className="-mx-md">
-            {safeOffers.map((offer: any, idx: number) => (
-              <MotiView
-                key={offer.id}
-                from={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', damping: 15, delay: idx * 60 }}
-                style={{ width: rs(120) }}
-                className="mr-4 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant shadow-sm"
+
+          {/* Filter Pills Category Row */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-md">
+            {offerCategories.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setActiveCategory(cat)}
+                className={`px-4 py-1.5 rounded-full mr-2 border ${
+                  activeCategory === cat 
+                    ? 'bg-[#1c1600] border-[#1c1600]' 
+                    : 'bg-surface-container-low border-outline-variant'
+                }`}
               >
-                <TouchableOpacity 
-                  onPress={() => {
+                <Text 
+                  style={{ fontSize: ss(11) }} 
+                  className={`font-label font-bold uppercase tracking-wider ${
+                    activeCategory === cat ? 'text-white' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          
+          {/* Catalog list */}
+          <View>
+            {filteredOffers.length > 0 ? (
+              filteredOffers.map((offer: any) => (
+                <RewardCatalogCard
+                  key={offer.id}
+                  title={offer.title}
+                  price={offer.price}
+                  category={offer.category}
+                  imageUrl={offer.image_url}
+                  disabled={isRedeeming}
+                  onRedeem={() => {
                     track(
                       'offer_click',
                       { item_id: offer.id, placement: 'rewards_featured' },
@@ -311,59 +379,24 @@ const RewardsScreen = () => {
                     );
                     handleRedeem(offer);
                   }}
-                  disabled={isRedeeming}
-                  className="active:opacity-95"
-                >
-                  <View style={{ width: rs(120), height: rs(80) }} className="bg-surface-container-high relative">
-                     <Image 
-                       source={{ uri: offer.image_url || 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa' }} 
-                       className="absolute inset-0 w-full h-full"
-                       resizeMode="cover"
-                     />
-                  </View>
-                  <View className="p-3">
-                    <Text style={{ fontSize: ss(12) }} className="font-title font-bold text-on-surface" numberOfLines={1}>
-                      {offer.title}
-                    </Text>
-                    <View className="flex-row items-center mt-1.5">
-                      <Star size={rs(10)} color="#2260a2" fill="#2260a2" />
-                      <Text style={{ fontSize: ss(11) }} className="font-label font-black text-secondary ml-1">
-                         {formatMznCurrency(offer.price, language)}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </MotiView>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Gamified Quests */}
-        <View className="mb-lg">
-           <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('rewards.dailyQuests', 'Daily Quests')}</Text>
-           <MotiView
-             from={{ opacity: 0, translateY: 10 }}
-             animate={{ opacity: 1, translateY: 0 }}
-             transition={{ type: 'spring', damping: 15 }}
-             className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm"
-           >
-             <TouchableOpacity className="flex-row items-center p-4 active:opacity-95" onPress={handleReferral}>
-                <View style={{ width: rs(36), height: rs(36) }} className="rounded-xl bg-secondary/10 justify-center items-center">
-                  <Gift size={rs(20)} color="#2260a2" />
-                </View>
-                <View className="flex-1 ml-3">
-                   <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">{t('rewards.referFriend', 'Refer a Friend')}</Text>
-                   <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">{t('rewards.earnPerReferral', 'Earn 500 YM per referral')}</Text>
-                </View>
-                <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.4)" />
-             </TouchableOpacity>
-           </MotiView>
+                />
+              ))
+            ) : (
+              <View className="bg-surface-container-lowest p-xl rounded-xl border border-outline-variant items-center justify-center">
+                <Gift size={rs(32)} color="rgba(26, 28, 28, 0.4)" />
+                <Text style={{ fontSize: ss(13) }} className="font-body text-on-surface-variant opacity-60 mt-2 text-center">
+                  No rewards available in this category.
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <SpinWheelModal 
           visible={spinVisible} 
           onClose={() => setSpinVisible(false)} 
           game={selectedGame || primaryGame}
+          canSpinToday={canSpinToday}
         />
       </ScrollView>
     </SafeAreaView>

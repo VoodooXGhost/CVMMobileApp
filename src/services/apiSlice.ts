@@ -90,10 +90,19 @@ const normalizeHomeData = (raw: any) => {
     ...loyaltySource,
   };
 
-  const normalizedGamification = source.gamification ?? {
-    current_streak: 0,
-    milestone_target: 7,
-  };
+  const normalizedGamification = source.gamification
+    ? {
+        current_streak: Number(source.gamification.current_streak ?? 0),
+        milestone_target: Number(source.gamification.milestone_target ?? 7),
+        can_spin_today: source.gamification.can_spin_today !== false,
+        last_spin_date: source.gamification.last_spin_date ?? null,
+      }
+    : {
+        current_streak: 0,
+        milestone_target: 7,
+        can_spin_today: true,
+        last_spin_date: null,
+      };
 
   return {
     profile: normalizedProfile,
