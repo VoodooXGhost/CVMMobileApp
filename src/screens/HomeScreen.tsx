@@ -622,16 +622,6 @@ const HomeScreen = () => {
           </ScrollView>
         </View>
 
-        {/* Quick Actions */}
-        <View className="mb-lg">
-          <Text style={{ fontSize: ss(18) }} className="font-title mb-md font-semibold">{t('home.quickActions', 'Quick Actions')}</Text>
-          <View className="flex-row justify-between">
-            <ActionIcon sizeClass={sizeClass} Icon={Zap} label="Data" color="#E0F2FE" iconColor="#0284C7" onPress={() => navigation.navigate('Marketplace')} />
-            <ActionIcon sizeClass={sizeClass} Icon={Smartphone} label="Airtime" color="#F0FDF4" iconColor="#16A34A" onPress={() => navigation.navigate('Marketplace')} />
-            <ActionIcon sizeClass={sizeClass} Icon={Gamepad2} label="Games" color="#FAF5FF" iconColor="#9333EA" onPress={() => navigation.navigate('Rewards')} />
-            <ActionIcon sizeClass={sizeClass} Icon={Star} label="Rewards" color="#FEF2F2" iconColor="#DC2626" onPress={() => navigation.navigate('Rewards')} />
-          </View>
-        </View>
 
         {/* Campaign Feed */}
         <View className="mb-lg">
