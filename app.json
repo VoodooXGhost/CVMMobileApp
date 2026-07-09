@@ -16,13 +16,13 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "za.co.tmcel.superapp",
+      "package": "mz.tmcel.superapp",
       "adaptiveIcon": {
         "foregroundImage": "./TmcelLauncherIcon.png",
         "backgroundColor": "#00843D"
       },
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
