@@ -2,6 +2,7 @@
   "expo": {
     "name": "Tmcel",
     "slug": "tmcel",
+    "scheme": "tmcel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./TmcelLauncherIcon.png",

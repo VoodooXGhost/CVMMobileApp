@@ -6,19 +6,22 @@ import { usePayBillMutation } from '../services/apiSlice';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
+import PaymentProviderSelector from './PaymentProviderSelector';
 
 interface BillPayModalProps {
   visible: boolean;
   onClose: () => void;
+  eMolaBalance?: number;
 }
 
-export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
+export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPayModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [billerCode, setBillerCode] = useState('EDM'); // Default to EDM (Electricity)
   const [reference, setReference] = useState('');
   const [amount, setAmount] = useState('');
   const [showBillerList, setShowBillerList] = useState(false);
+  const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [payBill, { isLoading }] = usePayBillMutation();
 
   const billers = [
@@ -50,6 +53,7 @@ export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
         biller_code: billerCode,
         amount: numAmount,
         reference: reference.trim(),
+        payment_provider: paymentProvider,
       }).unwrap();
 
       Alert.alert(
@@ -61,6 +65,7 @@ export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
         [{ text: 'OK', onPress: () => {
           setReference('');
           setAmount('');
+          setPaymentProvider('emola');
           onClose();
         }}]
       );
@@ -78,7 +83,7 @@ export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
         <View style={{ backgroundColor: Colors.surface, borderTopLeftRadius: ss(24), borderTopRightRadius: ss(24), padding: ss(24), maxHeight: '85%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: ss(24) }}>
             <Text style={{ fontSize: ss(20), fontWeight: '700', color: Colors.primary }}>
-              {t('wallet.payBills', 'Pay Bills (eMola)')}
+              {t('wallet.payBills', 'Pay Bills')}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={Colors.primary} />
@@ -142,6 +147,13 @@ export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
               )}
             </View>
 
+            {/* Payment Method Selector */}
+            <PaymentProviderSelector
+              selected={paymentProvider}
+              onChange={setPaymentProvider}
+              eMolaBalance={eMolaBalance}
+            />
+
             {/* Reference Number */}
             <View>
               <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
@@ -169,7 +181,7 @@ export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
             </View>
 
             <AppButton
-              label={isLoading ? 'Processing...' : t('wallet.payNowBtn', 'Pay Bill')}
+              label={isLoading ? 'Processing...' : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')}
               onPress={handlePay}
               disabled={isLoading}
             />

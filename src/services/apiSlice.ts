@@ -177,6 +177,29 @@ const normalizeOffersData = (raw: any) => {
   return { offers, categories };
 };
 
+const normalizeCvmMarketplace = (raw: any) => {
+  const source = raw?.data ?? raw ?? {};
+  const rawList = source.offers ?? source.trending ?? (Array.isArray(source) ? source : []);
+  const offers = toArray(rawList).map((offer: any, index: number) => ({
+    id: offer?.id ?? index + 1,
+    title: offer?.title ?? offer?.name ?? 'Offer',
+    price: normalizeCurrencyAmount(offer?.price),
+    category: offer?.category ?? 'General',
+    image_url: offer?.image_url,
+  }));
+
+  const categories = source.categories ?? Array.from(
+    new Set(offers.map((offer: any) => offer.category).filter(Boolean)),
+  );
+
+  return {
+    banners: toArray(source.banners ?? source.hero_banners),
+    campaigns: toArray(source.campaigns),
+    offers,
+    categories,
+  };
+};
+
 const normalizeUsageData = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   return {
@@ -213,9 +236,12 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
     case 'getHomeData':
       return normalizeHomeData(raw);
     case 'getWalletData':
+    case 'getEMolaWallet':
       return normalizeWalletData(raw);
     case 'getOffersData':
       return normalizeOffersData(raw);
+    case 'getCvmMarketplace':
+      return normalizeCvmMarketplace(raw);
     case 'getUsageData':
       return normalizeUsageData(raw);
     case 'getNotifications':
@@ -448,7 +474,7 @@ export const apiSlice = createApi({
     getEMolaWallet: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
-          ['/api/v1/mobile/v1/emola/wallet', '/api/emola/wallet'],
+          ['/api/v1/mobile/v1/emola/wallet', '/api/v1/mobile/v1/wallet', '/api/emola/wallet', '/api/wallet'],
           api,
           extraOptions,
           'getEMolaWallet',
@@ -467,10 +493,11 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
-    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string }>({
+    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
           [
+            { url: '/api/v1/mobile/v1/payment/airtime', method: 'POST', body },
             { url: '/api/v1/mobile/v1/emola/airtime', method: 'POST', body },
             { url: '/api/emola/airtime', method: 'POST', body },
           ],
@@ -479,10 +506,11 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
-    payBill: builder.mutation<any, { biller_code: string; amount: number; reference: string }>({
+    payBill: builder.mutation<any, { biller_code: string; amount: number; reference: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
           [
+            { url: '/api/v1/mobile/v1/payment/bill-pay', method: 'POST', body },
             { url: '/api/v1/mobile/v1/emola/bill-pay', method: 'POST', body },
             { url: '/api/emola/bill-pay', method: 'POST', body },
           ],
@@ -494,7 +522,7 @@ export const apiSlice = createApi({
     getCvmMarketplace: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
-          ['/api/v1/mobile/v1/marketplace', '/api/marketplace'],
+          ['/api/v1/mobile/v1/marketplace', '/api/v1/mobile/v1/offers', '/api/marketplace', '/api/shop'],
           api,
           extraOptions,
           'getCvmMarketplace',

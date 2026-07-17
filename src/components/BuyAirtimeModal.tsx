@@ -6,19 +6,22 @@ import { useBuyAirtimeMutation } from '../services/apiSlice';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
+import PaymentProviderSelector from './PaymentProviderSelector';
 
 interface BuyAirtimeModalProps {
   visible: boolean;
   onClose: () => void;
+  eMolaBalance?: number;
 }
 
-export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalProps) {
+export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyAirtimeModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [recipientOption, setRecipientOption] = useState<'self' | 'other'>('self');
   const [recipientMsisdn, setRecipientMsisdn] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [buyAirtime, { isLoading }] = useBuyAirtimeMutation();
 
   const presets = [20, 50, 100, 200, 500];
@@ -48,6 +51,7 @@ export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalPro
       const response = await buyAirtime({
         amount: numAmount,
         recipient_msisdn: recipientOption === 'other' ? recipientMsisdn.trim() : undefined,
+        payment_provider: paymentProvider,
       }).unwrap();
 
       Alert.alert(
@@ -59,6 +63,7 @@ export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalPro
           setAmount('');
           setRecipientMsisdn('');
           setSelectedPreset(null);
+          setPaymentProvider('emola');
           onClose();
         }}]
       );
@@ -76,7 +81,7 @@ export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalPro
         <View style={{ backgroundColor: Colors.surface, borderTopLeftRadius: ss(24), borderTopRightRadius: ss(24), padding: ss(24), maxHeight: '80%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: ss(24) }}>
             <Text style={{ fontSize: ss(20), fontWeight: '700', color: Colors.primary }}>
-              {t('wallet.buyAirtime', 'Buy Airtime (eMola)')}
+              {t('wallet.buyAirtime', 'Buy Airtime')}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={Colors.primary} />
@@ -117,6 +122,13 @@ export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalPro
                 />
               </View>
             )}
+
+            {/* Payment Method Selector */}
+            <PaymentProviderSelector
+              selected={paymentProvider}
+              onChange={setPaymentProvider}
+              eMolaBalance={eMolaBalance}
+            />
 
             {/* Presets Grid */}
             <View>
@@ -159,7 +171,7 @@ export default function BuyAirtimeModal({ visible, onClose }: BuyAirtimeModalPro
             </View>
 
             <AppButton
-              label={isLoading ? 'Processing...' : t('wallet.confirmPurchase', 'Buy Airtime')}
+              label={isLoading ? 'Processing...' : t('wallet.buyVia', 'Buy via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')}
               onPress={handlePurchase}
               disabled={isLoading}
             />

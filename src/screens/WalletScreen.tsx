@@ -321,8 +321,8 @@ const WalletScreen = () => {
         {/* Modals & Sheets Integration */}
         <SendMoneyModal visible={sendVisible} onClose={() => setSendVisible(false)} />
         <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn="258821234567" />
-        <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} />
-        <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} />
+        <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} eMolaBalance={balance} />
+        <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
         
         {freezeRetryCard ? (
