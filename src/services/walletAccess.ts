@@ -3,21 +3,13 @@ import { Platform } from 'react-native';
 import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
+import { getDeviceIdentifier, registerMobileDevice } from './session';
 
 const WALLET_TOKEN_KEY = 'wallet_token';
 const WALLET_TOKEN_EXPIRES_AT_KEY = 'wallet_token_expires_at';
-const DEVICE_ID_KEY = 'analytics_device_id';
 
 const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
 const buildUrl = (path: string) => `${trimTrailingSlashes(runtimeConfig.apiUrl)}${path.startsWith('/') ? path : `/${path}`}`;
-
-const getDeviceIdentifier = async () => {
-  const existing = await platformStorage.getItemAsync(DEVICE_ID_KEY);
-  if (existing) return existing;
-  const generated = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  await platformStorage.setItemAsync(DEVICE_ID_KEY, generated);
-  return generated;
-};
 
 const getStoredExpiry = async () => {
   const raw = await platformStorage.getItemAsync(WALLET_TOKEN_EXPIRES_AT_KEY);
@@ -94,9 +86,45 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
       await storeWalletToken(walletToken, Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 300);
       return walletToken;
     } catch (error: any) {
+      console.warn('[walletAccess] Verification attempt failed:', attempts[index], 'Status:', error?.response?.status, 'Message:', error?.message, 'Data:', JSON.stringify(error?.response?.data));
       lastError = error;
       const statusCode = error?.response?.status;
       const canFallback = statusCode === 404 || statusCode === 405;
+      const shouldRetryAfterDeviceRegistration =
+        statusCode === 403 && runtimeConfig.profile === 'validation' && index === attempts.length - 1;
+      if (shouldRetryAfterDeviceRegistration) {
+        try {
+          logger.log('Retrying wallet access after validation device registration fallback');
+          await registerMobileDevice();
+          const retryResponse = await axios.post(
+            attempts[index],
+            {
+              biometricAssertion,
+              deviceId,
+              platform: Platform.OS,
+            },
+            {
+              timeout: 10_000,
+              headers: {
+                ...getZeroRateRequestHeaders(),
+                Authorization: `Bearer ${accessToken}`,
+              },
+            },
+          );
+          const retryPayload = retryResponse?.data ?? {};
+          const retryWalletToken = retryPayload.wallet_token ?? retryPayload.walletToken ?? retryPayload.token;
+          const retryExpiresIn = Number(retryPayload.expires_in ?? retryPayload.expiresIn ?? 300);
+          if (typeof retryWalletToken === 'string' && retryWalletToken.length > 0) {
+            await storeWalletToken(
+              retryWalletToken,
+              Number.isFinite(retryExpiresIn) && retryExpiresIn > 0 ? retryExpiresIn : 300,
+            );
+            return retryWalletToken;
+          }
+        } catch (retryError: any) {
+          lastError = retryError;
+        }
+      }
       if (!canFallback || index === attempts.length - 1) {
         break;
       }
