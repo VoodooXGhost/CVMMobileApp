@@ -14,6 +14,8 @@ const SESSION_INVALIDATION_KEY = 'auth_session_invalidated_at';
 type AuthSessionListener = () => void;
 
 const authSessionListeners = new Set<AuthSessionListener>();
+let cachedDeviceIdentifier: string | null = null;
+let cachedDeviceIdentifierPromise: Promise<string> | null = null;
 
 const notifyAuthSessionInvalidated = () => {
   authSessionListeners.forEach((listener) => {
@@ -62,11 +64,27 @@ const isExpiringSoon = (token: string | null) => {
 };
 
 export const getDeviceIdentifier = async () => {
-  const existing = await platformStorage.getItemAsync(DEVICE_ID_KEY);
-  if (existing) return existing;
-  const generated = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  await platformStorage.setItemAsync(DEVICE_ID_KEY, generated);
-  return generated;
+  if (cachedDeviceIdentifier) return cachedDeviceIdentifier;
+  if (cachedDeviceIdentifierPromise) return cachedDeviceIdentifierPromise;
+
+  cachedDeviceIdentifierPromise = (async () => {
+    const existing = await platformStorage.getItemAsync(DEVICE_ID_KEY);
+    if (existing) {
+      cachedDeviceIdentifier = existing;
+      return existing;
+    }
+
+    const generated = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    cachedDeviceIdentifier = generated;
+    await platformStorage.setItemAsync(DEVICE_ID_KEY, generated);
+    return generated;
+  })();
+
+  try {
+    return await cachedDeviceIdentifierPromise;
+  } finally {
+    cachedDeviceIdentifierPromise = null;
+  }
 };
 
 export const mapAuthPayload = (data: any) => {
@@ -190,11 +208,16 @@ const normalizeDeviceToken = async () => {
   return deviceId;
 };
 
+const isRemoteValidationTarget = () => {
+  const apiUrl = String(runtimeConfig.apiUrl || '');
+  return ['41.220.193.77', 'apigw.tmcel.co.mz', '10.100.61.7', ':8080'].some((marker) => apiUrl.includes(marker));
+};
+
 const getExpoPushTokenIfAvailable = async () => {
   // Validation builds need a stable token so the backend can register the device
   // during BlueStacks smoke tests. Production still remains fail-closed until a
   // real push provider is wired in.
-  if (runtimeConfig.profile === 'validation') {
+  if (runtimeConfig.profile === 'validation' || (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget())) {
     const deviceId = await getDeviceIdentifier();
     const token = `validation-push-${deviceId}`;
     logger.log('Using validation push token fallback', { deviceId });
@@ -208,14 +231,31 @@ const getExpoPushTokenIfAvailable = async () => {
 export const registerMobileDevice = async () => {
   const deviceId = await normalizeDeviceToken();
   const pushToken = await getExpoPushTokenIfAvailable();
-  const effectivePushToken = pushToken ?? (runtimeConfig.profile === 'validation' ? `validation-push-${deviceId}` : null);
+  const effectivePushToken =
+    pushToken ?? (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget() ? `validation-push-${deviceId}` : null);
+  console.warn('[mobile] device registration start', {
+    profile: runtimeConfig.profile,
+    apiUrl: runtimeConfig.apiUrl,
+    deviceId,
+    hasPushToken: Boolean(effectivePushToken),
+  });
   if (runtimeConfig.profile === 'prod' && !effectivePushToken) {
     const error: any = new Error('A real push token is required for production device registration.');
     error.code = 'push_token_unavailable';
+    console.warn('[mobile] device registration blocked by missing push token', {
+      profile: runtimeConfig.profile,
+      apiUrl: runtimeConfig.apiUrl,
+      deviceId,
+    });
     throw error;
   }
   const { accessToken } = await getStoredAuthTokens();
   try {
+    logger.log('Registering mobile device for wallet step-up', {
+      deviceId,
+      hasPushToken: Boolean(effectivePushToken),
+      profile: runtimeConfig.profile,
+    });
     await axios.post(
       buildUrl('/api/v1/mobile/auth/register-device'),
       {
@@ -231,8 +271,22 @@ export const registerMobileDevice = async () => {
         },
       },
     );
+    console.warn('[mobile] device registration completed', {
+      profile: runtimeConfig.profile,
+      apiUrl: runtimeConfig.apiUrl,
+      deviceId,
+    });
+    logger.log('Mobile device registration completed', { deviceId });
     return { deviceId, pushToken: effectivePushToken };
   } catch (error: any) {
+    console.warn('[mobile] device registration failed', {
+      profile: runtimeConfig.profile,
+      apiUrl: runtimeConfig.apiUrl,
+      deviceId,
+      status: error?.response?.status,
+      message: error?.message,
+      data: error?.response?.data,
+    });
     logger.warn('Device registration failed', { status: error?.response?.status });
     if (runtimeConfig.profile === 'prod') {
       throw error;

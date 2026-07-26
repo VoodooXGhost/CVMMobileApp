@@ -6,6 +6,8 @@ import { useInitiateTransferMutation } from '../services/apiSlice';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { ensureWalletAccess } from '../services/walletAccess';
 
 interface SendMoneyModalProps {
   visible: boolean;
@@ -19,6 +21,8 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
   const [amount, setAmount] = useState('');
   const [initiateTransfer, { isLoading }] = useInitiateTransferMutation();
 
+  const { authenticate } = useBiometricAuth();
+
   const handleSend = async () => {
     const numAmount = parseFloat(amount);
     if (!recipient.trim()) {
@@ -31,6 +35,15 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
     }
 
     try {
+      const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+      if (!accepted) {
+        Alert.alert(
+          t('wallet.walletVerificationRequired', 'Wallet verification required'),
+          t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+        );
+        return;
+      }
+      await ensureWalletAccess();
       const response = await initiateTransfer({
         recipient_msisdn: recipient.trim(),
         amount: numAmount,
@@ -48,9 +61,10 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
         }}]
       );
     } catch (error: any) {
+      const detailMsg = error?.data?.detail || error?.response?.data?.detail || error?.message || t('wallet.transferFailed', 'Transfer failed. Please try again.');
       Alert.alert(
         t('common.error', 'Error'),
-        error?.data?.detail || error?.message || t('wallet.transferFailed', 'Transfer failed. Please try again.')
+        detailMsg
       );
     }
   };

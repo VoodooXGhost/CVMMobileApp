@@ -19,6 +19,8 @@ import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 import { Colors } from '../theme/tokens';
 
+import { useAuth } from '../services/auth.context';
+
 /**
  * WalletScreen Component
  * 
@@ -27,6 +29,8 @@ import { Colors } from '../theme/tokens';
  */
 const WalletScreen = () => {
   const { language, t } = useI18n();
+  const { storedMsisdn, user } = useAuth();
+  const currentMsisdn = user?.msisdn || storedMsisdn || '258833356033';
   const { data: response, isLoading, error } = useGetEMolaWalletQuery();
   const [toggleFreeze] = useToggleCardFreezeMutation();
   const { authenticate } = useBiometricAuth();
@@ -132,9 +136,19 @@ const WalletScreen = () => {
         </View>
         <View className="flex-row justify-between items-center mb-md">
           <Text style={{ fontSize: ss(24) }} className="font-headline font-bold text-on-surface">{t('wallet.title', 'eMola Wallet')}</Text>
-          <TouchableOpacity style={{ minHeight: rs(32) }} className="bg-primary-container px-3 rounded-full justify-center">
-            <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">{t('wallet.mobileMoney', 'Mobile Money')}</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-xs">
+            <TouchableOpacity 
+              onPress={() => setScanVisible(true)}
+              style={{ minHeight: rs(32), paddingHorizontal: spacing.sm }} 
+              className="bg-primary rounded-full flex-row items-center gap-1 justify-center active:bg-primary-container"
+            >
+              <Scan size={rs(16)} color="#ffffff" />
+              <Text style={{ fontSize: ss(12) }} className="font-label text-white font-bold">{t('wallet.scanPay', 'Scan')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ minHeight: rs(32) }} className="bg-primary-container px-3 rounded-full justify-center">
+              <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">{t('wallet.mobileMoney', 'Mobile Money')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* eMola Balance Card */}
@@ -320,7 +334,7 @@ const WalletScreen = () => {
 
         {/* Modals & Sheets Integration */}
         <SendMoneyModal visible={sendVisible} onClose={() => setSendVisible(false)} />
-        <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn="258821234567" />
+        <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn={currentMsisdn} />
         <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} eMolaBalance={balance} />
         <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />

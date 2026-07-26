@@ -10,6 +10,10 @@ const WALLET_TOKEN_EXPIRES_AT_KEY = 'wallet_token_expires_at';
 
 const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
 const buildUrl = (path: string) => `${trimTrailingSlashes(runtimeConfig.apiUrl)}${path.startsWith('/') ? path : `/${path}`}`;
+const isRemoteValidationTarget = () => {
+  const apiUrl = String(runtimeConfig.apiUrl || '');
+  return ['41.220.193.77', 'apigw.tmcel.co.mz', '10.100.61.7', ':8080'].some((marker) => apiUrl.includes(marker));
+};
 
 const getStoredExpiry = async () => {
   const raw = await platformStorage.getItemAsync(WALLET_TOKEN_EXPIRES_AT_KEY);
@@ -52,6 +56,21 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
   }
 
   const deviceId = await getDeviceIdentifier();
+  if (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget()) {
+    // Validation builds run on BlueStacks and need the device to be registered
+    // before the wallet step-up call is attempted, otherwise the backend
+    // returns a 403 and blocks the smoke test.
+    try {
+      logger.log('Pre-registering validation device before wallet step-up', { deviceId });
+      await registerMobileDevice();
+    } catch (registrationError: any) {
+      logger.warn('Validation device pre-registration failed', {
+        status: registrationError?.response?.status,
+        message: registrationError?.message,
+      });
+    }
+  }
+
   const attempts = [
     `${buildUrl('/api/v1/mobile/auth/wallet/verify')}`,
     `${buildUrl('/auth/wallet/verify')}`,
@@ -89,12 +108,16 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
       console.warn('[walletAccess] Verification attempt failed:', attempts[index], 'Status:', error?.response?.status, 'Message:', error?.message, 'Data:', JSON.stringify(error?.response?.data));
       lastError = error;
       const statusCode = error?.response?.status;
-      const canFallback = statusCode === 404 || statusCode === 405;
+      const backendMessage = String(error?.response?.data?.detail ?? error?.response?.data?.message ?? error?.message ?? '').toLowerCase();
       const shouldRetryAfterDeviceRegistration =
-        statusCode === 403 && runtimeConfig.profile === 'validation' && index === attempts.length - 1;
+        statusCode === 403 &&
+        backendMessage.includes('registered device') &&
+        isRemoteValidationTarget();
+      const canFallback = statusCode === 404 || statusCode === 405;
+
       if (shouldRetryAfterDeviceRegistration) {
         try {
-          logger.log('Retrying wallet access after validation device registration fallback');
+          logger.log('Retrying wallet access after validation device registration fallback', { deviceId });
           await registerMobileDevice();
           const retryResponse = await axios.post(
             attempts[index],
@@ -119,12 +142,22 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
               retryWalletToken,
               Number.isFinite(retryExpiresIn) && retryExpiresIn > 0 ? retryExpiresIn : 300,
             );
+            logger.log('Wallet access granted after validation device registration', { deviceId });
             return retryWalletToken;
           }
         } catch (retryError: any) {
           lastError = retryError;
+          logger.warn('Wallet access retry after device registration failed', {
+            status: retryError?.response?.status,
+            message: retryError?.message,
+          });
         }
       }
+
+      if (canFallback && index < attempts.length - 1) {
+        continue;
+      }
+
       if (!canFallback || index === attempts.length - 1) {
         break;
       }

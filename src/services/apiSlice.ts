@@ -486,6 +486,7 @@ export const apiSlice = createApi({
         mutationWithFallback(
           [
             { url: '/api/v1/mobile/v1/emola/transfer', method: 'POST', body },
+            { url: '/api/v1/mobile/v1/wallet/p2p', method: 'POST', body: { receiver_msisdn: body.recipient_msisdn, amount: body.amount } },
             { url: '/api/emola/transfer', method: 'POST', body },
           ],
           api,
@@ -522,7 +523,7 @@ export const apiSlice = createApi({
     getCvmMarketplace: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
-          ['/api/v1/mobile/v1/marketplace', '/api/v1/mobile/v1/offers', '/api/marketplace', '/api/shop'],
+          ['/api/v1/mobile/v1/offers', '/api/v1/mobile/v1/marketplace', '/api/marketplace', '/api/shop'],
           api,
           extraOptions,
           'getCvmMarketplace',

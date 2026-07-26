@@ -220,18 +220,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logger.warn('Falling back to an ephemeral device id during sign-in', deviceIdError);
       }
 
+      const cleanMsisdn = msisdn.trim().replace(/^\+/, '').replace(/\D/g, '');
+
       console.warn('[mobile] login request start', {
         apiUrl: API_URL,
-        msisdn,
+        msisdn: cleanMsisdn,
         deviceId,
       });
 
       const response = await axios.post(
         `${API_URL}/api/v1/mobile/auth/login`,
         {
-          username: msisdn,
+          username: cleanMsisdn,
           password: pin,
-          msisdn,
+          msisdn: cleanMsisdn,
           pin,
           device_id: deviceId,
           platform: 'android',
@@ -262,8 +264,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           provenance: 'login',
         });
         // Save the MSISDN for PIN-only returning user login flow
-        await persistStoredMsisdn(msisdn);
-        setStoredMsisdn(msisdn);
+        await persistStoredMsisdn(cleanMsisdn);
+        setStoredMsisdn(cleanMsisdn);
       } catch (sessionPersistError) {
         logger.warn('Login completed, but auth session persistence failed', sessionPersistError);
       }

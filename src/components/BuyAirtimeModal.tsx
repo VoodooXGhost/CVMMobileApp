@@ -7,6 +7,10 @@ import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { runtimeConfig } from '../config/runtime';
+import { ensureWalletAccess } from '../services/walletAccess';
+import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
 
 interface BuyAirtimeModalProps {
   visible: boolean;
@@ -36,6 +40,8 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
     setAmount(text);
   };
 
+  const { authenticate } = useBiometricAuth();
+
   const handlePurchase = async () => {
     const numAmount = parseFloat(amount);
     if (recipientOption === 'other' && !recipientMsisdn.trim()) {
@@ -47,7 +53,34 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
       return;
     }
 
+    if (runtimeConfig.profile === 'validation') {
+      Alert.alert(
+        t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
+        t('wallet.airtimeValidationModeBody', 'Validation builds do not submit live airtime payments. Open the Tmcel menu to continue with the supported phone action.'),
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
+            onPress: async () => {
+              await openTmcelMenu();
+              onClose();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     try {
+      const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
+      if (!accepted) {
+        Alert.alert(
+          t('wallet.walletVerificationRequired', 'Wallet verification required'),
+          t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
+        );
+        return;
+      }
+      await ensureWalletAccess();
       const response = await buyAirtime({
         amount: numAmount,
         recipient_msisdn: recipientOption === 'other' ? recipientMsisdn.trim() : undefined,
@@ -68,9 +101,27 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
         }}]
       );
     } catch (error: any) {
+      if (isMissingMobileMoneyContract(error)) {
+        Alert.alert(
+          t('wallet.airtimeUnavailable', 'Airtime purchase is not available in this backend yet.'),
+          t('wallet.airtimeFallbackBody', 'Open the Tmcel menu to continue with the supported phone action.'),
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
+              onPress: async () => {
+                await openTmcelMenu();
+                onClose();
+              },
+            },
+          ],
+        );
+        return;
+      }
+      const detailMsg = error?.data?.detail || error?.response?.data?.detail || error?.message || t('wallet.purchaseFailed', 'Purchase failed. Please try again.');
       Alert.alert(
         t('common.error', 'Error'),
-        error?.data?.detail || error?.message || t('wallet.purchaseFailed', 'Purchase failed. Please try again.')
+        detailMsg
       );
     }
   };
