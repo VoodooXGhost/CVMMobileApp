@@ -11,6 +11,7 @@ import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { runtimeConfig } from '../config/runtime';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface BuyAirtimeModalProps {
   visible: boolean;
@@ -41,6 +42,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
   };
 
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = runtimeConfig.profile === 'validation' || isEmulatorLikeAndroidDevice();
 
   const handlePurchase = async () => {
     const numAmount = parseFloat(amount);
@@ -53,10 +55,10 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
       return;
     }
 
-    if (runtimeConfig.profile === 'validation') {
+    if (useSafePhoneFlow) {
       Alert.alert(
         t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-        t('wallet.airtimeValidationModeBody', 'Validation builds do not submit live airtime payments. Open the Tmcel menu to continue with the supported phone action.'),
+        t('wallet.airtimeValidationModeBody', 'This device profile does not submit live airtime payments. Open the Tmcel menu to continue with the supported phone action.'),
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -222,7 +224,13 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
             </View>
 
             <AppButton
-              label={isLoading ? 'Processing...' : t('wallet.buyVia', 'Buy via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')}
+              label={
+                isLoading
+                  ? 'Processing...'
+                  : useSafePhoneFlow
+                    ? t('wallet.openTmcelMenu', 'Open Tmcel Menu')
+                    : t('wallet.buyVia', 'Buy via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
+              }
               onPress={handlePurchase}
               disabled={isLoading}
             />

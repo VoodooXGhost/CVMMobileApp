@@ -7,6 +7,7 @@ import { useI18n } from '../services/i18n';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -19,6 +20,7 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
   const [amount, setAmount] = useState('');
   const [transfer, { isLoading }] = useP2pTransferMutation();
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handleSend = async () => {
     if (!msisdn || msisdn.length < 10) {
@@ -28,6 +30,14 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('p2p.invalidInput', 'Invalid Input'), t('p2p.validAmount', 'Please enter a valid amount.'));
+      return;
+    }
+
+    if (useSafePhoneFlow) {
+      Alert.alert(
+        t('wallet.walletVerificationRequired', 'Wallet verification required'),
+        t('wallet.p2pValidationModeBody', 'This device profile does not submit live P2P transfers. Please use a physical device for the production transfer flow.'),
+      );
       return;
     }
 

@@ -9,6 +9,7 @@ import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
 import { runtimeConfig } from '../config/runtime';
 import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface BillPayModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
   const [showBillerList, setShowBillerList] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [payBill, { isLoading }] = usePayBillMutation();
+  const useSafePhoneFlow = runtimeConfig.profile === 'validation' || isEmulatorLikeAndroidDevice();
 
   const billers = [
     { code: 'EDM', name: 'Electricidade de Moçambique' },
@@ -50,10 +52,10 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
       return;
     }
 
-    if (runtimeConfig.profile === 'validation') {
+    if (useSafePhoneFlow) {
       Alert.alert(
         t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-        t('wallet.paymentValidationModeBody', 'Validation builds do not submit live bill payments. Open the Tmcel menu to continue with the supported phone action.'),
+        t('wallet.paymentValidationModeBody', 'This device profile does not submit live bill payments. Open the Tmcel menu to continue with the supported phone action.'),
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -218,7 +220,13 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
             </View>
 
             <AppButton
-              label={isLoading ? 'Processing...' : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')}
+              label={
+                isLoading
+                  ? 'Processing...'
+                  : useSafePhoneFlow
+                    ? t('wallet.openTmcelMenu', 'Open Tmcel Menu')
+                    : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
+              }
               onPress={handlePay}
               disabled={isLoading}
             />

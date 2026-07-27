@@ -8,6 +8,7 @@ import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface SendMoneyModalProps {
   visible: boolean;
@@ -22,6 +23,7 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
   const [initiateTransfer, { isLoading }] = useInitiateTransferMutation();
 
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handleSend = async () => {
     const numAmount = parseFloat(amount);
@@ -31,6 +33,14 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
     }
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('common.error', 'Error'), t('wallet.enterAmount', 'Please enter a valid transfer amount.'));
+      return;
+    }
+
+    if (useSafePhoneFlow) {
+      Alert.alert(
+        t('wallet.walletVerificationRequired', 'Wallet verification required'),
+        t('wallet.transferValidationModeBody', 'This device profile does not submit live transfers. Please use a physical device for the production transfer flow.'),
+      );
       return;
     }
 
