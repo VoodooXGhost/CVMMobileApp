@@ -1,8 +1,14 @@
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 
 // Fallback actions keep the user inside a supported phone flow when a backend
 // money-movement contract is not available in the current environment.
 export const TMCEL_MENU_USSD = '*808#';
+
+// Provider-backed cash actions are only live where the backend exposes the
+// matching contract. For the current Tmcel rollout, mKesh stays on the phone
+// action path so customers complete the transaction through the operator menu.
+export const requiresTmcelPhoneAction = (provider?: string) =>
+  provider === 'mkesh' || provider === 'millennium_izi';
 
 export const isMissingMobileMoneyContract = (error: any) => {
   const status = error?.status ?? error?.originalStatus ?? error?.data?.status;
@@ -19,12 +25,24 @@ export const isMissingMobileMoneyContract = (error: any) => {
 };
 
 export const openTmcelMenu = async () => {
-  const uri = `tel:${encodeURIComponent(TMCEL_MENU_USSD)}`;
-  const supported = await Linking.canOpenURL(uri);
-  if (!supported) {
-    throw new Error('This device cannot open the Tmcel menu.');
+  const encodedUssd = encodeURIComponent(TMCEL_MENU_USSD);
+  const candidates = Platform.OS === 'android'
+    ? [`tel:${encodedUssd}`, `tel:${TMCEL_MENU_USSD.replace('#', '%23')}`]
+    : [`telprompt:${encodedUssd}`, `tel:${encodedUssd}`];
+
+  for (const uri of candidates) {
+    try {
+      const supported = await Linking.canOpenURL(uri);
+      if (supported) {
+        await Linking.openURL(uri);
+        return;
+      }
+    } catch {
+      // Try the next URI variant before failing closed.
+    }
   }
-  await Linking.openURL(uri);
+
+  throw new Error('This device cannot open the Tmcel menu.');
 };
 
 export const promptTmcelMenuFallback = (

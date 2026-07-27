@@ -7,10 +7,8 @@ import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
-import { runtimeConfig } from '../config/runtime';
 import { resolveLocalizedApiError } from '../services/apiErrors';
 import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
-import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface BillPayModalProps {
   visible: boolean;
@@ -27,9 +25,6 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
   const [showBillerList, setShowBillerList] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [payBill, { isLoading }] = usePayBillMutation();
-  // Only block virtual devices. Real phones in validation builds should still
-  // exercise the live bill-payment path so UAT can validate end-to-end flows.
-  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const billers = [
     { code: 'EDM', name: 'Electricidade de Moçambique' },
@@ -52,24 +47,6 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
     }
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('common.error', 'Error'), t('wallet.enterAmount', 'Please enter a valid payment amount.'));
-      return;
-    }
-
-    if (useSafePhoneFlow) {
-      Alert.alert(
-        t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-        t('wallet.paymentValidationModeBody', 'This device profile does not submit live bill payments. Open the Tmcel menu to continue with the supported phone action.'),
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-            onPress: async () => {
-              await openTmcelMenu();
-              onClose();
-            },
-          },
-        ],
-      );
       return;
     }
 
@@ -227,13 +204,11 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
             </View>
 
             <AppButton
-              label={
-                isLoading
-                  ? 'Processing...'
-                  : useSafePhoneFlow
-                    ? t('wallet.openTmcelMenu', 'Open Tmcel Menu')
-                    : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
-              }
+            label={
+              isLoading
+                ? 'Processing...'
+                : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
+            }
               onPress={handlePay}
               disabled={isLoading}
             />

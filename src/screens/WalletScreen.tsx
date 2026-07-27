@@ -71,7 +71,7 @@ const WalletScreen = () => {
   }
 
   const walletData = response || {};
-  const { balance = 12500, cards = [], transactions = [] } = walletData;
+  const { balance = 12500, mKeshBalance = 5000, cards = [], transactions = [] } = walletData;
   const safeCards = Array.isArray(cards) ? cards : [];
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
@@ -333,7 +333,12 @@ const WalletScreen = () => {
         </View>
 
         {/* Modals & Sheets Integration */}
-        <SendMoneyModal visible={sendVisible} onClose={() => setSendVisible(false)} />
+        <SendMoneyModal
+          visible={sendVisible}
+          onClose={() => setSendVisible(false)}
+          eMolaBalance={balance}
+          mKeshBalance={mKeshBalance}
+        />
         <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn={currentMsisdn} />
         <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} eMolaBalance={balance} />
         <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />

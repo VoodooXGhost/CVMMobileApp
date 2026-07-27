@@ -153,6 +153,8 @@ const normalizeWalletData = (raw: any) => {
 
   return {
     balance: source.balance ?? 0,
+    eMolaBalance: source.eMolaBalance ?? source.balance ?? 0,
+    mKeshBalance: source.mKeshBalance ?? source.mkeshBalance ?? 0,
     totalBalance: source.totalBalance ?? source.total_balance ?? 'MZN 0.00',
     cards,
     transactions,
@@ -326,7 +328,7 @@ const mutationWithFallback = async (
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: executeRequest,
-  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games', 'Campaigns'],
+  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games', 'Campaigns', 'Transactions'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -390,7 +392,7 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet'],
     }),
-    p2pTransfer: builder.mutation<any, { receiver_msisdn: string, amount: number }>({
+    p2pTransfer: builder.mutation<any, { receiver_msisdn: string; amount: number; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
           [
@@ -481,12 +483,12 @@ export const apiSlice = createApi({
         ),
       providesTags: ['Wallet'],
     }),
-    initiateTransfer: builder.mutation<any, { recipient_msisdn: string; amount: number }>({
+    initiateTransfer: builder.mutation<any, { recipient_msisdn: string; amount: number; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
           [
             { url: '/api/v1/mobile/v1/emola/transfer', method: 'POST', body },
-            { url: '/api/v1/mobile/v1/wallet/p2p', method: 'POST', body: { receiver_msisdn: body.recipient_msisdn, amount: body.amount } },
+            { url: '/api/v1/mobile/v1/wallet/p2p', method: 'POST', body: { receiver_msisdn: body.recipient_msisdn, amount: body.amount, payment_provider: body.payment_provider } },
             { url: '/api/emola/transfer', method: 'POST', body },
           ],
           api,
@@ -520,6 +522,19 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
+    getTransactionStatus: builder.query<any, { transactionId: string }>({
+      queryFn: ({ transactionId }, api, extraOptions) =>
+        queryWithFallback(
+          [
+            `/api/v1/mobile/v1/transactions/${transactionId}/status`,
+            `/api/transactions/${transactionId}/status`,
+          ],
+          api,
+          extraOptions,
+          'getTransactionStatus',
+        ),
+      providesTags: ['Transactions'],
+    }),
     getCvmMarketplace: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
@@ -551,5 +566,6 @@ export const {
   useInitiateTransferMutation,
   useBuyAirtimeMutation,
   usePayBillMutation,
+  useGetTransactionStatusQuery,
   useGetCvmMarketplaceQuery,
 } = apiSlice;

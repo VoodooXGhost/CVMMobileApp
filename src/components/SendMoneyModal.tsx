@@ -9,22 +9,24 @@ import { Colors } from '../theme/tokens';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { resolveLocalizedApiError } from '../services/apiErrors';
 import { ensureWalletAccess } from '../services/walletAccess';
-import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
+import PaymentProviderSelector, { PaymentProviderType } from './PaymentProviderSelector';
 
 interface SendMoneyModalProps {
   visible: boolean;
   onClose: () => void;
+  eMolaBalance?: number;
+  mKeshBalance?: number;
 }
 
-export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps) {
+export default function SendMoneyModal({ visible, onClose, eMolaBalance, mKeshBalance }: SendMoneyModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProviderType>('emola');
   const [initiateTransfer, { isLoading }] = useInitiateTransferMutation();
 
   const { authenticate } = useBiometricAuth();
-  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handleSend = async () => {
     const numAmount = parseFloat(amount);
@@ -34,17 +36,6 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
     }
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('common.error', 'Error'), t('wallet.enterAmount', 'Please enter a valid transfer amount.'));
-      return;
-    }
-
-    if (useSafePhoneFlow) {
-      Alert.alert(
-        t('common.unavailable', 'Unavailable'),
-        t(
-          'wallet.transferValidationModeBody',
-          'This device profile does not submit live transfers. Please use a physical device for the production transfer flow.',
-        ),
-      );
       return;
     }
 
@@ -58,9 +49,10 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
         return;
       }
       await ensureWalletAccess();
-      const response = await initiateTransfer({
+      await initiateTransfer({
         recipient_msisdn: recipient.trim(),
         amount: numAmount,
+        payment_provider: paymentProvider,
       }).unwrap();
 
       Alert.alert(
@@ -71,6 +63,7 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
         [{ text: 'OK', onPress: () => {
           setRecipient('');
           setAmount('');
+          setPaymentProvider('emola');
           onClose();
         }}]
       );
@@ -100,6 +93,13 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
           </View>
 
           <View style={{ gap: ss(16), marginBottom: ss(24) }}>
+          <PaymentProviderSelector
+            selected={paymentProvider}
+            onChange={setPaymentProvider}
+            eMolaBalance={eMolaBalance}
+            mKeshBalance={mKeshBalance}
+          />
+
             <View>
               <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
                 {t('wallet.recipientNumber', 'Recipient Phone Number')}
@@ -126,7 +126,11 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
           </View>
 
           <AppButton
-            label={isLoading ? 'Sending...' : t('wallet.confirmSend', 'Send Now')}
+            label={
+              isLoading
+                ? 'Sending...'
+                : t('wallet.confirmSend', 'Send Now')
+            }
             onPress={handleSend}
             disabled={isLoading}
           />

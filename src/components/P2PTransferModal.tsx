@@ -7,20 +7,22 @@ import { useI18n } from '../services/i18n';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
-import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
+import PaymentProviderSelector, { PaymentProviderType } from './PaymentProviderSelector';
 
 interface P2PTransferModalProps {
   visible: boolean;
   onClose: () => void;
+  eMolaBalance?: number;
+  mKeshBalance?: number;
 }
 
-const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
+const P2PTransferModal = ({ visible, onClose, eMolaBalance, mKeshBalance }: P2PTransferModalProps) => {
   const { t } = useI18n();
   const [msisdn, setMsisdn] = useState('');
   const [amount, setAmount] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProviderType>('emola');
   const [transfer, { isLoading }] = useP2pTransferMutation();
   const { authenticate } = useBiometricAuth();
-  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handleSend = async () => {
     if (!msisdn || msisdn.length < 10) {
@@ -30,17 +32,6 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('p2p.invalidInput', 'Invalid Input'), t('p2p.validAmount', 'Please enter a valid amount.'));
-      return;
-    }
-
-    if (useSafePhoneFlow) {
-      Alert.alert(
-        t('common.unavailable', 'Unavailable'),
-        t(
-          'wallet.p2pValidationModeBody',
-          'This device profile does not submit live P2P transfers. Please use a physical device for the production transfer flow.',
-        ),
-      );
       return;
     }
 
@@ -56,13 +47,13 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
       await ensureWalletAccess();
       await track(
         'wallet_action_start',
-        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount, payment_provider: paymentProvider },
         { screen: 'wallet', source: 'p2p_modal' },
       );
-      await transfer({ receiver_msisdn: msisdn, amount: numAmount }).unwrap();
+      await transfer({ receiver_msisdn: msisdn, amount: numAmount, payment_provider: paymentProvider }).unwrap();
       await track(
         'wallet_action_success',
-        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount },
+        { action: 'p2p_transfer', receiver_msisdn: msisdn, amount: numAmount, payment_provider: paymentProvider },
         { screen: 'wallet', source: 'p2p_modal' },
       );
       Alert.alert(t('common.success', 'Success'), t('p2p.transferSuccess', 'Successfully transferred {amount} YM to {msisdn}.').replace('{amount}', String(numAmount)).replace('{msisdn}', String(msisdn)));
@@ -105,6 +96,15 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
           <Text className="font-body text-[16px] text-on-surface-variant mb-xl">
             {t('p2p.subtitle', 'Send YelloMola instantly to any Tmcel subscriber.')}
           </Text>
+
+          <View className="mb-lg">
+            <PaymentProviderSelector
+              selected={paymentProvider}
+              onChange={setPaymentProvider}
+              eMolaBalance={eMolaBalance}
+              mKeshBalance={mKeshBalance}
+            />
+          </View>
 
           <View className="mb-lg">
             <Text className="font-label text-[13px] text-on-surface-variant mb-xs">{t('p2p.recipientNumber', 'Recipient Number')}</Text>

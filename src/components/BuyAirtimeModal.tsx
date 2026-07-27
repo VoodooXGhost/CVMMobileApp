@@ -8,11 +8,9 @@ import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
-import { runtimeConfig } from '../config/runtime';
 import { resolveLocalizedApiError } from '../services/apiErrors';
 import { ensureWalletAccess } from '../services/walletAccess';
-import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
-import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
+import { isMissingMobileMoneyContract } from '../services/telephonyFallback';
 
 interface BuyAirtimeModalProps {
   visible: boolean;
@@ -43,9 +41,6 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
   };
 
   const { authenticate } = useBiometricAuth();
-  // Only block virtual devices. Real phones in validation builds should still
-  // exercise the live airtime path so UAT can validate true end-to-end flows.
-  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handlePurchase = async () => {
     const numAmount = parseFloat(amount);
@@ -55,24 +50,6 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
     }
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert(t('common.error', 'Error'), t('wallet.enterAmount', 'Please enter a valid amount.'));
-      return;
-    }
-
-    if (useSafePhoneFlow) {
-      Alert.alert(
-        t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-        t('wallet.airtimeValidationModeBody', 'This device profile does not submit live airtime payments. Open the Tmcel menu to continue with the supported phone action.'),
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-            onPress: async () => {
-              await openTmcelMenu();
-              onClose();
-            },
-          },
-        ],
-      );
       return;
     }
 
@@ -86,7 +63,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
         return;
       }
       await ensureWalletAccess();
-      const response = await buyAirtime({
+      await buyAirtime({
         amount: numAmount,
         recipient_msisdn: recipientOption === 'other' ? recipientMsisdn.trim() : undefined,
         payment_provider: paymentProvider,
@@ -109,17 +86,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
       if (isMissingMobileMoneyContract(error)) {
         Alert.alert(
           t('wallet.airtimeUnavailable', 'Airtime purchase is not available in this backend yet.'),
-          t('wallet.airtimeFallbackBody', 'Open the Tmcel menu to continue with the supported phone action.'),
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-              onPress: async () => {
-                await openTmcelMenu();
-                onClose();
-              },
-            },
-          ],
+          t('wallet.airtimeFallbackBody', 'Please contact support if this route is unavailable in production.'),
         );
         return;
       }
@@ -234,9 +201,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
               label={
                 isLoading
                   ? 'Processing...'
-                  : useSafePhoneFlow
-                    ? t('wallet.openTmcelMenu', 'Open Tmcel Menu')
-                    : t('wallet.buyVia', 'Buy via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
+                  : t('wallet.buyVia', 'Buy via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
               }
               onPress={handlePurchase}
               disabled={isLoading}
