@@ -26,7 +26,9 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
   const [showBillerList, setShowBillerList] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [payBill, { isLoading }] = usePayBillMutation();
-  const useSafePhoneFlow = runtimeConfig.profile === 'validation' || isEmulatorLikeAndroidDevice();
+  // Only block virtual devices. Real phones in validation builds should still
+  // exercise the live bill-payment path so UAT can validate end-to-end flows.
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const billers = [
     { code: 'EDM', name: 'Electricidade de Moçambique' },

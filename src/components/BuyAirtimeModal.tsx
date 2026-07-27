@@ -42,7 +42,9 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
   };
 
   const { authenticate } = useBiometricAuth();
-  const useSafePhoneFlow = runtimeConfig.profile === 'validation' || isEmulatorLikeAndroidDevice();
+  // Only block virtual devices. Real phones in validation builds should still
+  // exercise the live airtime path so UAT can validate true end-to-end flows.
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const handlePurchase = async () => {
     const numAmount = parseFloat(amount);
