@@ -9,6 +9,7 @@ import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { runtimeConfig } from '../config/runtime';
+import { resolveLocalizedApiError } from '../services/apiErrors';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
 import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
@@ -122,7 +123,11 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
         );
         return;
       }
-      const detailMsg = error?.data?.detail || error?.response?.data?.detail || error?.message || t('wallet.purchaseFailed', 'Purchase failed. Please try again.');
+      const detailMsg = resolveLocalizedApiError(
+        t,
+        error,
+        t('wallet.purchaseFailed', 'Purchase failed. Please try again.'),
+      );
       Alert.alert(
         t('common.error', 'Error'),
         detailMsg

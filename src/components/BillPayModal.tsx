@@ -8,6 +8,7 @@ import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
 import { runtimeConfig } from '../config/runtime';
+import { resolveLocalizedApiError } from '../services/apiErrors';
 import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
 import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
@@ -113,7 +114,11 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
       }
       Alert.alert(
         t('common.error', 'Error'),
-        error?.data?.detail || error?.message || t('wallet.paymentFailed', 'Bill payment failed. Please try again.')
+        resolveLocalizedApiError(
+          t,
+          error,
+          t('wallet.paymentFailed', 'Bill payment failed. Please try again.'),
+        )
       );
     }
   };

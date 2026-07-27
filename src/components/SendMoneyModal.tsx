@@ -7,6 +7,7 @@ import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { resolveLocalizedApiError } from '../services/apiErrors';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
@@ -74,10 +75,13 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
         }}]
       );
     } catch (error: any) {
-      const detailMsg = error?.data?.detail || error?.response?.data?.detail || error?.message || t('wallet.transferFailed', 'Transfer failed. Please try again.');
       Alert.alert(
         t('common.error', 'Error'),
-        detailMsg
+        resolveLocalizedApiError(
+          t,
+          error,
+          t('wallet.transferFailed', 'Transfer failed. Please try again.'),
+        )
       );
     }
   };
