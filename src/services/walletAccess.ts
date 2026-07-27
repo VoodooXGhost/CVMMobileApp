@@ -12,7 +12,7 @@ const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
 const buildUrl = (path: string) => `${trimTrailingSlashes(runtimeConfig.apiUrl)}${path.startsWith('/') ? path : `/${path}`}`;
 const isRemoteValidationTarget = () => {
   const apiUrl = String(runtimeConfig.apiUrl || '');
-  return ['41.220.193.77', 'apigw.tmcel.co.mz', '10.100.61.7', ':8080'].some((marker) => apiUrl.includes(marker));
+  return ['41.220.193.77', '10.100.61.7', ':8080'].some((marker) => apiUrl.includes(marker));
 };
 
 const getStoredExpiry = async () => {
