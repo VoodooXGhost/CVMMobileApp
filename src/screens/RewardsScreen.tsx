@@ -36,6 +36,7 @@ import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getPrimaryGame } from '../services/games';
 import { resolveYmBalance } from '../services/loyalty';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
@@ -50,6 +51,7 @@ const RewardsScreen = () => {
   const { authenticate } = useBiometricAuth();
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const { ss, rs, width } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
@@ -113,10 +115,20 @@ const RewardsScreen = () => {
         { 
           text: 'Redeem', 
           onPress: async () => {
+            if (useSafePhoneFlow) {
+              Alert.alert(
+                t('common.unavailable', 'Unavailable'),
+                t(
+                  'wallet.deviceUnsupportedSpendBody',
+                  'This device profile does not submit live spend actions. Use a physical device to continue.',
+                ),
+              );
+              return;
+            }
+
             try {
               const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
               if (!accepted) {
-                Alert.alert(t('wallet.walletVerificationRequired', 'Wallet verification required'), t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'));
                 return;
               }
               await ensureWalletAccess();

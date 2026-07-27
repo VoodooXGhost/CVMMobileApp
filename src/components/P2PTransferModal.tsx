@@ -35,8 +35,11 @@ const P2PTransferModal = ({ visible, onClose }: P2PTransferModalProps) => {
 
     if (useSafePhoneFlow) {
       Alert.alert(
-        t('wallet.walletVerificationRequired', 'Wallet verification required'),
-        t('wallet.p2pValidationModeBody', 'This device profile does not submit live P2P transfers. Please use a physical device for the production transfer flow.'),
+        t('common.unavailable', 'Unavailable'),
+        t(
+          'wallet.p2pValidationModeBody',
+          'This device profile does not submit live P2P transfers. Please use a physical device for the production transfer flow.',
+        ),
       );
       return;
     }

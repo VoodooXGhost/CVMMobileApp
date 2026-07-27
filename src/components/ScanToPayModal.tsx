@@ -9,6 +9,7 @@ import { useI18n } from '../services/i18n';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface ScanToPayModalProps {
   visible: boolean;
@@ -27,6 +28,7 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
   const [scanned, setScanned] = useState(false);
   const [redeemOffer, { isLoading }] = useRedeemOfferMutation();
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const cameraSupported = (() => {
     if (Platform.OS !== 'android') {
@@ -115,13 +117,21 @@ const ScanToPayModal = ({ visible, onClose }: ScanToPayModalProps) => {
         {
           text: t('scan.pay', 'Pay'),
           onPress: async () => {
+            if (useSafePhoneFlow) {
+              Alert.alert(
+                t('common.unavailable', 'Unavailable'),
+                t(
+                  'scan.deviceUnsupportedBody',
+                  'This device profile does not submit live scan payments. Use a physical device to continue.',
+                ),
+              );
+              setScanned(false);
+              return;
+            }
+
             try {
               const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
               if (!accepted) {
-                Alert.alert(
-                  t('wallet.walletVerificationRequired', 'Wallet verification required'),
-                  t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.'),
-                );
                 setScanned(false);
                 return;
               }

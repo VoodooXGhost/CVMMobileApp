@@ -8,6 +8,7 @@ import { formatMznCurrency } from '../services/formatters';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
@@ -31,6 +32,7 @@ const MarketplaceScreen = () => {
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const { ss, rs, width } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
@@ -80,13 +82,20 @@ const MarketplaceScreen = () => {
         { 
           text: t('marketplace.buy', 'Buy'), 
           onPress: async () => {
+            if (useSafePhoneFlow) {
+              Alert.alert(
+                t('common.unavailable', 'Unavailable'),
+                t(
+                  'wallet.deviceUnsupportedSpendBody',
+                  'This device profile does not submit live spend actions. Use a physical device to continue.',
+                ),
+              );
+              return;
+            }
+
             try {
               const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending.'));
               if (!accepted) {
-                Alert.alert(
-                  t('wallet.walletVerificationRequired', 'Verification required'),
-                  t('wallet.walletVerificationRequiredBody', 'Please complete verification to continue.'),
-                );
                 return;
               }
               await ensureWalletAccess();

@@ -18,6 +18,7 @@ import { ensureWalletAccess } from '../services/walletAccess';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { MotiView } from 'moti';
+import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 
 interface SpinWheelModalProps {
   visible: boolean;
@@ -53,6 +54,7 @@ export const SpinWheelModal = ({ visible, onClose, game, canSpinToday = true }: 
   const [isSpinning, setIsSpinning] = useState(false);
   const [showPrizeOverlay, setShowPrizeOverlay] = useState(false);
   const { authenticate } = useBiometricAuth();
+  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const startSpin = async () => {
     if (isSpinning) return;
@@ -64,6 +66,18 @@ export const SpinWheelModal = ({ visible, onClose, game, canSpinToday = true }: 
     setIsSpinning(true);
     setResult(null);
     setShowPrizeOverlay(false);
+
+    if (useSafePhoneFlow) {
+      setIsSpinning(false);
+      Alert.alert(
+        t('common.unavailable', 'Unavailable'),
+        t(
+          'spin.deviceUnsupportedBody',
+          'This device profile does not submit live reward spins. Use a physical device to continue.',
+        ),
+      );
+      return;
+    }
 
     const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending YM.'));
     if (!accepted) {

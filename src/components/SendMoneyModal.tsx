@@ -38,8 +38,11 @@ export default function SendMoneyModal({ visible, onClose }: SendMoneyModalProps
 
     if (useSafePhoneFlow) {
       Alert.alert(
-        t('wallet.walletVerificationRequired', 'Wallet verification required'),
-        t('wallet.transferValidationModeBody', 'This device profile does not submit live transfers. Please use a physical device for the production transfer flow.'),
+        t('common.unavailable', 'Unavailable'),
+        t(
+          'wallet.transferValidationModeBody',
+          'This device profile does not submit live transfers. Please use a physical device for the production transfer flow.',
+        ),
       );
       return;
     }
