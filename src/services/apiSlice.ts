@@ -319,6 +319,21 @@ const mutationWithFallback = async (
     const result = await executeRequest(configs[index], api, extraOptions);
     lastResult = result;
     if (!result.error || !shouldTryFallback(result.error) || index === configs.length - 1) {
+      // If every compatible route is missing, surface a contract error instead of
+      // a generic final 404 so spend screens can show an actionable message.
+      if (result.error && shouldTryFallback(result.error) && index === configs.length - 1) {
+        return {
+          error: {
+            ...result.error,
+            data: {
+              error: {
+                code: 'route_unavailable',
+                message: 'This money-movement route is not available on the current CVM host.',
+              },
+            },
+          },
+        };
+      }
       return result;
     }
   }
