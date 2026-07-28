@@ -17,6 +17,7 @@ if (!allowedProfiles.includes(runtimeProfile)) {
 }
 
 const defaultDevApiUrl = 'http://10.0.2.2:8125';
+const isRawIpEndpoint = (value: string) => /^https?:\/\/\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:\/|$)/.test(value);
 
 export const validateRuntimeConfig = () => {
   // Keep dev/test builds launchable on BlueStacks even if the env file was not injected,
@@ -33,6 +34,9 @@ export const validateRuntimeConfig = () => {
   if (runtimeProfile === 'prod') {
     if (!runtimeConfig.apiUrl.startsWith('https://')) {
       throw new Error('Production mobile API URL must use HTTPS.');
+    }
+    if (isRawIpEndpoint(runtimeConfig.apiUrl)) {
+      throw new Error('Production mobile API URL must use Tmcel-approved DNS, not a raw IP address.');
     }
     if (['localhost', '127.0.0.1', '10.0.2.2'].some((host) => runtimeConfig.apiUrl.includes(host))) {
       throw new Error('Production mobile API URL cannot point to local emulator hosts.');

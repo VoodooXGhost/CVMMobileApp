@@ -51,6 +51,9 @@ For `staging` / `prod`:
 - `EXPO_PUBLIC_API_URL`
 - `EXPO_PUBLIC_API_CONTRACT_VERSION`
 - `EXPO_PUBLIC_RELEASE_VERSION`
+- `EXPO_PUBLIC_EAS_PROJECT_ID` (required for real Expo push tokens)
+
+Production builds must use a Tmcel-approved HTTPS DNS endpoint. Raw IP endpoints, localhost, laptop IPs, and emulator hosts are rejected in the `prod` runtime profile.
 
 ### Feature flags / kill switches
 
