@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
 import { AppInput, AppButton } from './Primitives';
@@ -15,9 +15,10 @@ interface BuyAirtimeModalProps {
   visible: boolean;
   onClose: () => void;
   eMolaBalance?: number;
+  mKeshBalance?: number;
 }
 
-export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyAirtimeModalProps) {
+export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshBalance }: BuyAirtimeModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [recipientOption, setRecipientOption] = useState<'self' | 'other'>('self');
@@ -40,6 +41,15 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
   };
 
   const { authenticate } = useBiometricAuth();
+
+  useEffect(() => {
+    if (!visible) return;
+    const hasEmolaFunds = typeof eMolaBalance === 'number' && eMolaBalance > 0;
+    const hasMkeshFunds = typeof mKeshBalance === 'number' && mKeshBalance > 0;
+    if (!hasEmolaFunds && hasMkeshFunds) {
+      setPaymentProvider('mkesh');
+    }
+  }, [visible, eMolaBalance, mKeshBalance]);
 
   const handlePurchase = async () => {
     const numAmount = parseFloat(amount);
@@ -147,6 +157,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
               selected={paymentProvider}
               onChange={setPaymentProvider}
               eMolaBalance={eMolaBalance}
+              mKeshBalance={mKeshBalance}
             />
 
             {/* Presets Grid */}

@@ -345,7 +345,12 @@ const WalletScreen = () => {
           mKeshBalance={mKeshBalance}
         />
         <ReceiveMoneySheet visible={receiveVisible} onClose={() => setReceiveVisible(false)} msisdn={currentMsisdn} />
-        <BuyAirtimeModal visible={airtimeVisible} onClose={() => setAirtimeVisible(false)} eMolaBalance={balance} />
+        <BuyAirtimeModal
+          visible={airtimeVisible}
+          onClose={() => setAirtimeVisible(false)}
+          eMolaBalance={balance}
+          mKeshBalance={mKeshBalance}
+        />
         <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
         
