@@ -30,7 +30,7 @@ import { useAuth } from '../services/auth.context';
 const WalletScreen = () => {
   const { language, t } = useI18n();
   const { storedMsisdn, user } = useAuth();
-  const currentMsisdn = user?.msisdn || storedMsisdn || '258833356033';
+  const currentMsisdn = user?.msisdn || storedMsisdn || '';
   const { data: response, isLoading, error } = useGetEMolaWalletQuery();
   const [toggleFreeze] = useToggleCardFreezeMutation();
   const { authenticate } = useBiometricAuth();
@@ -71,9 +71,14 @@ const WalletScreen = () => {
   }
 
   const walletData = response || {};
-  const { balance = 12500, mKeshBalance = 5000, cards = [], transactions = [] } = walletData;
-  const safeCards = Array.isArray(cards) ? cards : [];
-  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const balance = Number.isFinite(Number(walletData?.balance))
+    ? Number(walletData.balance)
+    : Number(walletData?.eMolaBalance ?? 0);
+  const mKeshBalance = Number.isFinite(Number(walletData?.mKeshBalance))
+    ? Number(walletData.mKeshBalance)
+    : Number(walletData?.mkeshBalance ?? 0);
+  const safeCards = Array.isArray(walletData?.cards) ? walletData.cards : [];
+  const safeTransactions = Array.isArray(walletData?.transactions) ? walletData.transactions : [];
 
   const handleReveal = async (cardId: string) => {
     if (revealedCards[cardId]) {

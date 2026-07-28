@@ -8,7 +8,6 @@ import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
 import PaymentProviderSelector from './PaymentProviderSelector';
 import { resolveLocalizedApiError } from '../services/apiErrors';
-import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
 
 interface BillPayModalProps {
   visible: boolean;
@@ -72,23 +71,6 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
         }}]
       );
     } catch (error: any) {
-      if (isMissingMobileMoneyContract(error)) {
-        Alert.alert(
-          t('wallet.paymentUnavailable', 'Bill payment is not available in this backend yet.'),
-          t('wallet.paymentFallbackBody', 'Open the Tmcel menu to continue with the supported phone action.'),
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-              onPress: async () => {
-                await openTmcelMenu();
-                onClose();
-              },
-            },
-          ],
-        );
-        return;
-      }
       Alert.alert(
         t('common.error', 'Error'),
         resolveLocalizedApiError(

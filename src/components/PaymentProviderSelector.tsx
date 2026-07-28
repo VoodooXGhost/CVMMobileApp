@@ -17,8 +17,8 @@ interface PaymentProviderSelectorProps {
 export default function PaymentProviderSelector({
   selected,
   onChange,
-  eMolaBalance = 12500,
-  mKeshBalance = 5000,
+  eMolaBalance,
+  mKeshBalance,
 }: PaymentProviderSelectorProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
@@ -32,7 +32,9 @@ export default function PaymentProviderSelector({
       id: 'emola' as const,
       label: 'eMola',
       subtitle: t('wallet.emolaWallet', 'Main Wallet'),
-      balance: formatBalance(eMolaBalance),
+      balance: typeof eMolaBalance === 'number' && Number.isFinite(eMolaBalance)
+        ? formatBalance(eMolaBalance)
+        : t('common.unavailable', 'Unavailable'),
       disabled: false,
       color: Colors.primary_container, // Yellow selected accent
     },
@@ -40,7 +42,9 @@ export default function PaymentProviderSelector({
       id: 'mkesh' as const,
       label: 'mKesh',
       subtitle: t('wallet.mKeshWallet', 'mKesh Pay'),
-      balance: formatBalance(mKeshBalance),
+      balance: typeof mKeshBalance === 'number' && Number.isFinite(mKeshBalance)
+        ? formatBalance(mKeshBalance)
+        : t('common.unavailable', 'Unavailable'),
       disabled: false,
       color: '#1b8354', // Green selected accent
     },

@@ -87,6 +87,19 @@ export const SpinWheelModal = ({ visible, onClose, game, canSpinToday = true }: 
 
     await ensureWalletAccess();
 
+    const gameId = Number(game?.id);
+    if (!Number.isFinite(gameId) || gameId <= 0) {
+      setIsSpinning(false);
+      Alert.alert(
+        t('common.unavailable', 'Unavailable'),
+        t(
+          'spin.gameUnavailable',
+          'This reward game is not available from the backend right now.',
+        ),
+      );
+      return;
+    }
+
     // Reset rotation
     rotation.value = 0;
 
@@ -101,7 +114,7 @@ export const SpinWheelModal = ({ visible, onClose, game, canSpinToday = true }: 
     );
 
     try {
-      const response = await playGame({ game_id: Number(game?.id ?? 1) }).unwrap();
+      const response = await playGame({ game_id: gameId }).unwrap();
       
       // Extract won prize details
       const responseData = response?.data ?? response;

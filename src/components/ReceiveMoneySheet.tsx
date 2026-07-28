@@ -69,7 +69,7 @@ export default function ReceiveMoneySheet({ visible, onClose, msisdn }: ReceiveM
           </View>
 
           <Text style={{ fontSize: ss(18), fontWeight: '700', color: Colors.primary, marginBottom: ss(4) }}>
-            {msisdn}
+            {msisdn || t('wallet.numberUnavailable', 'Tmcel number unavailable')}
           </Text>
           <Text style={{ fontSize: ss(12), color: Colors.on_surface_variant, marginBottom: ss(24) }}>
             {t('wallet.tmcelNumber', 'Tmcel Number')}

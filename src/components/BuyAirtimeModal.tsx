@@ -10,7 +10,6 @@ import PaymentProviderSelector from './PaymentProviderSelector';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { resolveLocalizedApiError } from '../services/apiErrors';
 import { ensureWalletAccess } from '../services/walletAccess';
-import { isMissingMobileMoneyContract, openTmcelMenu } from '../services/telephonyFallback';
 
 interface BuyAirtimeModalProps {
   visible: boolean;
@@ -83,33 +82,6 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance }: BuyA
         }}]
       );
     } catch (error: any) {
-      if (isMissingMobileMoneyContract(error)) {
-        Alert.alert(
-          t('wallet.openTmcelMenuTitle', 'Open Tmcel Menu'),
-          t(
-            'wallet.airtimeFallbackBody',
-            'Airtime purchases are completed through the Tmcel phone menu on this rollout. Open the Tmcel menu to continue.',
-          ),
-          [
-            { text: t('common.cancel', 'Cancel'), style: 'cancel' },
-            {
-              text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
-              onPress: async () => {
-                try {
-                  await openTmcelMenu();
-                  onClose();
-                } catch (fallbackError: any) {
-                  Alert.alert(
-                    t('common.error', 'Error'),
-                    fallbackError?.message || t('wallet.openTmcelMenuFailed', 'Unable to open the Tmcel menu.'),
-                  );
-                }
-              },
-            },
-          ],
-        );
-        return;
-      }
       const detailMsg = resolveLocalizedApiError(
         t,
         error,
