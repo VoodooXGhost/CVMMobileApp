@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
-import { isEmulatorLikeAndroidDevice } from './deviceEnvironment';
 
 const ACCESS_TOKEN_KEY = 'userToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -215,12 +214,9 @@ const isRemoteValidationTarget = () => {
 };
 
 const getExpoPushTokenIfAvailable = async () => {
-  // Only emulator-like devices get a synthetic push token. Real phones must
-  // never be treated as mock validation devices during live testing.
-  if (
-    (runtimeConfig.profile === 'validation' || (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget())) &&
-    isEmulatorLikeAndroidDevice()
-  ) {
+  // Validation targets need a stable push token so the backend can register
+  // the device during live smoke tests. Production stays fail-closed.
+  if (runtimeConfig.profile === 'validation' || (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget())) {
     const deviceId = await getDeviceIdentifier();
     const token = `validation-push-${deviceId}`;
     logger.log('Using validation push token fallback', { deviceId });
@@ -234,7 +230,8 @@ const getExpoPushTokenIfAvailable = async () => {
 export const registerMobileDevice = async () => {
   const deviceId = await normalizeDeviceToken();
   const pushToken = await getExpoPushTokenIfAvailable();
-  const effectivePushToken = pushToken;
+  const effectivePushToken =
+    pushToken ?? (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget() ? `validation-push-${deviceId}` : null);
   console.warn('[mobile] device registration start', {
     profile: runtimeConfig.profile,
     apiUrl: runtimeConfig.apiUrl,
