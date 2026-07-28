@@ -12,6 +12,13 @@ const codeMap: Record<string, string> = {
   TRANSACTION_NOT_FOUND: 'transaction_not_found',
   WALLET_TOKEN_EXPIRED: 'wallet_token_expired',
   WALLET_STEP_UP_REQUIRED: 'wallet_step_up_required',
+  INSUFFICIENT_AIRTIME: 'insufficient_airtime',
+  INVALID_RECIPIENT: 'invalid_recipient',
+  INELIGIBLE_SUBSCRIBER: 'ineligible_subscriber',
+  LIMIT_EXCEEDED: 'limit_exceeded',
+  DUPLICATE_REQUEST: 'duplicate_request',
+  PROVIDER_TIMEOUT: 'provider_timeout',
+  TRANSFER_REJECTED: 'transfer_rejected',
   SESSION_EXPIRED: 'session_expired',
   AUTH_REFRESH_REQUIRED: 'session_expired',
 };
@@ -59,6 +66,20 @@ export const resolveLocalizedApiError = (
     case 'wallet_token_expired':
     case 'wallet_step_up_required':
       return t('wallet.walletVerificationRequiredBody', 'Please complete wallet verification to continue.');
+    case 'insufficient_airtime':
+      return t('wallet.insufficientAirtime', 'You do not have enough airtime for this transfer.');
+    case 'invalid_recipient':
+      return t('wallet.airtimeTransferInvalidRecipient', 'Enter a valid Tmcel recipient number.');
+    case 'ineligible_subscriber':
+      return t('wallet.ineligibleSubscriber', 'This number is not eligible for airtime transfer.');
+    case 'limit_exceeded':
+      return t('wallet.airtimeLimitExceeded', 'This transfer exceeds the allowed airtime transfer limit.');
+    case 'duplicate_request':
+      return t('wallet.duplicateAirtimeTransfer', 'This transfer request has already been submitted.');
+    case 'provider_timeout':
+      return t('wallet.airtimeTransferPendingBody', 'Tmcel has not returned a final status yet. Check transaction status before retrying.');
+    case 'transfer_rejected':
+      return t('wallet.airtimeTransferRejected', 'Airtime transfer was not approved.');
     case 'session_expired':
       return t('login.sessionExpired', 'Your session expired. Please sign in again.');
     default:

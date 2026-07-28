@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { MotiView } from 'moti';
-import { Scan, Eye, EyeOff, Lock, Unlock, CreditCard, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt } from 'lucide-react-native';
+import { Scan, Eye, EyeOff, Lock, Unlock, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
 import { useGetEMolaWalletQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import SendMoneyModal from '../components/SendMoneyModal';
 import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
 import BuyAirtimeModal from '../components/BuyAirtimeModal';
+import TransferAirtimeModal from '../components/TransferAirtimeModal';
 import BillPayModal from '../components/BillPayModal';
 import ScanToPayModal from '../components/ScanToPayModal';
 import { isUnsupportedError, statusCopy } from '../services/statusCopy';
@@ -41,6 +42,7 @@ const WalletScreen = () => {
   const [sendVisible, setSendVisible] = useState(false);
   const [receiveVisible, setReceiveVisible] = useState(false);
   const [airtimeVisible, setAirtimeVisible] = useState(false);
+  const [transferAirtimeVisible, setTransferAirtimeVisible] = useState(false);
   const [billVisible, setBillVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
   const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
@@ -77,6 +79,9 @@ const WalletScreen = () => {
   const mKeshBalance = Number.isFinite(Number(walletData?.mKeshBalance))
     ? Number(walletData.mKeshBalance)
     : Number(walletData?.mkeshBalance ?? 0);
+  const airtimeBalance = Number.isFinite(Number(walletData?.airtimeBalance))
+    ? Number(walletData.airtimeBalance)
+    : 0;
   const safeCards = Array.isArray(walletData?.cards) ? walletData.cards : [];
   const safeTransactions = Array.isArray(walletData?.transactions) ? walletData.transactions : [];
 
@@ -169,7 +174,7 @@ const WalletScreen = () => {
           <View className="mt-3 pt-3 border-t border-outline-variant flex-row justify-between">
             <View>
               <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase">{t('wallet.airtime', 'Airtime')}</Text>
-              <Text style={{ fontSize: ss(14) }} className="font-title text-on-surface font-bold mt-0.5">150 MT</Text>
+              <Text style={{ fontSize: ss(14) }} className="font-title text-on-surface font-bold mt-0.5">{airtimeBalance.toFixed(2)} MT</Text>
             </View>
             <View>
               <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase">{t('wallet.data', 'Data')}</Text>
@@ -188,7 +193,7 @@ const WalletScreen = () => {
             <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary justify-center items-center mb-2 shadow-sm">
               <Send color="#fff" size={rs(22)} />
             </View>
-            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.sendMoney', 'Send')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.sendMoneyShort', 'Money')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setReceiveVisible(true)}>
@@ -202,15 +207,27 @@ const WalletScreen = () => {
             <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-primary-container justify-center items-center mb-2 shadow-sm">
               <Smartphone color="#111316" size={rs(22)} />
             </View>
-            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.airtime', 'Airtime')}</Text>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.buyAirtimeShort', 'Buy Airtime')}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setTransferAirtimeVisible(true)}>
+            <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-[#ECFCCB] justify-center items-center mb-2 shadow-sm">
+              <Repeat2 color="#3F6212" size={rs(22)} />
+            </View>
+            <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.transferAirtimeShort', 'Transfer')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View className="flex-row justify-start mb-lg">
           <TouchableOpacity className="items-center flex-1 active:scale-95" onPress={() => setBillVisible(true)}>
             <View style={{ width: rs(54), height: rs(54) }} className="rounded-[20px] bg-[#E0F2FE] justify-center items-center mb-2 shadow-sm">
               <Receipt color="#0369A1" size={rs(22)} />
             </View>
             <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant uppercase">{t('wallet.bills', 'Bills')}</Text>
           </TouchableOpacity>
+          <View className="flex-1" />
+          <View className="flex-1" />
+          <View className="flex-1" />
         </View>
 
         {/* Virtual Card Section */}
@@ -350,6 +367,12 @@ const WalletScreen = () => {
           onClose={() => setAirtimeVisible(false)}
           eMolaBalance={balance}
           mKeshBalance={mKeshBalance}
+        />
+        <TransferAirtimeModal
+          visible={transferAirtimeVisible}
+          onClose={() => setTransferAirtimeVisible(false)}
+          airtimeBalance={airtimeBalance}
+          senderMsisdn={currentMsisdn}
         />
         <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />

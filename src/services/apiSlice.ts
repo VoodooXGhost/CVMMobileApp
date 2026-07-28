@@ -120,6 +120,7 @@ const normalizeGamesData = (raw: any) => {
 
 const normalizeWalletData = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
+  const balances = source.balances ?? source.profile?.balances ?? {};
   const cards = toArray(source.cards).map((card: any, index: number) => {
     const rawNumber = typeof card?.number === 'string' ? card.number : '';
     const last4 = rawNumber.replace(/\D/g, '').slice(-4);
@@ -155,6 +156,9 @@ const normalizeWalletData = (raw: any) => {
     balance: source.balance ?? 0,
     eMolaBalance: source.eMolaBalance ?? source.balance ?? 0,
     mKeshBalance: source.mKeshBalance ?? source.mkeshBalance ?? 0,
+    airtimeBalance: normalizeCurrencyAmount(
+      source.airtimeBalance ?? source.airtime_balance ?? balances.airtime,
+    ),
     totalBalance: source.totalBalance ?? source.total_balance ?? 'MZN 0.00',
     cards,
     transactions,
@@ -524,6 +528,35 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
+    getAirtimeBalance: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/airtime/balance'],
+          api,
+          extraOptions,
+          'getWalletData',
+        ),
+      providesTags: ['Wallet'],
+    }),
+    transferAirtime: builder.mutation<any, { recipient_msisdn: string; amount: number; idempotency_key: string }>({
+      queryFn: (body, api, extraOptions) =>
+        mutationWithFallback(
+          [{ url: '/api/v1/mobile/v1/airtime/transfers', method: 'POST', body }],
+          api,
+          extraOptions,
+        ),
+      invalidatesTags: ['Wallet', 'Home', 'Transactions'],
+    }),
+    getAirtimeTransferStatus: builder.query<any, { transactionId: string }>({
+      queryFn: ({ transactionId }, api, extraOptions) =>
+        queryWithFallback(
+          [`/api/v1/mobile/v1/airtime/transfers/${transactionId}`],
+          api,
+          extraOptions,
+          'getTransactionStatus',
+        ),
+      providesTags: ['Transactions'],
+    }),
     payBill: builder.mutation<any, { biller_code: string; amount: number; reference: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
@@ -580,6 +613,9 @@ export const {
   useGetEMolaWalletQuery,
   useInitiateTransferMutation,
   useBuyAirtimeMutation,
+  useGetAirtimeBalanceQuery,
+  useTransferAirtimeMutation,
+  useLazyGetAirtimeTransferStatusQuery,
   usePayBillMutation,
   useGetTransactionStatusQuery,
   useGetCvmMarketplaceQuery,
