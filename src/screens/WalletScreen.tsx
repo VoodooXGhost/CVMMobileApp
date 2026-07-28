@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { MotiView } from 'moti';
 import { Scan, Eye, EyeOff, Lock, Unlock, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
-import { useGetEMolaWalletQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
+import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import SendMoneyModal from '../components/SendMoneyModal';
 import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
@@ -33,6 +33,7 @@ const WalletScreen = () => {
   const { storedMsisdn, user } = useAuth();
   const currentMsisdn = user?.msisdn || storedMsisdn || '';
   const { data: response, isLoading, error } = useGetEMolaWalletQuery();
+  const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery();
   const [toggleFreeze] = useToggleCardFreezeMutation();
   const { authenticate } = useBiometricAuth();
   const [revealedCards, setRevealedCards] = useState<Record<string, boolean>>({});
@@ -79,8 +80,15 @@ const WalletScreen = () => {
   const mKeshBalance = Number.isFinite(Number(walletData?.mKeshBalance))
     ? Number(walletData.mKeshBalance)
     : Number(walletData?.mkeshBalance ?? 0);
-  const airtimeBalance = Number.isFinite(Number(walletData?.airtimeBalance))
-    ? Number(walletData.airtimeBalance)
+  // Airtime transfers use the carrier airtime ledger, not the eMola wallet summary.
+  // Prefer the dedicated balance endpoint so the card and transfer modal match backend validation.
+  const airtimeBalancePayload = airtimeBalanceResponse?.data ?? airtimeBalanceResponse ?? {};
+  const resolvedAirtimeBalance = airtimeBalancePayload?.airtimeBalance
+    ?? airtimeBalancePayload?.airtime_balance
+    ?? walletData?.airtimeBalance
+    ?? walletData?.airtime_balance;
+  const airtimeBalance = Number.isFinite(Number(resolvedAirtimeBalance))
+    ? Number(resolvedAirtimeBalance)
     : 0;
   const safeCards = Array.isArray(walletData?.cards) ? walletData.cards : [];
   const safeTransactions = Array.isArray(walletData?.transactions) ? walletData.transactions : [];
@@ -371,6 +379,7 @@ const WalletScreen = () => {
         <TransferAirtimeModal
           visible={transferAirtimeVisible}
           onClose={() => setTransferAirtimeVisible(false)}
+          onSuccess={refetchAirtimeBalance}
           airtimeBalance={airtimeBalance}
           senderMsisdn={currentMsisdn}
         />

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import axios from 'axios';
 import { X } from 'lucide-react-native';
 import { AppButton, AppInput } from './Primitives';
 import { useI18n } from '../services/i18n';
@@ -9,14 +10,16 @@ import { ensureWalletAccess } from '../services/walletAccess';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { resolveLocalizedApiError } from '../services/apiErrors';
 import { track } from '../services/analytics';
+import { runtimeConfig, getZeroRateRequestHeaders } from '../config/runtime';
+import { platformStorage } from '../services/storage';
 import {
   useLazyGetAirtimeTransferStatusQuery,
-  useTransferAirtimeMutation,
 } from '../services/apiSlice';
 
 interface TransferAirtimeModalProps {
   visible: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   airtimeBalance: number;
   senderMsisdn?: string;
 }
@@ -29,10 +32,37 @@ const makeIdempotencyKey = (senderMsisdn: string, recipientMsisdn: string, amoun
 };
 
 const finalStatuses = new Set(['approved', 'rejected', 'unknown']);
+const trimTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
+const buildUrl = (path: string) => `${trimTrailingSlashes(runtimeConfig.apiUrl)}${path.startsWith('/') ? path : `/${path}`}`;
+
+const normalizeTransferPayload = (response: any) => {
+  const envelope = response?.data ?? response ?? {};
+  const payload = envelope?.data ?? envelope;
+  return {
+    payload,
+    transactionId: payload?.transaction_id ?? payload?.transactionId ?? envelope?.transaction_id ?? envelope?.transactionId,
+    status: String(payload?.status ?? envelope?.status ?? 'pending').toLowerCase(),
+  };
+};
+
+const submitAirtimeTransfer = async (body: { recipient_msisdn: string; amount: number; idempotency_key: string }) => {
+  const accessToken = await platformStorage.getItemAsync('userToken');
+  const walletToken = await ensureWalletAccess();
+  const response = await axios.post(buildUrl('/api/v1/mobile/v1/airtime/transfers'), body, {
+    timeout: 15_000,
+    headers: {
+      ...getZeroRateRequestHeaders(),
+      Authorization: `Bearer ${accessToken}`,
+      'X-Wallet-Token': walletToken,
+    },
+  });
+  return response.data;
+};
 
 export default function TransferAirtimeModal({
   visible,
   onClose,
+  onSuccess,
   airtimeBalance,
   senderMsisdn = '',
 }: TransferAirtimeModalProps) {
@@ -42,7 +72,7 @@ export default function TransferAirtimeModal({
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [submittedReference, setSubmittedReference] = useState<string | null>(null);
-  const [transferAirtime, { isLoading }] = useTransferAirtimeMutation();
+  const [isLoading, setIsLoading] = useState(false);
   const [fetchStatus] = useLazyGetAirtimeTransferStatusQuery();
 
   const numericAmount = useMemo(() => Number(amount), [amount]);
@@ -54,6 +84,7 @@ export default function TransferAirtimeModal({
     setRecipient('');
     setAmount('');
     setSubmittedReference(null);
+    onSuccess?.();
     onClose();
   };
 
@@ -107,24 +138,48 @@ export default function TransferAirtimeModal({
                 );
                 return;
               }
-              await ensureWalletAccess();
+              setIsLoading(true);
               const idempotencyKey = makeIdempotencyKey(senderMsisdn, cleanRecipient, numericAmount);
-              const response = await transferAirtime({
+              const response = await submitAirtimeTransfer({
                 recipient_msisdn: cleanRecipient,
                 amount: numericAmount,
                 idempotency_key: idempotencyKey,
-              }).unwrap();
-              const payload = response?.data ?? response ?? {};
-              const transactionId = payload.transaction_id ?? payload.data?.transaction_id;
+              });
+              // CVM returns the final provider state in the submit response for UAT.
+              // Treat that as authoritative instead of turning a later polling issue into a false failure.
+              const { transactionId, status: submittedStatus } = normalizeTransferPayload(response);
               setSubmittedReference(transactionId ?? null);
-              await track('airtime_transfer_submit', { transaction_id: transactionId, amount: numericAmount }, { screen: 'wallet' });
+              await track('airtime_transfer_submit', { transaction_id: transactionId, amount: numericAmount, status: submittedStatus }, { screen: 'wallet' });
+
+              if (submittedStatus === 'approved') {
+                await track('airtime_transfer_final', { transaction_id: transactionId, status: submittedStatus }, { screen: 'wallet' });
+                Alert.alert(
+                  t('common.success', 'Success'),
+                  t('wallet.airtimeTransferSuccess', 'Airtime transfer completed successfully.'),
+                  [{ text: 'OK', onPress: resetAndClose }],
+                );
+                return;
+              }
+
+              if (submittedStatus === 'rejected' || submittedStatus === 'unknown') {
+                await track('airtime_transfer_final', { transaction_id: transactionId, status: submittedStatus }, { screen: 'wallet' });
+                Alert.alert(t('common.error', 'Error'), t('wallet.airtimeTransferRejected', 'Airtime transfer was not approved.'));
+                return;
+              }
 
               if (!transactionId) {
                 Alert.alert(t('wallet.airtimeTransferPending', 'Transfer submitted'), t('wallet.airtimeTransferPendingBody', 'The transfer was accepted but no status reference was returned.'));
                 return;
               }
 
-              const finalStatus = await pollFinalStatus(transactionId);
+              let finalStatus = 'pending';
+              try {
+                finalStatus = await pollFinalStatus(transactionId);
+              } catch (statusError: any) {
+                await track('airtime_transfer_status_poll_fail', { transaction_id: transactionId, reason: statusError?.status || statusError?.message || 'unknown' }, { screen: 'wallet' });
+                Alert.alert(t('wallet.airtimeTransferPending', 'Transfer pending'), t('wallet.airtimeTransferPendingBody', 'Tmcel has not returned a final status yet. Check transaction status before retrying.'));
+                return;
+              }
               await track('airtime_transfer_final', { transaction_id: transactionId, status: finalStatus }, { screen: 'wallet' });
               if (finalStatus === 'approved') {
                 Alert.alert(
@@ -141,10 +196,17 @@ export default function TransferAirtimeModal({
               Alert.alert(t('common.error', 'Error'), t('wallet.airtimeTransferRejected', 'Airtime transfer was not approved.'));
             } catch (error: any) {
               await track('airtime_transfer_fail', { reason: error?.status || error?.message || 'unknown' }, { screen: 'wallet' });
+              console.warn('[mobile] airtime transfer failed', JSON.stringify({
+                status: error?.response?.status ?? error?.status,
+                message: error?.message,
+                data: error?.response?.data ?? error?.data,
+              }));
               Alert.alert(
                 t('common.error', 'Error'),
                 resolveLocalizedApiError(t, error, t('wallet.airtimeTransferFailed', 'Airtime transfer failed. Please try again.')),
               );
+            } finally {
+              setIsLoading(false);
             }
           },
         },
