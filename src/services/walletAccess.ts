@@ -4,6 +4,7 @@ import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
 import { getDeviceIdentifier, registerMobileDevice } from './session';
+import { isEmulatorLikeAndroidDevice } from './deviceEnvironment';
 
 const WALLET_TOKEN_KEY = 'wallet_token';
 const WALLET_TOKEN_EXPIRES_AT_KEY = 'wallet_token_expires_at';
@@ -56,10 +57,9 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
   }
 
   const deviceId = await getDeviceIdentifier();
-  if (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget()) {
-    // Validation builds run on BlueStacks and need the device to be registered
-    // before the wallet step-up call is attempted, otherwise the backend
-    // returns a 403 and blocks the smoke test.
+  if ((runtimeConfig.profile !== 'prod' && isRemoteValidationTarget()) && isEmulatorLikeAndroidDevice()) {
+    // Validation builds on emulator-like devices need a registration pass
+    // before wallet step-up. Real phones should not inherit this synthetic path.
     try {
       logger.log('Pre-registering validation device before wallet step-up', { deviceId });
       await registerMobileDevice();
@@ -112,7 +112,8 @@ export const ensureWalletAccess = async (biometricAssertion = 'mock-biometric-ac
       const shouldRetryAfterDeviceRegistration =
         statusCode === 403 &&
         backendMessage.includes('registered device') &&
-        isRemoteValidationTarget();
+        isRemoteValidationTarget() &&
+        isEmulatorLikeAndroidDevice();
       const canFallback = statusCode === 404 || statusCode === 405;
 
       if (shouldRetryAfterDeviceRegistration) {
