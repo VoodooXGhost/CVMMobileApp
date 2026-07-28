@@ -18,9 +18,12 @@ const PUSH_TOKEN_KEY = 'notifications_push_token';
 const ANDROID_CHANNEL_ID = 'tmcel-updates';
 
 const getExpoProjectId = () => {
+  const envProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
   const easProjectId = (Constants as any)?.easConfig?.projectId;
   const extraProjectId = (Constants as any)?.expoConfig?.extra?.eas?.projectId;
-  return typeof easProjectId === 'string' ? easProjectId : typeof extraProjectId === 'string' ? extraProjectId : null;
+  if (typeof envProjectId === 'string' && envProjectId.trim().length > 0) return envProjectId;
+  if (typeof easProjectId === 'string') return easProjectId;
+  return typeof extraProjectId === 'string' ? extraProjectId : null;
 };
 
 const resolvePermissionStatus = (permission: unknown): NotificationPermissionState => {
