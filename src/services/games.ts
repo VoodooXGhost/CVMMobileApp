@@ -58,3 +58,8 @@ export const getPrimaryGame = (gamesPayload: any) => {
     null
   );
 };
+
+export const getGameByType = (gamesPayload: any, type: MobileGameType) => {
+  const activeGames = Array.isArray(gamesPayload?.active_games) ? gamesPayload.active_games : [];
+  return activeGames.find((game: MobileGame) => game.type === type) ?? null;
+};

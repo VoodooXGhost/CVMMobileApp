@@ -23,7 +23,7 @@ import {
   Users,
   Sparkles
 } from 'lucide-react-native';
-import { useGetHomeDataQuery, useGetOffersDataQuery, useGetGamesDataQuery, useRedeemOfferMutation } from '../services/apiSlice';
+import { useGetHomeDataQuery, useGetOffersDataQuery, useGetGamesDataQuery, usePlayGameMutation, useRedeemOfferMutation } from '../services/apiSlice';
 import SpinWheelModal from '../components/SpinWheelModal';
 import LoyaltyTierCard from '../components/LoyaltyTierCard';
 import QuestRow from '../components/QuestRow';
@@ -34,7 +34,7 @@ import { formatMznCurrency } from '../services/formatters';
 import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
 import { useBiometricAuth } from '../hooks/useBiometricAuth';
 import { ensureWalletAccess } from '../services/walletAccess';
-import { getPrimaryGame } from '../services/games';
+import { getGameByType, getPrimaryGame } from '../services/games';
 import { resolveYmBalance } from '../services/loyalty';
 import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
@@ -46,6 +46,7 @@ const RewardsScreen = () => {
   const { data: homeResponse, isLoading: isHomeLoading } = useGetHomeDataQuery();
   const { data: offersResponse, isLoading: isOffersLoading } = useGetOffersDataQuery();
   const { data: gamesResponse } = useGetGamesDataQuery();
+  const [playGame, { isLoading: isClaimingStreak }] = usePlayGameMutation();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const [spinVisible, setSpinVisible] = useState(false);
   const { authenticate } = useBiometricAuth();
@@ -65,6 +66,7 @@ const RewardsScreen = () => {
   const safeOffers = Array.isArray(offers) ? offers : [];
   const gamesData = gamesResponse?.data || gamesResponse || {};
   const primaryGame = getPrimaryGame(gamesData);
+  const streakGame = getGameByType(gamesData, 'daily_streak');
 
   useEffect(() => {
     track('screen_view', { name: 'rewards' }, { screen: 'rewards' });
@@ -184,6 +186,42 @@ const RewardsScreen = () => {
     );
   };
 
+  const handleClaimDailyStreak = async () => {
+    const gameId = streakGame?.id ?? 'daily_streak';
+    try {
+      await track(
+        'game_play_start',
+        { game_id: gameId, game_type: 'daily_streak' },
+        { screen: 'rewards', source: 'daily_streak_card' },
+      );
+      const response = await playGame({ game_id: gameId }).unwrap();
+      const responseData = response?.data ?? response;
+      await track(
+        'game_play_success',
+        { game_id: gameId, game_type: 'daily_streak', streak: responseData?.current_streak },
+        { screen: 'rewards', source: 'daily_streak_card' },
+      );
+      Alert.alert(
+        t('common.success', 'Success'),
+        t('rewards.streakClaimed', 'Daily streak checked in. Your streak is now {count} day(s).')
+          .replace('{count}', String(responseData?.current_streak ?? gamification?.current_streak ?? 1)),
+      );
+    } catch (err: any) {
+      const errorCode = getApiErrorCode(err);
+      const errorMessage = resolveLocalizedApiError(
+        t,
+        err,
+        t('rewards.streakFail', 'Unable to update your streak right now.'),
+      );
+      await track(
+        'game_play_fail',
+        { game_id: gameId, game_type: 'daily_streak', reason: errorCode || err?.status || 'unknown' },
+        { screen: 'rewards', source: 'daily_streak_card' },
+      );
+      Alert.alert(t('common.error', 'Error'), errorMessage);
+    }
+  };
+
   // Extract unique categories from offers
   const offerCategories = ['All', ...Array.from(new Set(safeOffers.map((o: any) => o.category).filter(Boolean)))];
   
@@ -208,13 +246,18 @@ const RewardsScreen = () => {
         <LoyaltyTierCard loyalty={loyalty} />
 
         {/* 2. Premium Streak Tracker */}
-        <MotiView
-          from={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 15 }}
-          className="bg-surface-container-lowest p-md rounded-xl mb-lg border border-outline-variant shadow-sm"
+        <TouchableOpacity
+          activeOpacity={0.9}
+          disabled={isClaimingStreak}
+          onPress={handleClaimDailyStreak}
         >
-          <View className="flex-row justify-between items-center mb-4">
+          <MotiView
+            from={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15 }}
+            className="bg-surface-container-lowest p-md rounded-xl mb-lg border border-outline-variant shadow-sm"
+          >
+            <View className="flex-row justify-between items-center mb-4">
             <View className="flex-row items-center">
               <Flame size={rs(20)} color="#ea580c" fill="#ea580c" />
               <View className="ml-3">
@@ -223,11 +266,13 @@ const RewardsScreen = () => {
               </View>
             </View>
             <View className="bg-amber-500/10 px-3 py-1 rounded-full">
-              <Text style={{ fontSize: ss(10) }} className="font-label text-amber-600 font-bold uppercase tracking-wider">Active</Text>
+              <Text style={{ fontSize: ss(10) }} className="font-label text-amber-600 font-bold uppercase tracking-wider">
+                {isClaimingStreak ? t('common.loading', 'Loading') : t('rewards.claimStreak', 'Check in')}
+              </Text>
             </View>
-          </View>
+            </View>
           
-          <View className="flex-row justify-between items-center px-1">
+            <View className="flex-row justify-between items-center px-1">
             {[1, 2, 3, 4, 5, 6, 7].map((day) => {
               const active = day <= (gamification?.current_streak || 0);
               const isToday = day === (gamification?.current_streak || 0);
@@ -249,14 +294,15 @@ const RewardsScreen = () => {
                 </View>
               );
             })}
-          </View>
-          <View className="flex-row items-center mt-4 pt-3 border-t border-outline-variant gap-2">
+            </View>
+            <View className="flex-row items-center mt-4 pt-3 border-t border-outline-variant gap-2">
             <Zap size={rs(12)} color="#ea580c" fill="#ea580c" />
             <Text style={{ fontSize: ss(10) }} className="font-caption font-semibold text-on-surface-variant">
-               Streak milestone: Mystery Box prize on Day {gamification?.milestone_target || 7}
+               {t('rewards.streakMilestone', 'Streak milestone: Mystery Box prize on Day {day}').replace('{day}', String(gamification?.milestone_target || 7))}
             </Text>
-          </View>
-        </MotiView>
+            </View>
+          </MotiView>
+        </TouchableOpacity>
 
         {/* 3. Spin-the-Wheel Hero Section */}
         <MotiView

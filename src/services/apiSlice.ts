@@ -423,7 +423,7 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet'],
     }),
-    playGame: builder.mutation<any, { game_id: number }>({
+    playGame: builder.mutation<any, { game_id: number | string }>({
       queryFn: ({ game_id }, api, extraOptions) =>
         mutationWithFallback(
           [

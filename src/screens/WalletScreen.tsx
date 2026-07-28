@@ -1,24 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { MotiView } from 'moti';
-import { Scan, Eye, EyeOff, Lock, Unlock, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
-import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery, useToggleCardFreezeMutation } from '../services/apiSlice';
-import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { Scan, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
+import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery } from '../services/apiSlice';
 import SendMoneyModal from '../components/SendMoneyModal';
 import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
 import BuyAirtimeModal from '../components/BuyAirtimeModal';
 import TransferAirtimeModal from '../components/TransferAirtimeModal';
 import BillPayModal from '../components/BillPayModal';
 import ScanToPayModal from '../components/ScanToPayModal';
-import { isUnsupportedError, statusCopy } from '../services/statusCopy';
 import { track } from '../services/analytics';
-import { runtimeConfig } from '../config/runtime';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
-import { Colors } from '../theme/tokens';
 
 import { useAuth } from '../services/auth.context';
 
@@ -26,7 +22,7 @@ import { useAuth } from '../services/auth.context';
  * WalletScreen Component
  * 
  * Manages the user's financial overview, including eMola mobile money balances,
- * transactions, virtual cards, and payment controls.
+ * transaction history, airtime transfer, and payment controls.
  */
 const WalletScreen = () => {
   const { language, t } = useI18n();
@@ -34,10 +30,6 @@ const WalletScreen = () => {
   const currentMsisdn = user?.msisdn || storedMsisdn || '';
   const { data: response, isLoading, error } = useGetEMolaWalletQuery();
   const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery();
-  const [toggleFreeze] = useToggleCardFreezeMutation();
-  const { authenticate } = useBiometricAuth();
-  const [revealedCards, setRevealedCards] = useState<Record<string, boolean>>({});
-  const [freezingId, setFreezingId] = useState<string | null>(null);
   
   // Modals visibility state
   const [sendVisible, setSendVisible] = useState(false);
@@ -46,9 +38,8 @@ const WalletScreen = () => {
   const [transferAirtimeVisible, setTransferAirtimeVisible] = useState(false);
   const [billVisible, setBillVisible] = useState(false);
   const [scanVisible, setScanVisible] = useState(false);
-  const [freezeRetryCard, setFreezeRetryCard] = useState<any | null>(null);
 
-  const { ss, rs, width } = useResponsiveScale();
+  const { ss, rs } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
   const layout = getResponsiveLayout(sizeClass);
   const spacing = getResponsiveSpacing(sizeClass);
@@ -90,61 +81,7 @@ const WalletScreen = () => {
   const airtimeBalance = Number.isFinite(Number(resolvedAirtimeBalance))
     ? Number(resolvedAirtimeBalance)
     : 0;
-  const safeCards = Array.isArray(walletData?.cards) ? walletData.cards : [];
   const safeTransactions = Array.isArray(walletData?.transactions) ? walletData.transactions : [];
-
-  const handleReveal = async (cardId: string) => {
-    if (revealedCards[cardId]) {
-      setRevealedCards({ ...revealedCards, [cardId]: false });
-      return;
-    }
-
-    const success = await authenticate('Authenticate to reveal card details');
-    if (success) {
-      setRevealedCards({ ...revealedCards, [cardId]: true });
-    }
-  };
-
-  const handleToggleFreeze = async (card: any) => {
-    if (!runtimeConfig.flags.walletHighRiskActionsEnabled) {
-      Alert.alert(t('wallet.actionDisabled', 'Action disabled'), t('wallet.highRiskDisabled', 'Wallet high-risk actions are temporarily disabled during rollout.'));
-      return;
-    }
-    const isFrozen = card.status === 'FROZEN';
-    setFreezingId(card.id);
-    try {
-      await track(
-        'wallet_action_start',
-        { action: 'toggle_freeze', card_id: card.id, freeze: !isFrozen },
-        { screen: 'wallet', source: 'card_controls' },
-      );
-      await toggleFreeze({ freeze: !isFrozen }).unwrap();
-      setFreezeRetryCard(null);
-      await track(
-        'wallet_action_success',
-        { action: 'toggle_freeze', card_id: card.id, freeze: !isFrozen },
-        { screen: 'wallet', source: 'card_controls' },
-      );
-      Alert.alert(
-        isFrozen ? t('wallet.cardUnfrozen', 'Card Unfrozen') : t('wallet.cardFrozen', 'Card Frozen'),
-        isFrozen ? t('wallet.cardReady', 'Your card is now ready for use.') : t('wallet.cardBlocked', 'No transactions will be allowed until you unfreeze it.')
-      );
-    } catch (err: any) {
-      setFreezeRetryCard(card);
-      await track(
-        'wallet_action_fail',
-        { action: 'toggle_freeze', card_id: card.id, reason: err?.status || 'unknown' },
-        { screen: 'wallet', source: 'card_controls' },
-      );
-      if (isUnsupportedError(err)) {
-        Alert.alert(t('wallet.featureUnavailable', 'Feature unavailable'), statusCopy.unsupportedFeature);
-      } else {
-        Alert.alert(t('wallet.requestFailed', 'Request failed'), statusCopy.networkError);
-      }
-    } finally {
-      setFreezingId(null);
-    }
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
@@ -238,87 +175,6 @@ const WalletScreen = () => {
           <View className="flex-1" />
         </View>
 
-        {/* Virtual Card Section */}
-        <View className="mb-lg">
-          <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface mb-md">{t('wallet.myCards', 'Linked Virtual Cards')}</Text>
-          {safeCards.map((card: any) => {
-            const isRevealed = revealedCards[card.id];
-            const isFrozen = card.status === 'FROZEN';
-            const rawCardNumber = typeof card.number === 'string' ? card.number : '';
-            const maskedNumber =
-              rawCardNumber && rawCardNumber.length >= 4
-                ? rawCardNumber.replace(/\d(?=\d{4})/g, "•")
-                : '•••• •••• •••• ••••';
-            
-            return (
-              <MotiView
-                key={card.id}
-                from={{ opacity: 0, translateY: 15 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'spring', damping: 15 }}
-                className={`rounded-xl overflow-hidden bg-primary mb-md shadow-md ${isFrozen ? 'opacity-60' : ''}`}
-              >
-                <View style={{ height: width * 0.48 }} className="p-5 justify-between">
-                  <View className="flex-row justify-between items-center">
-                    <Text style={{ fontSize: ss(14) }} className="text-white font-black uppercase tracking-wider">{card.type}</Text>
-                    <View className="w-10 h-7 bg-primary-container/85 rounded opacity-90" />
-                  </View>
-                  
-                  <View className="my-3">
-                    <Text style={{ fontSize: ss(18) }} className="text-white tracking-[4px] font-semibold text-center">
-                      {isRevealed ? (rawCardNumber || maskedNumber) : maskedNumber}
-                    </Text>
-                  </View>
-                  
-                  <View className="flex-row justify-between items-end">
-                    <View>
-                      <Text style={{ fontSize: ss(9) }} className="text-white/50 font-caption font-black uppercase mb-0.5">{t('wallet.expiry', 'EXPIRY')}</Text>
-                      <Text style={{ fontSize: ss(13) }} className="text-white font-semibold">{card.expiry}</Text>
-                    </View>
-                    {isRevealed && (
-                      <View>
-                        <Text style={{ fontSize: ss(9) }} className="text-white/50 font-caption font-black uppercase mb-0.5">{t('wallet.cvv', 'CVV')}</Text>
-                        <Text style={{ fontSize: ss(13) }} className="text-white font-semibold">•••</Text>
-                      </View>
-                    )}
-                    <View className="w-[45px] h-[15px] bg-white/20 rounded" />
-                  </View>
-                </View>
-
-                {/* Card Controls */}
-                <View className="flex-row bg-surface-container-highest border-t border-white/5">
-                  <TouchableOpacity 
-                    style={{ minHeight: layout.buttonHeight - 8 }}
-                    className="flex-1 flex-row items-center justify-center py-3 gap-2 active:bg-white/5"
-                    onPress={() => handleReveal(card.id)}
-                  >
-                    {isRevealed ? <EyeOff size={rs(18)} color="#1a1c1c" /> : <Eye size={rs(18)} color="#1a1c1c" />}
-                    <Text style={{ fontSize: ss(12) }} className="font-black text-on-surface">{isRevealed ? t('wallet.hide', 'Hide') : t('wallet.reveal', 'Reveal')}</Text>
-                  </TouchableOpacity>
-                  
-                  <View className="w-[1px] h-[60%] bg-white/10 align-self-center" />
-                  
-                  <TouchableOpacity 
-                    style={{ minHeight: layout.buttonHeight - 8 }}
-                    className="flex-1 flex-row items-center justify-center py-3 gap-2 active:bg-white/5"
-                    onPress={() => handleToggleFreeze(card)}
-                    disabled={freezingId === card.id || !runtimeConfig.flags.walletHighRiskActionsEnabled}
-                  >
-                    {isFrozen ? (
-                      <Unlock size={rs(18)} color="#2260a2" />
-                    ) : (
-                      <Lock size={rs(18)} color="#ba1a1a" />
-                    )}
-                    <Text style={{ fontSize: ss(12) }} className={`font-black ${isFrozen ? 'text-secondary' : 'text-on-surface'}`}>
-                      {isFrozen ? t('wallet.unfreeze', 'Unfreeze') : t('wallet.freeze', 'Freeze')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </MotiView>
-            );
-          })}
-        </View>
-
         {/* Transaction History */}
         <View className="mb-lg">
           <View className="flex-row justify-between items-center mb-md">
@@ -385,12 +241,6 @@ const WalletScreen = () => {
         />
         <BillPayModal visible={billVisible} onClose={() => setBillVisible(false)} eMolaBalance={balance} />
         <ScanToPayModal visible={scanVisible} onClose={() => setScanVisible(false)} />
-        
-        {freezeRetryCard ? (
-          <TouchableOpacity className="bg-[#FEF2F2] rounded-md p-md items-center justify-center border border-error/20" onPress={() => handleToggleFreeze(freezeRetryCard)}>
-            <Text style={{ fontSize: ss(12) }} className="font-label text-error font-bold">{t('wallet.retryCardStatus', 'Retry card status update')}</Text>
-          </TouchableOpacity>
-        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

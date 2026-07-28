@@ -87,8 +87,10 @@ export const SpinWheelModal = ({ visible, onClose, game, canSpinToday = true }: 
 
     await ensureWalletAccess();
 
-    const gameId = Number(game?.id);
-    if (!Number.isFinite(gameId) || gameId <= 0) {
+    // Backend games can use canonical string IDs such as "spin_wheel" or
+    // legacy numeric IDs, so keep the identifier intact instead of coercing it.
+    const gameId = game?.id;
+    if (gameId == null || String(gameId).trim().length === 0) {
       setIsSpinning(false);
       Alert.alert(
         t('common.unavailable', 'Unavailable'),

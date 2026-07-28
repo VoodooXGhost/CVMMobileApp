@@ -136,6 +136,10 @@ const translations = {
       gameUnavailable: 'This game is not available right now.',
       gameUnavailableBody: 'Please try again once the active game is available.',
       invalidGameState: 'This game cannot be played right now.',
+      claimStreak: 'Check in',
+      streakMilestone: 'Streak milestone: Mystery Box prize on Day {day}',
+      streakClaimed: 'Daily streak checked in. Your streak is now {count} day(s).',
+      streakFail: 'Unable to update your streak right now.',
     },
     marketplace: {
       title: 'Marketplace',
@@ -404,6 +408,10 @@ const translations = {
       gameUnavailable: 'Este jogo nao esta disponivel agora.',
       gameUnavailableBody: 'Tente novamente quando o jogo ativo estiver disponivel.',
       invalidGameState: 'Este jogo nao pode ser jogado agora.',
+      claimStreak: 'Registar',
+      streakMilestone: 'Marco da sequencia: premio Mystery Box no Dia {day}',
+      streakClaimed: 'Sequencia diaria registada. A sua sequencia esta agora em {count} dia(s).',
+      streakFail: 'Nao foi possivel atualizar a sua sequencia agora.',
     },
     marketplace: {
       title: 'Mercado',
