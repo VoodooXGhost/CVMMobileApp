@@ -574,6 +574,38 @@ const HomeScreen = () => {
           </MotiView>
         )}
 
+        {/* Notification Inbox Entry */}
+        <MotiView
+          from={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15, delay: 120 }}
+          className="bg-surface-container-lowest p-md rounded-xl shadow-sm mb-lg border border-outline-variant"
+        >
+          <TouchableOpacity
+            className="flex-row items-center"
+            onPress={handleOpenNotifications}
+            activeOpacity={0.85}
+          >
+            <View style={{ width: rs(44), height: rs(44) }} className="rounded-full bg-primary-container justify-center items-center relative">
+              <Bell size={rs(20)} color="#111316" />
+              {unreadVisibleCount > 0 ? <View className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-error border-2 border-surface" /> : null}
+            </View>
+            <View className="flex-1 ml-3">
+              <Text style={{ fontSize: ss(16) }} className="font-title text-on-surface font-semibold">
+                {t('home.notificationsCardTitle', 'Notifications')}
+              </Text>
+              <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-70 mt-0.5">
+                {unreadVisibleCount > 0
+                  ? t('home.notificationsUnreadCount', '{count} unread update').replace('{count}', String(unreadVisibleCount))
+                  : t('home.notificationsNoUnread', 'No unread CVM notifications yet.')}
+              </Text>
+            </View>
+            <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-black uppercase">
+              {t('home.notificationsOpen', 'Open')}
+            </Text>
+          </TouchableOpacity>
+        </MotiView>
+
         {/* FR-1.2 Dynamic CVM Banner (MAB Optimized) */}
         <View className="mb-lg">
           <ScrollView 

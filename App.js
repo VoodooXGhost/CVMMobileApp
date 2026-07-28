@@ -20,11 +20,13 @@ import { validateRuntimeConfig } from './src/config/runtime';
 import { logger } from './src/services/logger';
 import { initHealthMonitoring } from './src/services/health';
 import { I18nProvider } from './src/services/i18n';
+import { configureNotificationPresentation, addNotificationResponseListener } from './src/services/pushNotifications';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 validateRuntimeConfig();
 initHealthMonitoring();
+configureNotificationPresentation();
 
 const AppContent = () => {
   const { token, isLoading: isAuthLoading } = useAuth();
@@ -37,6 +39,10 @@ const AppContent = () => {
 
   // Defensive, production-grade splash screen lifecycles.
   useEffect(() => {
+    const notificationSubscription = addNotificationResponseListener(() => {
+      logger.log('Notification tap received; inbox routing will be handled by the active navigator.');
+    });
+
     const manageSplash = async () => {
       if (!isAuthLoading && fontsLoaded) {
         try {
@@ -47,6 +53,9 @@ const AppContent = () => {
       }
     };
     manageSplash();
+    return () => {
+      notificationSubscription.remove();
+    };
   }, [isAuthLoading, fontsLoaded]);
 
   if (isAuthLoading || !fontsLoaded) {

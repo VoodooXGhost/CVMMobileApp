@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { platformStorage } from './storage';
 import { logger } from './logger';
+import { requestPushRegistrationState } from './pushNotifications';
 
 const ACCESS_TOKEN_KEY = 'userToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -208,58 +209,30 @@ const normalizeDeviceToken = async () => {
   return deviceId;
 };
 
-const isRemoteValidationTarget = () => {
-  const apiUrl = String(runtimeConfig.apiUrl || '');
-  return ['41.220.193.77', '10.100.61.7', ':8080'].some((marker) => apiUrl.includes(marker));
-};
-
-const getExpoPushTokenIfAvailable = async () => {
-  // Validation targets need a stable push token so the backend can register
-  // the device during live smoke tests. Production stays fail-closed.
-  if (runtimeConfig.profile === 'validation' || (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget())) {
-    const deviceId = await getDeviceIdentifier();
-    const token = `validation-push-${deviceId}`;
-    logger.log('Using validation push token fallback', { deviceId });
-    return token;
-  }
-
-  logger.log('Push token lookup skipped in this build path');
-  return null;
-};
-
 export const registerMobileDevice = async () => {
   const deviceId = await normalizeDeviceToken();
-  const pushToken = await getExpoPushTokenIfAvailable();
-  const effectivePushToken =
-    pushToken ?? (runtimeConfig.profile !== 'prod' && isRemoteValidationTarget() ? `validation-push-${deviceId}` : null);
+  const pushState = await requestPushRegistrationState();
   console.warn('[mobile] device registration start', {
     profile: runtimeConfig.profile,
     apiUrl: runtimeConfig.apiUrl,
     deviceId,
-    hasPushToken: Boolean(effectivePushToken),
+    hasPushToken: Boolean(pushState.pushToken),
+    notificationsPermission: pushState.notificationsPermission,
   });
-  if (runtimeConfig.profile === 'prod' && !effectivePushToken) {
-    const error: any = new Error('A real push token is required for production device registration.');
-    error.code = 'push_token_unavailable';
-    console.warn('[mobile] device registration blocked by missing push token', {
-      profile: runtimeConfig.profile,
-      apiUrl: runtimeConfig.apiUrl,
-      deviceId,
-    });
-    throw error;
-  }
   const { accessToken } = await getStoredAuthTokens();
   try {
     logger.log('Registering mobile device for wallet step-up', {
       deviceId,
-      hasPushToken: Boolean(effectivePushToken),
+      hasPushToken: Boolean(pushState.pushToken),
       profile: runtimeConfig.profile,
     });
     await axios.post(
       buildUrl('/api/v1/mobile/auth/register-device'),
       {
         deviceId,
-        ...(effectivePushToken ? { pushToken: effectivePushToken } : {}),
+        ...(pushState.pushToken ? { pushToken: pushState.pushToken } : {}),
+        ...(pushState.tokenType ? { tokenType: pushState.tokenType } : {}),
+        notificationsPermission: pushState.notificationsPermission,
         platform: Platform.OS,
       },
       {
@@ -276,7 +249,7 @@ export const registerMobileDevice = async () => {
       deviceId,
     });
     logger.log('Mobile device registration completed', { deviceId });
-    return { deviceId, pushToken: effectivePushToken };
+    return { deviceId, pushToken: pushState.pushToken, notificationsPermission: pushState.notificationsPermission };
   } catch (error: any) {
     console.warn('[mobile] device registration failed', {
       profile: runtimeConfig.profile,
@@ -287,10 +260,7 @@ export const registerMobileDevice = async () => {
       data: error?.response?.data,
     });
     logger.warn('Device registration failed', { status: error?.response?.status });
-    if (runtimeConfig.profile === 'prod') {
-      throw error;
-    }
-    return { deviceId, pushToken: effectivePushToken };
+    return { deviceId, pushToken: pushState.pushToken, notificationsPermission: pushState.notificationsPermission };
   }
 };
 

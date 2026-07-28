@@ -30,6 +30,14 @@
     },
     "plugins": [
       "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./TmcelSmallLogo.png",
+          "color": "#ffcc00",
+          "defaultChannel": "tmcel-updates"
+        }
+      ],
       "expo-secure-store",
       "@react-native-google-signin/google-signin"
     ]
