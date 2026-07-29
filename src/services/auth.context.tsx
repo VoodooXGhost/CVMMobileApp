@@ -221,6 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const cleanMsisdn = msisdn.trim().replace(/^\+/, '').replace(/\D/g, '');
+      const cleanPin = pin.trim();
 
       console.warn('[mobile] login request start', {
         apiUrl: API_URL,
@@ -232,9 +233,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         `${API_URL}/api/v1/mobile/auth/login`,
         {
           username: cleanMsisdn,
-          password: pin,
+          password: cleanPin,
           msisdn: cleanMsisdn,
-          pin,
+          pin: cleanPin,
           device_id: deviceId,
           platform: 'android',
         },

@@ -54,14 +54,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleLogin = async () => {
     const targetMsisdn = storedMsisdn || msisdn;
-    if (!targetMsisdn || !pin) {
+    const targetPin = pin.trim();
+    if (!targetMsisdn || !targetPin) {
       Alert.alert(t('login.signInRequired', 'Sign in required'), t('login.enterCredentials', 'Enter both MSISDN and PIN to continue.'));
       return;
     }
 
     setIsLoggingIn(true);
     try {
-      await signIn(targetMsisdn, pin);
+      await signIn(targetMsisdn, targetPin);
     } catch (error: any) {
       const statusCode = error?.response?.status;
       if (!statusCode) {
@@ -223,6 +224,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 onChangeText={setPin}
                 secureTextEntry
                 keyboardType="default"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
               />
             </View>
 

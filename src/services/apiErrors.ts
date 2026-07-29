@@ -36,7 +36,12 @@ export const getApiErrorCode = (error: any) => {
 
 export const getApiErrorMessage = (error: any, fallback: string) => {
   const payload = error?.data?.error ?? error?.error ?? error?.response?.data?.error ?? null;
-  const message = payload?.message ?? error?.data?.detail ?? error?.detail ?? error?.message;
+  const message =
+    payload?.message ??
+    error?.data?.detail ??
+    error?.response?.data?.detail ??
+    error?.detail ??
+    error?.message;
   return typeof message === 'string' && message.trim().length > 0 ? message : fallback;
 };
 
