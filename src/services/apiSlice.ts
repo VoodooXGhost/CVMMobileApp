@@ -206,6 +206,26 @@ const normalizeCvmMarketplace = (raw: any) => {
   };
 };
 
+const normalizeBundlesData = (raw: any) => {
+  const source = raw?.data ?? raw ?? {};
+  const rawList = source.bundles ?? source.packages ?? source.packageList ?? (Array.isArray(source) ? source : []);
+  const bundles = toArray(rawList).map((bundle: any, index: number) => ({
+    id: String(bundle?.id ?? bundle?.packageRef ?? bundle?.package_ref ?? bundle?.reference ?? `bundle-${index + 1}`),
+    packageRef: Number(bundle?.packageRef ?? bundle?.package_ref ?? bundle?.reference ?? bundle?.id ?? index + 1),
+    title: bundle?.title ?? bundle?.description ?? bundle?.name ?? 'Tmcel Bundle',
+    description: bundle?.description ?? bundle?.summary ?? bundle?.title ?? bundle?.name ?? 'Tmcel bundle',
+    amount: normalizeCurrencyAmount(bundle?.amount ?? bundle?.price),
+    category: bundle?.category ?? 'Bundle',
+    duration: bundle?.duration ?? bundle?.validity ?? '',
+    payment_methods: Array.isArray(bundle?.payment_methods) ? bundle.payment_methods : ['emola', 'mkesh'],
+  }));
+
+  return {
+    bundles,
+    source: source.source ?? 'cvm',
+  };
+};
+
 const normalizeUsageData = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   return {
@@ -256,6 +276,8 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
       return normalizeGamesData(raw);
     case 'getCampaignsData':
       return normalizeCampaignFeed(raw);
+    case 'getBundlesData':
+      return normalizeBundlesData(raw);
     default:
       return raw?.data ?? raw;
   }
@@ -389,6 +411,16 @@ export const apiSlice = createApi({
         ),
       providesTags: ['Campaigns'],
     }),
+    getBundlesData: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/bundles', '/api/v1/mobile/v1/offers', '/api/shop'],
+          api,
+          extraOptions,
+          'getBundlesData',
+        ),
+      providesTags: ['Shop'],
+    }),
     getGamesData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
@@ -515,10 +547,12 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
-    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi' }>({
+    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi'; package_ref?: number }>({
       queryFn: (body, api, extraOptions) =>
         mutationWithFallback(
           [
+            { url: '/api/v1/mobile/v1/airtime/purchase', method: 'POST', body },
+            { url: '/api/v1/mobile/v1/payments/mkesh/debit', method: 'POST', body },
             { url: '/api/v1/mobile/v1/payment/airtime', method: 'POST', body },
             { url: '/api/v1/mobile/v1/emola/airtime', method: 'POST', body },
             { url: '/api/emola/airtime', method: 'POST', body },
@@ -574,6 +608,7 @@ export const apiSlice = createApi({
       queryFn: ({ transactionId }, api, extraOptions) =>
         queryWithFallback(
           [
+            `/api/v1/mobile/v1/transactions/${transactionId}`,
             `/api/v1/mobile/v1/transactions/${transactionId}/status`,
             `/api/transactions/${transactionId}/status`,
           ],
@@ -601,6 +636,7 @@ export const {
   useGetWalletDataQuery, 
   useGetOffersDataQuery,
   useGetCampaignsDataQuery,
+  useGetBundlesDataQuery,
   useGetGamesDataQuery,
   useToggleCardFreezeMutation,
   useP2pTransferMutation,
@@ -618,5 +654,6 @@ export const {
   useLazyGetAirtimeTransferStatusQuery,
   usePayBillMutation,
   useGetTransactionStatusQuery,
+  useLazyGetTransactionStatusQuery,
   useGetCvmMarketplaceQuery,
 } = apiSlice;

@@ -212,6 +212,10 @@ const translations = {
       airtimeTransferRejected: 'Airtime transfer was not approved.',
       airtimeTransferSuccess: 'Airtime transfer completed successfully.',
       airtimeTransferFailed: 'Airtime transfer failed. Please try again.',
+      airtimePendingApproval: 'Pending approval',
+      airtimePendingApprovalBody: 'Approve the mKesh request on your phone. The app will show the final result once Tmcel confirms it.',
+      airtimeRejected: 'Airtime purchase was not approved.',
+      selectBundle: 'Select Bundle',
     },
     account: {
       associatedLines: 'ASSOCIATED LINES',
@@ -482,6 +486,10 @@ const translations = {
       airtimeTransferRejected: 'A transferencia de recarga nao foi aprovada.',
       airtimeTransferSuccess: 'Transferencia de recarga concluida com sucesso.',
       airtimeTransferFailed: 'Falha na transferencia de recarga. Tente novamente.',
+      airtimePendingApproval: 'Aprovacao pendente',
+      airtimePendingApprovalBody: 'Aprove o pedido mKesh no seu telefone. A app mostrara o resultado final quando a Tmcel confirmar.',
+      airtimeRejected: 'A compra de recarga nao foi aprovada.',
+      selectBundle: 'Selecionar Pacote',
     },
     account: {
       associatedLines: 'LINHAS ASSOCIADAS',

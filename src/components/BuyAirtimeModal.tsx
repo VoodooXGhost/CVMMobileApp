@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
 import { AppInput, AppButton } from './Primitives';
-import { useBuyAirtimeMutation } from '../services/apiSlice';
+import { useBuyAirtimeMutation, useGetBundlesDataQuery, useLazyGetTransactionStatusQuery } from '../services/apiSlice';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
@@ -25,22 +25,62 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
   const [recipientMsisdn, setRecipientMsisdn] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [selectedPackageRef, setSelectedPackageRef] = useState<number | null>(null);
   const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
   const [buyAirtime, { isLoading }] = useBuyAirtimeMutation();
+  const [fetchTransactionStatus] = useLazyGetTransactionStatusQuery();
+  const { data: bundleResponse } = useGetBundlesDataQuery();
 
-  const presets = [20, 50, 100, 200, 500];
+  const bundles = Array.isArray(bundleResponse?.data?.bundles) ? bundleResponse.data.bundles : [];
+  const presets = bundles.length > 0
+    ? bundles
+        .filter((bundle: any) => Number.isFinite(Number(bundle.amount)) && Number(bundle.amount) > 0)
+        .slice(0, 6)
+    : [20, 50, 100, 200, 500].map((value) => ({
+        id: `preset-${value}`,
+        packageRef: null,
+        title: `${value} MT`,
+        amount: value,
+      }));
 
-  const handlePresetSelect = (value: number) => {
-    setSelectedPreset(value);
-    setAmount(String(value));
+  const handlePresetSelect = (bundle: any) => {
+    const numericAmount = Number(bundle.amount);
+    setSelectedPreset(numericAmount);
+    setSelectedPackageRef(Number.isFinite(Number(bundle.packageRef)) ? Number(bundle.packageRef) : null);
+    setAmount(String(numericAmount));
   };
 
   const handleAmountChange = (text: string) => {
     setSelectedPreset(null);
+    setSelectedPackageRef(null);
     setAmount(text);
   };
 
   const { authenticate } = useBiometricAuth();
+
+  const normalizePurchaseResult = (response: any) => {
+    const envelope = response?.data ?? response ?? {};
+    const payload = envelope?.data ?? envelope;
+    return {
+      transactionId: payload?.transaction_id ?? payload?.transactionId ?? payload?.id ?? envelope?.transaction_id,
+      status: String(payload?.status ?? envelope?.status ?? 'approved').toLowerCase(),
+      detail: payload?.detail ?? envelope?.detail,
+    };
+  };
+
+  const pollFinalStatus = async (transactionId: string) => {
+    let lastStatus = 'pending';
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const statusResponse = await fetchTransactionStatus({ transactionId }).unwrap();
+      const normalized = normalizePurchaseResult(statusResponse);
+      lastStatus = normalized.status;
+      if (['approved', 'successful', 'success', 'rejected', 'failed'].includes(lastStatus)) {
+        return lastStatus;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    return lastStatus;
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -72,11 +112,45 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
         return;
       }
       await ensureWalletAccess();
-      await buyAirtime({
+      const response = await buyAirtime({
         amount: numAmount,
         recipient_msisdn: recipientOption === 'other' ? recipientMsisdn.trim() : undefined,
         payment_provider: paymentProvider,
+        package_ref: selectedPackageRef ?? undefined,
       }).unwrap();
+      const purchase = normalizePurchaseResult(response);
+
+      if (['pending', 'queued', 'approval_required'].includes(purchase.status)) {
+        if (purchase.transactionId) {
+          const finalStatus = await pollFinalStatus(purchase.transactionId);
+          if (['approved', 'successful', 'success'].includes(finalStatus)) {
+            Alert.alert(
+              t('common.success', 'Success'),
+              t('wallet.airtimeSuccess', 'Successfully bought MZN {amount} airtime{recipient}')
+                .replace('{amount}', String(numAmount))
+                .replace('{recipient}', recipientOption === 'other' ? ` for ${recipientMsisdn}` : ' for yourself'),
+              [{ text: 'OK', onPress: () => {
+                setAmount('');
+                setRecipientMsisdn('');
+                setSelectedPreset(null);
+                setSelectedPackageRef(null);
+                setPaymentProvider('emola');
+                onClose();
+              }}]
+            );
+            return;
+          }
+          if (['rejected', 'failed'].includes(finalStatus)) {
+            Alert.alert(t('common.error', 'Error'), t('wallet.airtimeRejected', 'Airtime purchase was not approved.'));
+            return;
+          }
+        }
+        Alert.alert(
+          t('wallet.airtimePendingApproval', 'Pending approval'),
+          t('wallet.airtimePendingApprovalBody', 'Approve the mKesh request on your phone. The app will show the final result once Tmcel confirms it.'),
+        );
+        return;
+      }
 
       Alert.alert(
         t('common.success', 'Success'),
@@ -87,6 +161,7 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
           setAmount('');
           setRecipientMsisdn('');
           setSelectedPreset(null);
+          setSelectedPackageRef(null);
           setPaymentProvider('emola');
           onClose();
         }}]
@@ -163,25 +238,30 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
             {/* Presets Grid */}
             <View>
               <Text style={{ marginBottom: ss(8), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
-                {t('wallet.selectAmount', 'Select Amount')}
+                {bundles.length > 0 ? t('wallet.selectBundle', 'Select Bundle') : t('wallet.selectAmount', 'Select Amount')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ss(8) }}>
-                {presets.map((val) => (
+                {presets.map((bundle: any) => (
                   <TouchableOpacity
-                    key={val}
-                    onPress={() => handlePresetSelect(val)}
+                    key={String(bundle.id)}
+                    onPress={() => handlePresetSelect(bundle)}
                     style={{
                       paddingVertical: ss(10),
                       paddingHorizontal: ss(16),
                       borderRadius: ss(8),
                       borderWidth: 1.5,
-                      borderColor: selectedPreset === val ? Colors.primary : Colors.outline_variant,
-                      backgroundColor: selectedPreset === val ? Colors.surface_container_highest : '#ffffff',
+                      borderColor: selectedPreset === Number(bundle.amount) ? Colors.primary : Colors.outline_variant,
+                      backgroundColor: selectedPreset === Number(bundle.amount) ? Colors.surface_container_highest : '#ffffff',
                     }}
                   >
                     <Text style={{ fontSize: ss(14), fontWeight: '700', color: Colors.primary }}>
-                      {val} MT
+                      {Number(bundle.amount)} MT
                     </Text>
+                    {bundles.length > 0 && (
+                      <Text style={{ fontSize: ss(10), fontWeight: '500', color: Colors.on_surface_variant, marginTop: ss(2) }}>
+                        {String(bundle.title).slice(0, 22)}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
