@@ -36,6 +36,12 @@ const shouldTryFallback = (error: any) => {
   return status === 404 || status === 405;
 };
 
+const getBackendErrorCode = (error: any) =>
+  error?.data?.error?.code ?? error?.data?.code ?? error?.error?.code ?? error?.code;
+
+const shouldTryMutationFallback = (error: any) =>
+  shouldTryFallback(error) || getBackendErrorCode(error) === 'provider_unavailable';
+
 const normalizeCurrencyAmount = (value: unknown) => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -348,7 +354,7 @@ const queryWithFallback = async (
 };
 
 const mutationWithFallback = async (
-  configs: Array<{ url: string; method: string; body?: any }>,
+  configs: Array<{ url: string; method: string; body?: any; headers?: Record<string, string> }>,
   api: any,
   extraOptions: any,
 ) => {
@@ -356,7 +362,7 @@ const mutationWithFallback = async (
   for (let index = 0; index < configs.length; index += 1) {
     const result = await executeRequest(configs[index], api, extraOptions);
     lastResult = result;
-    if (!result.error || !shouldTryFallback(result.error) || index === configs.length - 1) {
+    if (!result.error || !shouldTryMutationFallback(result.error) || index === configs.length - 1) {
       // If every compatible route is missing, surface a contract error instead of
       // a generic final 404 so spend screens can show an actionable message.
       if (result.error && shouldTryFallback(result.error) && index === configs.length - 1) {
@@ -559,19 +565,26 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home'],
     }),
-    buyAirtime: builder.mutation<any, { amount: number; recipient_msisdn?: string; payment_provider?: 'emola' | 'mkesh' | 'millennium_izi'; package_ref?: number }>({
-      queryFn: (body, api, extraOptions) =>
-        mutationWithFallback(
+    buyAirtime: builder.mutation<any, any>({
+      queryFn: (body: any, api, extraOptions) => {
+        const { wallet_token: walletToken, ...purchaseBody } = body;
+        const headers = typeof walletToken === 'string' && walletToken.length > 0
+          ? { 'X-Wallet-Token': walletToken }
+          : undefined;
+
+        return mutationWithFallback(
           [
-            { url: '/api/v1/mobile/v1/airtime/purchase', method: 'POST', body },
-            { url: '/api/v1/mobile/v1/payments/mkesh/debit', method: 'POST', body },
-            { url: '/api/v1/mobile/v1/payment/airtime', method: 'POST', body },
-            { url: '/api/v1/mobile/v1/emola/airtime', method: 'POST', body },
-            { url: '/api/emola/airtime', method: 'POST', body },
+            // Current CVM UAT accepts provider-aware airtime purchases on this compatibility route.
+            { url: '/api/v1/mobile/v1/emola/airtime', method: 'POST', body: purchaseBody, headers },
+            { url: '/api/v1/mobile/v1/airtime/purchase', method: 'POST', body: purchaseBody, headers },
+            { url: '/api/v1/mobile/v1/payments/mkesh/debit', method: 'POST', body: purchaseBody, headers },
+            { url: '/api/v1/mobile/v1/payment/airtime', method: 'POST', body: purchaseBody, headers },
+            { url: '/api/emola/airtime', method: 'POST', body: purchaseBody, headers },
           ],
           api,
           extraOptions,
-        ),
+        );
+      },
       invalidatesTags: ['Wallet', 'Home'],
     }),
     getAirtimeBalance: builder.query<any, void>({

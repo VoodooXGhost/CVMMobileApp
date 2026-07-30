@@ -111,12 +111,13 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
         );
         return;
       }
-      await ensureWalletAccess();
+      const walletToken = await ensureWalletAccess();
       const response = await buyAirtime({
         amount: numAmount,
         recipient_msisdn: recipientOption === 'other' ? recipientMsisdn.trim() : undefined,
         payment_provider: paymentProvider,
         package_ref: selectedPackageRef ?? undefined,
+        wallet_token: walletToken,
       }).unwrap();
       const purchase = normalizePurchaseResult(response);
 
