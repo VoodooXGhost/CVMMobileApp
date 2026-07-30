@@ -152,10 +152,22 @@ const normalizeWalletData = (raw: any) => {
     };
   });
 
+  const walletBalance = normalizeCurrencyAmount(
+    source.eMolaBalance ??
+      source.emolaBalance ??
+      source.emola_balance ??
+      source.balance ??
+      source.total_balance_mzn ??
+      source.totalBalance,
+  );
+  const mkeshBalance = normalizeCurrencyAmount(
+    source.mKeshBalance ?? source.mkeshBalance ?? source.mkesh_balance,
+  );
+
   return {
-    balance: source.balance ?? 0,
-    eMolaBalance: source.eMolaBalance ?? source.balance ?? 0,
-    mKeshBalance: source.mKeshBalance ?? source.mkeshBalance ?? 0,
+    balance: walletBalance,
+    eMolaBalance: walletBalance,
+    mKeshBalance: mkeshBalance,
     airtimeBalance: normalizeCurrencyAmount(
       source.airtimeBalance ?? source.airtime_balance ?? balances.airtime,
     ),

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { MotiView } from 'moti';
 import { Scan, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
 import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery } from '../services/apiSlice';
+import { useFocusEffect } from '@react-navigation/native';
 import SendMoneyModal from '../components/SendMoneyModal';
 import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
 import BuyAirtimeModal from '../components/BuyAirtimeModal';
@@ -28,8 +29,13 @@ const WalletScreen = () => {
   const { language, t } = useI18n();
   const { storedMsisdn, user } = useAuth();
   const currentMsisdn = user?.msisdn || storedMsisdn || '';
-  const { data: response, isLoading, error } = useGetEMolaWalletQuery();
-  const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery();
+  const { data: response, isLoading, isFetching, error, refetch: refetchWallet } = useGetEMolaWalletQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+  const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Modals visibility state
   const [sendVisible, setSendVisible] = useState(false);
@@ -48,6 +54,23 @@ const WalletScreen = () => {
     track('screen_view', { name: 'wallet' }, { screen: 'wallet' });
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      // Wallet balances can be funded externally in UAT, so refetch whenever the Wallet tab regains focus.
+      refetchWallet();
+      refetchAirtimeBalance();
+    }, [refetchWallet, refetchAirtimeBalance]),
+  );
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refetchWallet(), refetchAirtimeBalance()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-surface">
@@ -64,7 +87,8 @@ const WalletScreen = () => {
     );
   }
 
-  const walletData = response || {};
+  // RTK Query wraps normalized endpoint payloads in `data`, so unwrap that envelope before rendering.
+  const walletData = response?.data ?? response ?? {};
   const balance = Number.isFinite(Number(walletData?.balance))
     ? Number(walletData.balance)
     : Number(walletData?.eMolaBalance ?? 0);
@@ -85,7 +109,17 @@ const WalletScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: layout.tabBarHeight + spacing.xl }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing || isFetching}
+            onRefresh={handleRefresh}
+            tintColor="#111316"
+            colors={['#111316']}
+          />
+        }
+      >
         <View className="mb-sm">
           <Image source={require('../../TmcelLogo.png')} style={{ width: layout.logoWidth, height: layout.logoHeight, alignSelf: 'flex-start' }} resizeMode="contain" />
         </View>
