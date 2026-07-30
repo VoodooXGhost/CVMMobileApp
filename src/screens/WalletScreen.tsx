@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { MotiView } from 'moti';
 import { Scan, ChevronRight, ArrowUpRight, ArrowDownLeft, Send, Download, Smartphone, Receipt, Repeat2 } from 'lucide-react-native';
-import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery } from '../services/apiSlice';
+import { useGetAirtimeBalanceQuery, useGetEMolaWalletQuery, useGetTransactionsQuery } from '../services/apiSlice';
 import { useFocusEffect } from '@react-navigation/native';
 import SendMoneyModal from '../components/SendMoneyModal';
 import ReceiveMoneySheet from '../components/ReceiveMoneySheet';
@@ -35,6 +35,9 @@ const WalletScreen = () => {
   const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery(undefined, {
     refetchOnMountOrArgChange: true,
   });
+  const { data: transactionsResponse, refetch: refetchTransactions } = useGetTransactionsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Modals visibility state
@@ -59,13 +62,14 @@ const WalletScreen = () => {
       // Wallet balances can be funded externally in UAT, so refetch whenever the Wallet tab regains focus.
       refetchWallet();
       refetchAirtimeBalance();
-    }, [refetchWallet, refetchAirtimeBalance]),
+      refetchTransactions();
+    }, [refetchWallet, refetchAirtimeBalance, refetchTransactions]),
   );
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([refetchWallet(), refetchAirtimeBalance()]);
+      await Promise.all([refetchWallet(), refetchAirtimeBalance(), refetchTransactions()]);
     } finally {
       setIsRefreshing(false);
     }
@@ -105,7 +109,10 @@ const WalletScreen = () => {
   const airtimeBalance = Number.isFinite(Number(resolvedAirtimeBalance))
     ? Number(resolvedAirtimeBalance)
     : 0;
-  const safeTransactions = Array.isArray(walletData?.transactions) ? walletData.transactions : [];
+  const transactionsPayload = transactionsResponse?.data ?? transactionsResponse ?? {};
+  const safeTransactions = Array.isArray(transactionsPayload?.transactions) && transactionsPayload.transactions.length > 0
+    ? transactionsPayload.transactions
+    : Array.isArray(walletData?.transactions) ? walletData.transactions : [];
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
@@ -263,6 +270,7 @@ const WalletScreen = () => {
         <BuyAirtimeModal
           visible={airtimeVisible}
           onClose={() => setAirtimeVisible(false)}
+          onSuccess={handleRefresh}
           eMolaBalance={balance}
           mKeshBalance={mKeshBalance}
         />

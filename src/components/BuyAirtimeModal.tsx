@@ -14,11 +14,12 @@ import { ensureWalletAccess } from '../services/walletAccess';
 interface BuyAirtimeModalProps {
   visible: boolean;
   onClose: () => void;
+  onSuccess?: () => Promise<void> | void;
   eMolaBalance?: number;
   mKeshBalance?: number;
 }
 
-export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshBalance }: BuyAirtimeModalProps) {
+export default function BuyAirtimeModal({ visible, onClose, onSuccess, eMolaBalance, mKeshBalance }: BuyAirtimeModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [recipientOption, setRecipientOption] = useState<'self' | 'other'>('self');
@@ -65,21 +66,47 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
       transactionId: payload?.transaction_id ?? payload?.transactionId ?? payload?.id ?? envelope?.transaction_id,
       status: String(payload?.status ?? envelope?.status ?? 'approved').toLowerCase(),
       detail: payload?.detail ?? envelope?.detail,
+      reference: payload?.reference ?? payload?.provider_reference ?? payload?.providerReference,
+      providerReference: payload?.provider_reference ?? payload?.providerReference,
+      mbcReference: payload?.mbc_reference ?? payload?.mbcReference,
+      updatedAirtimeBalance: payload?.updated_airtime_balance ?? payload?.updatedAirtimeBalance ?? payload?.airtime_balance,
     };
   };
 
   const pollFinalStatus = async (transactionId: string) => {
-    let lastStatus = 'pending';
+    let lastResult = { status: 'pending' } as ReturnType<typeof normalizePurchaseResult>;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const statusResponse = await fetchTransactionStatus({ transactionId }).unwrap();
       const normalized = normalizePurchaseResult(statusResponse);
-      lastStatus = normalized.status;
-      if (['approved', 'successful', 'success', 'rejected', 'failed'].includes(lastStatus)) {
-        return lastStatus;
+      lastResult = normalized;
+      if (['approved', 'successful', 'success', 'rejected', 'failed', 'timeout'].includes(normalized.status)) {
+        return normalized;
       }
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    return lastStatus;
+    return lastResult;
+  };
+
+  const resetAndClose = async () => {
+    if (onSuccess) {
+      await onSuccess();
+    }
+    setAmount('');
+    setRecipientMsisdn('');
+    setSelectedPreset(null);
+    setSelectedPackageRef(null);
+    setPaymentProvider('emola');
+    onClose();
+  };
+
+  const buildSuccessMessage = (purchase: ReturnType<typeof normalizePurchaseResult>, numAmount: number) => {
+    const baseMessage = t('wallet.airtimeSuccess', 'Successfully bought MZN {amount} airtime{recipient}')
+      .replace('{amount}', String(numAmount))
+      .replace('{recipient}', recipientOption === 'other' ? ` for ${recipientMsisdn}` : ' for yourself');
+    const reference = purchase.reference || purchase.providerReference || purchase.transactionId;
+    return reference
+      ? `${baseMessage}\nReference: ${reference}`
+      : baseMessage;
   };
 
   useEffect(() => {
@@ -123,25 +150,16 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
 
       if (['pending', 'queued', 'approval_required'].includes(purchase.status)) {
         if (purchase.transactionId) {
-          const finalStatus = await pollFinalStatus(purchase.transactionId);
-          if (['approved', 'successful', 'success'].includes(finalStatus)) {
+          const finalPurchase = await pollFinalStatus(purchase.transactionId);
+          if (['approved', 'successful', 'success'].includes(finalPurchase.status)) {
             Alert.alert(
               t('common.success', 'Success'),
-              t('wallet.airtimeSuccess', 'Successfully bought MZN {amount} airtime{recipient}')
-                .replace('{amount}', String(numAmount))
-                .replace('{recipient}', recipientOption === 'other' ? ` for ${recipientMsisdn}` : ' for yourself'),
-              [{ text: 'OK', onPress: () => {
-                setAmount('');
-                setRecipientMsisdn('');
-                setSelectedPreset(null);
-                setSelectedPackageRef(null);
-                setPaymentProvider('emola');
-                onClose();
-              }}]
+              buildSuccessMessage(finalPurchase, numAmount),
+              [{ text: 'OK', onPress: () => { void resetAndClose(); }}]
             );
             return;
           }
-          if (['rejected', 'failed'].includes(finalStatus)) {
+          if (['rejected', 'failed', 'timeout'].includes(finalPurchase.status)) {
             Alert.alert(t('common.error', 'Error'), t('wallet.airtimeRejected', 'Airtime purchase was not approved.'));
             return;
           }
@@ -155,17 +173,8 @@ export default function BuyAirtimeModal({ visible, onClose, eMolaBalance, mKeshB
 
       Alert.alert(
         t('common.success', 'Success'),
-        t('wallet.airtimeSuccess', 'Successfully bought MZN {amount} airtime{recipient}')
-          .replace('{amount}', String(numAmount))
-          .replace('{recipient}', recipientOption === 'other' ? ` for ${recipientMsisdn}` : ' for yourself'),
-        [{ text: 'OK', onPress: () => {
-          setAmount('');
-          setRecipientMsisdn('');
-          setSelectedPreset(null);
-          setSelectedPackageRef(null);
-          setPaymentProvider('emola');
-          onClose();
-        }}]
+        buildSuccessMessage(purchase, numAmount),
+        [{ text: 'OK', onPress: () => { void resetAndClose(); }}]
       );
     } catch (error: any) {
       const detailMsg = resolveLocalizedApiError(

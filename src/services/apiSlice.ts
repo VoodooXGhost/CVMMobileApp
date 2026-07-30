@@ -183,6 +183,27 @@ const normalizeWalletData = (raw: any) => {
   };
 };
 
+const normalizeTransactionsData = (raw: any) => {
+  const source = raw?.data ?? raw ?? {};
+  const rawTransactions = source.transactions ?? source.items ?? (Array.isArray(source) ? source : []);
+  return {
+    transactions: toArray(rawTransactions).map((tx: any, index: number) => ({
+      id: String(tx?.id ?? tx?.transactionId ?? tx?.transaction_id ?? `tx-${index + 1}`),
+      description: tx?.description ?? tx?.detail ?? tx?.type ?? 'Transaction',
+      type: tx?.type ?? 'wallet_activity',
+      status: tx?.status ?? 'unknown',
+      provider: tx?.provider,
+      reference: tx?.reference ?? tx?.providerReference ?? tx?.provider_reference,
+      mbcReference: tx?.mbcReference ?? tx?.mbc_reference,
+      updatedAirtimeBalance: normalizeCurrencyAmount(
+        tx?.updatedAirtimeBalance ?? tx?.updated_airtime_balance ?? tx?.airtime_balance,
+      ),
+      date: tx?.created_at ?? tx?.createdAt ?? tx?.date ?? new Date().toISOString(),
+      amount: normalizeCurrencyAmount(tx?.amount),
+    })),
+  };
+};
+
 const normalizeOffersData = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const list = source.offers ?? source.trending ?? [];
@@ -296,6 +317,8 @@ const normalizeEndpointData = (endpointName: string, raw: any) => {
       return normalizeCampaignFeed(raw);
     case 'getBundlesData':
       return normalizeBundlesData(raw);
+    case 'getTransactions':
+      return normalizeTransactionsData(raw);
     default:
       return raw?.data ?? raw;
   }
@@ -585,7 +608,7 @@ export const apiSlice = createApi({
           extraOptions,
         );
       },
-      invalidatesTags: ['Wallet', 'Home'],
+      invalidatesTags: ['Wallet', 'Home', 'Transactions'],
     }),
     getAirtimeBalance: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -596,6 +619,16 @@ export const apiSlice = createApi({
           'getWalletData',
         ),
       providesTags: ['Wallet'],
+    }),
+    getTransactions: builder.query<any, void>({
+      queryFn: (_arg, api, extraOptions) =>
+        queryWithFallback(
+          ['/api/v1/mobile/v1/transactions', '/api/transactions'],
+          api,
+          extraOptions,
+          'getTransactions',
+        ),
+      providesTags: ['Transactions'],
     }),
     transferAirtime: builder.mutation<any, { recipient_msisdn: string; amount: number; idempotency_key: string }>({
       queryFn: (body, api, extraOptions) =>
@@ -675,6 +708,7 @@ export const {
   useInitiateTransferMutation,
   useBuyAirtimeMutation,
   useGetAirtimeBalanceQuery,
+  useGetTransactionsQuery,
   useTransferAirtimeMutation,
   useLazyGetAirtimeTransferStatusQuery,
   usePayBillMutation,
