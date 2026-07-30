@@ -1,7 +1,7 @@
 import { Alert, Linking, Platform } from 'react-native';
 import { platformStorage } from './storage';
 
-export type CampaignActionType = 'ussd' | 'dial' | 'sms' | 'web' | 'deeplink';
+export type CampaignActionType = 'none' | 'ussd' | 'dial' | 'sms' | 'web' | 'deeplink';
 export type CampaignLastActionStatus = 'idle' | 'success' | 'failed' | 'pending';
 
 export interface CampaignActionPayload {
@@ -22,11 +22,14 @@ export interface CampaignItem {
   summary: string;
   category: string;
   priority: string;
+  status: string;
   expiry: string;
   eligibility: string;
+  benefit: string;
   cta_label: string;
   action_type: CampaignActionType;
   action_payload: CampaignActionPayload;
+  customer_action_enabled: boolean;
   saved: boolean;
   last_action_status: CampaignLastActionStatus;
 }
@@ -44,25 +47,105 @@ const safeParse = (raw: string | null) => {
   }
 };
 
-export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => ({
-  id: String(item?.id ?? `campaign-${index + 1}`),
-  title: String(item?.title ?? item?.name ?? `Campaign ${index + 1}`),
-  summary: String(item?.summary ?? item?.description ?? ''),
-  category: String(item?.category ?? 'Campaign'),
-  priority: String(item?.priority ?? 'normal'),
-  expiry: String(item?.expiry ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
-  eligibility: String(item?.eligibility ?? 'Available to eligible subscribers.'),
-  cta_label: String(item?.cta_label ?? 'Open'),
-  action_type: String(item?.action_type ?? 'web') as CampaignActionType,
-  action_payload: item?.action_payload && typeof item.action_payload === 'object' ? item.action_payload : {},
-  saved: Boolean(item?.saved ?? false),
-  last_action_status: (item?.last_action_status as CampaignLastActionStatus) ?? 'idle',
-});
+const ACTIVE_STATUSES = new Set(['active', 'running', 'available', 'live']);
+const HIDDEN_STATUSES = new Set(['scheduled', 'draft', 'paused', 'expired', 'internal', 'test', 'inactive', 'archived']);
+
+const safeText = (value: any, fallback = ''): string => {
+  if (value == null) return fallback;
+  if (typeof value === 'string') return value.trim() || fallback;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const joined = value.map((entry) => safeText(entry, '')).filter(Boolean).join(', ');
+    return joined || fallback;
+  }
+  if (typeof value === 'object') {
+    return (
+      safeText(value.label, '') ||
+      safeText(value.name, '') ||
+      safeText(value.title, '') ||
+      safeText(value.text, '') ||
+      safeText(value.description, '') ||
+      safeText(value.summary, '') ||
+      safeText(value.message, '') ||
+      fallback
+    );
+  }
+  return fallback;
+};
+
+const safeObject = (value: any): Record<string, any> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+
+const normalizeStatus = (item: any) =>
+  safeText(
+    item?.mobile_status ?? item?.status ?? item?.state ?? item?.lifecycle_status ?? item?.campaign_status,
+    'active',
+  ).toLowerCase();
+
+const resolveCustomerActionEnabled = (item: any) => {
+  const customerAction = safeObject(item?.customer_action);
+  return Boolean(
+    item?.customer_action_enabled === true ||
+      item?.mobile_action_enabled === true ||
+      customerAction.enabled === true ||
+      customerAction.customer_safe === true,
+  );
+};
+
+export const isCustomerVisibleCampaign = (item: any) => {
+  const status = normalizeStatus(item);
+  const isExplicitlyHidden =
+    item?.visible_to_mobile === false ||
+    item?.customer_visible === false ||
+    item?.internal === true ||
+    item?.test === true ||
+    HIDDEN_STATUSES.has(status);
+
+  if (isExplicitlyHidden) return false;
+  if (status && !ACTIVE_STATUSES.has(status)) return false;
+
+  const expiry = item?.expiry ?? item?.expires_at ?? item?.end_date;
+  if (expiry) {
+    const expiryTime = new Date(expiry).getTime();
+    if (Number.isFinite(expiryTime) && expiryTime < Date.now()) return false;
+  }
+
+  return true;
+};
+
+export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
+  const customerAction = safeObject(item?.customer_action);
+  const actionPayload = safeObject(item?.action_payload ?? customerAction.payload);
+  const actionEnabled = resolveCustomerActionEnabled(item);
+  const actionType = actionEnabled
+    ? (safeText(customerAction.type ?? item?.action_type, 'none') as CampaignActionType)
+    : 'none';
+
+  return {
+    id: safeText(item?.id, `campaign-${index + 1}`),
+    title: safeText(item?.title ?? item?.name, `Campaign ${index + 1}`),
+    summary: safeText(item?.summary ?? item?.description, ''),
+    category: safeText(item?.category ?? item?.segment ?? item?.type, 'Campaign'),
+    priority: safeText(item?.priority, 'normal'),
+    status: normalizeStatus(item),
+    expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+    eligibility: safeText(item?.eligibility ?? item?.eligibility_label, 'Available to eligible subscribers.'),
+    benefit: safeText(item?.benefit ?? item?.reward ?? item?.offer_value, ''),
+    cta_label: safeText(item?.cta_label ?? customerAction.label, actionEnabled ? 'View Offer' : 'View Details'),
+    action_type: actionType,
+    action_payload: actionEnabled ? actionPayload : {},
+    customer_action_enabled: actionEnabled,
+    saved: Boolean(item?.saved ?? false),
+    last_action_status: (item?.last_action_status as CampaignLastActionStatus) ?? 'idle',
+  };
+};
 
 export const normalizeCampaignFeed = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const campaigns = Array.isArray(source.campaigns)
-    ? source.campaigns.map((campaign: any, index: number) => normalizeCampaignItem(campaign, index))
+    ? source.campaigns
+        .filter(isCustomerVisibleCampaign)
+        .map((campaign: any, index: number) => normalizeCampaignItem(campaign, index))
     : [];
   const categories = Array.from(new Set(campaigns.map((item) => item.category).filter(Boolean)));
   return {

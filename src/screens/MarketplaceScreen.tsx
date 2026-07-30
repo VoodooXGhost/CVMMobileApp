@@ -17,6 +17,7 @@ import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 import PromoBannerCarousel from '../components/PromoBannerCarousel';
 import CampaignCard from '../components/CampaignCard';
 import CampaignDetailModal from '../components/CampaignDetailModal';
+import { CampaignItem, normalizeCampaignFeed } from '../services/campaigns';
 
 /**
  * MarketplaceScreen Component
@@ -41,7 +42,7 @@ const MarketplaceScreen = () => {
 
   const { banners = [], campaigns = [], offers = [], categories = [] } = marketplaceData || {};
   const safeOffers = Array.isArray(offers) ? offers : [];
-  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const safeCampaigns: CampaignItem[] = normalizeCampaignFeed({ campaigns }).campaigns;
 
   useEffect(() => {
     track('screen_view', { name: 'marketplace' }, { screen: 'marketplace' });

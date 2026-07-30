@@ -45,15 +45,11 @@ import { platformStorage } from '../services/storage';
 import { resolveYmBalance, resolvePointsToNext } from '../services/loyalty';
 import {
   CampaignItem,
-  getCampaignActionPreview,
-  launchCampaignAction,
   loadCampaignCache,
   loadCampaignFavorites,
-  loadCampaignStatuses,
   normalizeCampaignFeed,
   saveCampaignCache,
   saveCampaignFavorites,
-  saveCampaignStatus,
 } from '../services/campaigns';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
@@ -78,7 +74,6 @@ const HomeScreen = () => {
   const [campaignFilter, setCampaignFilter] = useState('all');
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [campaignFavorites, setCampaignFavoritesState] = useState<Record<string, boolean>>({});
-  const [campaignStatuses, setCampaignStatuses] = useState<Record<string, CampaignItem['last_action_status']>>({});
   const [campaignErrorMessage, setCampaignErrorMessage] = useState<string | null>(null);
   const [heroVariant, setHeroVariant] = useState('claim_now');
   const [marketingEnabled, setMarketingEnabled] = useState(true);
@@ -169,13 +164,11 @@ const HomeScreen = () => {
 
   useEffect(() => {
     const loadCampaignState = async () => {
-      const [favorites, statuses, cache] = await Promise.all([
+      const [favorites, cache] = await Promise.all([
         loadCampaignFavorites(),
-        loadCampaignStatuses(),
         loadCampaignCache(),
       ]);
       setCampaignFavoritesState(favorites);
-      setCampaignStatuses(statuses);
       if (cache?.campaigns?.length) {
         setCampaigns(cache.campaigns);
       }
@@ -330,87 +323,14 @@ const HomeScreen = () => {
     );
   };
 
-  const openCampaignAction = (campaign: CampaignItem) => {
+  const openCampaignDetails = (campaign: CampaignItem) => {
     setSelectedCampaign(campaign);
     setCampaignActionVisible(true);
     track(
-      'campaign_click',
-      { campaign_id: campaign.id, category: campaign.category, action_type: campaign.action_type },
+      'campaign_details_open',
+      { campaign_id: campaign.id, category: campaign.category },
       { screen: 'home', placement: 'campaign_feed' },
     );
-  };
-
-  const launchSelectedCampaign = async () => {
-    if (!selectedCampaign) return;
-    const campaign = selectedCampaign;
-    setCampaignErrorMessage(null);
-    setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: 'pending' }));
-    setCampaigns((prev) =>
-      prev.map((item) =>
-        item.id === campaign.id ? { ...item, last_action_status: 'pending' } : item,
-      ),
-    );
-    await saveCampaignStatus(campaign.id, 'pending');
-    try {
-      const result = await launchCampaignAction(campaign);
-      const nextStatus = 'success';
-      setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: nextStatus }));
-      setCampaigns((prev) =>
-        prev.map((item) =>
-          item.id === campaign.id
-            ? { ...item, last_action_status: nextStatus }
-            : item,
-        ),
-      );
-      await saveCampaignStatus(campaign.id, nextStatus);
-      track(
-        'campaign_action_success',
-        {
-          campaign_id: campaign.id,
-          action_type: campaign.action_type,
-          used_fallback: Boolean(result.usedFallback),
-          uri: result.uri,
-        },
-        { screen: 'home', placement: 'campaign_feed' },
-      );
-      if (result.usedFallback) {
-        track(
-          'campaign_action_fallback',
-          { campaign_id: campaign.id, action_type: campaign.action_type, uri: result.uri },
-          { screen: 'home', placement: 'campaign_feed' },
-        );
-      }
-      setCampaignActionVisible(false);
-      Alert.alert(
-        t('common.success', 'Success'),
-        result.usedFallback
-          ? t('home.campaignLaunchFallback', 'Using the fallback phone action.')
-          : t('home.campaignLaunchSuccess', 'Campaign action launched successfully.'),
-      );
-    } catch (launchError: any) {
-      setCampaignStatuses((prev) => ({ ...prev, [campaign.id]: 'failed' }));
-      setCampaigns((prev) =>
-        prev.map((item) =>
-          item.id === campaign.id
-            ? { ...item, last_action_status: 'failed' }
-            : item,
-        ),
-      );
-      await saveCampaignStatus(campaign.id, 'failed');
-      track(
-        'campaign_action_fail',
-        {
-          campaign_id: campaign.id,
-          action_type: campaign.action_type,
-          reason: launchError?.message || 'launch_failed',
-        },
-        { screen: 'home', placement: 'campaign_feed' },
-      );
-      Alert.alert(
-        t('common.error', 'Error'),
-        launchError?.message || t('home.campaignLaunchFail', 'Unable to launch the campaign action.'),
-      );
-    }
   };
 
   useEffect(() => {
@@ -432,7 +352,7 @@ const HomeScreen = () => {
       if (shouldTrackImpression(item.id, 'home_campaign_feed')) {
         track(
           'campaign_impression',
-          { campaign_id: item.id, category: item.category, action_type: item.action_type },
+          { campaign_id: item.id, category: item.category },
           { screen: 'home', placement: 'campaign_feed' },
         );
       }
@@ -661,7 +581,7 @@ const HomeScreen = () => {
             <View className="flex-1">
               <Text style={{ fontSize: ss(18) }} className="font-title mb-1 font-semibold">{t('home.campaignsTitle', 'Campaigns & Offers')}</Text>
               <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-80">
-                {t('home.campaignsSubtitle', 'Browse offers and launch the next step from your phone.')}
+                {t('home.campaignsSubtitle', 'Browse running campaigns and offers from Tmcel.')}
               </Text>
             </View>
             <TouchableOpacity onPress={refetchCampaigns} className="self-start bg-surface-container-high rounded-full px-md py-sm active:opacity-80">
@@ -706,7 +626,6 @@ const HomeScreen = () => {
           ) : (
             visibleCampaigns.map((campaign: CampaignItem, index: number) => {
               const isSaved = campaignFavorites[campaign.id] ?? campaign.saved;
-              const currentStatus = (campaignStatuses[campaign.id] as any) || campaign.last_action_status;
               return (
                 <MotiView
                   key={campaign.id}
@@ -718,7 +637,7 @@ const HomeScreen = () => {
                   <TouchableOpacity
                     className="p-md"
                     activeOpacity={0.85}
-                    onPress={() => openCampaignAction(campaign)}
+                    onPress={() => openCampaignDetails(campaign)}
                   >
                     <View className="flex-row justify-between items-start mb-sm">
                       <View className="flex-row items-center gap-2 flex-1 pr-sm">
@@ -728,7 +647,7 @@ const HomeScreen = () => {
                           </Text>
                         </View>
                         <Text style={{ fontSize: ss(10) }} className="font-caption text-on-surface-variant uppercase font-bold">
-                          {campaign.priority}
+                          {campaign.customer_action_enabled ? t('home.campaignOffer', 'Offer') : t('home.campaignInfo', 'Info')}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -752,24 +671,20 @@ const HomeScreen = () => {
                     <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-70 mt-2">
                       {campaign.eligibility}
                     </Text>
-                    <Text style={{ fontSize: ss(12) }} className="font-label mt-2 text-primary font-semibold">
-                      {t('home.campaignActionPreview', 'Action preview')}: {getCampaignActionPreview(campaign)}
-                    </Text>
+                    {campaign.benefit ? (
+                      <Text style={{ fontSize: ss(12) }} className="font-label mt-2 text-primary font-semibold">
+                        {campaign.benefit}
+                      </Text>
+                    ) : null}
                     <Text style={{ fontSize: ss(11) }} className="font-label mt-1 text-on-surface-variant opacity-60">
                       {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
                     </Text>
                     <View className="mt-md flex-row justify-between items-center gap-sm">
                       <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant font-bold">
-                        {currentStatus === 'success'
-                          ? t('common.success', 'Success')
-                          : currentStatus === 'failed'
-                            ? t('common.error', 'Error')
-                            : currentStatus === 'pending'
-                              ? t('home.campaignPending', 'Pending')
-                              : t('home.campaignAvailable', 'Available')}
+                        {t('home.campaignAvailable', 'Available')}
                       </Text>
                       <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-black uppercase">
-                        {campaign.cta_label}
+                        {campaign.customer_action_enabled ? campaign.cta_label : t('campaign.viewDetails', 'View Details')}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -907,7 +822,7 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
-      {/* Campaign Action Confirmation Modal */}
+      {/* Campaign / Offer Details Modal */}
       <Modal
         visible={campaignActionVisible && Boolean(selectedCampaign)}
         transparent
@@ -919,7 +834,7 @@ const HomeScreen = () => {
             <View className="flex-row justify-between items-center mb-md border-b border-outline-variant pb-md">
               <View className="flex-1 pr-sm">
                 <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">
-                  {t('home.campaignConfirmTitle', 'Confirm campaign action')}
+                  {t('home.campaignDetailsTitle', 'Campaign / Offer Details')}
                 </Text>
                 <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 mt-1">
                   {selectedCampaign ? selectedCampaign.title : ''}
@@ -932,38 +847,31 @@ const HomeScreen = () => {
             {selectedCampaign ? (
               <View className="gap-sm">
                 <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface leading-5">
-                  {t('home.campaignConfirmBody', 'You are about to launch {action}. Continue?').replace(
-                    '{action}',
-                    getCampaignActionPreview(selectedCampaign),
-                  )}
+                  {selectedCampaign.summary}
                 </Text>
                 <View className="bg-surface-container-high p-sm rounded-md mt-sm gap-1">
                   <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface font-semibold">
-                    {t('home.campaignActionType', 'Action type')}: {selectedCampaign.action_type.toUpperCase()}
+                    {t('campaign.category', 'Category')}: {selectedCampaign.category}
                   </Text>
                   <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
-                    Status: {selectedCampaign.saved ? t('common.saved', 'Saved') : t('common.notSaved', 'Not saved')}
+                    {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(selectedCampaign.expiry).toLocaleDateString())}
                   </Text>
                   <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
                     {selectedCampaign.eligibility}
                   </Text>
+                  {selectedCampaign.benefit ? (
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">
+                      {selectedCampaign.benefit}
+                    </Text>
+                  ) : null}
                 </View>
                 <View className="flex-row gap-sm mt-lg">
                   <TouchableOpacity
                     style={{ minHeight: rs(44) }}
-                    className="flex-1 bg-surface-container-highest rounded-xl justify-center items-center"
+                    className="flex-1 bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
                     onPress={() => setCampaignActionVisible(false)}
                   >
-                    <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface font-bold">{t('common.cancel', 'Cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ minHeight: rs(44) }}
-                    className="flex-1 bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
-                    onPress={launchSelectedCampaign}
-                  >
-                    <Text style={{ fontSize: ss(12) }} className="font-label text-cta-primary-text font-black uppercase">
-                      {t('home.campaignLaunch', 'Launch action')}
-                    </Text>
+                    <Text style={{ fontSize: ss(12) }} className="font-label text-cta-primary-text font-black uppercase">{t('common.close', 'Close')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

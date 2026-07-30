@@ -1,40 +1,20 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Wifi, Phone, MessageSquare, Globe, Bookmark } from 'lucide-react-native';
+import { Bookmark, Tag } from 'lucide-react-native';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { Colors } from '../theme/tokens';
+import { useI18n } from '../services/i18n';
+import { CampaignItem } from '../services/campaigns';
 
 interface CampaignCardProps {
-  campaign: {
-    id: string;
-    title: string;
-    summary: string;
-    category: string;
-    priority: string;
-    expiry: string;
-    cta_label: string;
-    action_type: string;
-    saved?: boolean;
-  };
+  campaign: CampaignItem;
   onPressAction: () => void;
   onToggleSave?: () => void;
 }
 
 export default function CampaignCard({ campaign, onPressAction, onToggleSave }: CampaignCardProps) {
   const { ss, rs } = useResponsiveScale();
-
-  const getActionIcon = () => {
-    switch (campaign.action_type) {
-      case 'ussd':
-        return <Wifi size={rs(18)} color="#1b8354" />;
-      case 'dial':
-        return <Phone size={rs(18)} color="#2260a2" />;
-      case 'sms':
-        return <MessageSquare size={rs(18)} color="#c56d00" />;
-      default:
-        return <Globe size={rs(18)} color="#111316" />;
-    }
-  };
+  const { t } = useI18n();
 
   const getCategoryColor = () => {
     switch (campaign.category?.toLowerCase()) {
@@ -65,7 +45,7 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: ss(8) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6) }}>
           <View style={{ padding: rs(6), borderRadius: rs(8), backgroundColor: getCategoryColor() }}>
-            {getActionIcon()}
+            <Tag size={rs(18)} color="#111316" />
           </View>
           <Text style={{ fontSize: ss(11), fontWeight: '700', color: Colors.on_surface_variant, textTransform: 'uppercase' }}>
             {campaign.category}
@@ -84,6 +64,11 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
       <Text style={{ fontSize: ss(13), color: Colors.on_surface_variant, marginBottom: ss(12), lineHeight: ss(18) }}>
         {campaign.summary}
       </Text>
+      {campaign.benefit ? (
+        <Text style={{ fontSize: ss(12), color: Colors.primary, marginBottom: ss(12), fontWeight: '700', lineHeight: ss(18) }}>
+          {campaign.benefit}
+        </Text>
+      ) : null}
 
       {/* Divider */}
       <View style={{ height: 1, backgroundColor: Colors.outline_variant, marginBottom: ss(12) }} />
@@ -91,7 +76,7 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
       {/* Footer Row */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ fontSize: ss(11), color: Colors.on_surface_variant, opacity: 0.6 }}>
-          Exp: {new Date(campaign.expiry).toLocaleDateString()}
+          {t('campaign.expiresShort', 'Expires')}: {new Date(campaign.expiry).toLocaleDateString()}
         </Text>
         <TouchableOpacity
           onPress={onPressAction}
@@ -103,7 +88,7 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
           }}
         >
           <Text style={{ fontSize: ss(12), fontWeight: '700', color: Colors.cta_primary_text }}>
-            {campaign.cta_label}
+            {campaign.customer_action_enabled ? campaign.cta_label : t('campaign.viewDetails', 'View Details')}
           </Text>
         </TouchableOpacity>
       </View>
