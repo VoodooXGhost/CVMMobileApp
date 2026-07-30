@@ -27,7 +27,7 @@ import { CampaignItem, normalizeCampaignFeed } from '../services/campaigns';
  */
 const MarketplaceScreen = () => {
   const { language, t } = useI18n();
-  const { data: marketplaceData, isLoading, error } = useGetCvmMarketplaceQuery();
+  const { data: marketplaceData, isLoading, error, refetch: refetchMarketplace } = useGetCvmMarketplaceQuery();
   const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = useState(allCategory);
@@ -198,7 +198,14 @@ const MarketplaceScreen = () => {
               <CampaignCard
                 key={campaign.id}
                 campaign={campaign}
-                onPressAction={() => setSelectedCampaign(campaign)}
+                onPressAction={() => {
+                  track(
+                    'campaign_details_open',
+                    { campaign_id: campaign.id, category: campaign.category },
+                    { screen: 'marketplace', placement: 'campaign_feed' },
+                  );
+                  setSelectedCampaign(campaign);
+                }}
               />
             ))}
           </View>
@@ -267,6 +274,9 @@ const MarketplaceScreen = () => {
         visible={selectedCampaign !== null}
         onClose={() => setSelectedCampaign(null)}
         campaign={selectedCampaign}
+        onPurchaseComplete={async () => {
+          await refetchMarketplace();
+        }}
       />
     </SafeAreaView>
   );

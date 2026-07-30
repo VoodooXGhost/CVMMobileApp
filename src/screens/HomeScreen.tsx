@@ -51,6 +51,7 @@ import {
   saveCampaignCache,
   saveCampaignFavorites,
 } from '../services/campaigns';
+import CampaignDetailModal from '../components/CampaignDetailModal';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
@@ -822,63 +823,14 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
-      {/* Campaign / Offer Details Modal */}
-      <Modal
+      <CampaignDetailModal
         visible={campaignActionVisible && Boolean(selectedCampaign)}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCampaignActionVisible(false)}
-      >
-        <View className="flex-1 justify-center items-center bg-black/40 px-lg">
-          <View className="bg-surface rounded-xl p-lg w-full max-w-[90%] shadow-lg">
-            <View className="flex-row justify-between items-center mb-md border-b border-outline-variant pb-md">
-              <View className="flex-1 pr-sm">
-                <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">
-                  {t('home.campaignDetailsTitle', 'Campaign / Offer Details')}
-                </Text>
-                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60 mt-1">
-                  {selectedCampaign ? selectedCampaign.title : ''}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setCampaignActionVisible(false)}>
-                <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-bold">{t('common.close', 'Close')}</Text>
-              </TouchableOpacity>
-            </View>
-            {selectedCampaign ? (
-              <View className="gap-sm">
-                <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface leading-5">
-                  {selectedCampaign.summary}
-                </Text>
-                <View className="bg-surface-container-high p-sm rounded-md mt-sm gap-1">
-                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface font-semibold">
-                    {t('campaign.category', 'Category')}: {selectedCampaign.category}
-                  </Text>
-                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
-                    {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(selectedCampaign.expiry).toLocaleDateString())}
-                  </Text>
-                  <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant">
-                    {selectedCampaign.eligibility}
-                  </Text>
-                  {selectedCampaign.benefit ? (
-                    <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-semibold">
-                      {selectedCampaign.benefit}
-                    </Text>
-                  ) : null}
-                </View>
-                <View className="flex-row gap-sm mt-lg">
-                  <TouchableOpacity
-                    style={{ minHeight: rs(44) }}
-                    className="flex-1 bg-cta-primary-bg rounded-xl justify-center items-center shadow-sm"
-                    onPress={() => setCampaignActionVisible(false)}
-                  >
-                    <Text style={{ fontSize: ss(12) }} className="font-label text-cta-primary-text font-black uppercase">{t('common.close', 'Close')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setCampaignActionVisible(false)}
+        campaign={selectedCampaign}
+        onPurchaseComplete={async () => {
+          await Promise.all([refetch(), refetchCampaigns()]);
+        }}
+      />
 
       {/* Notifications Modal */}
       <Modal

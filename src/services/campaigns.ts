@@ -1,7 +1,7 @@
 import { Alert, Linking, Platform } from 'react-native';
 import { platformStorage } from './storage';
 
-export type CampaignActionType = 'none' | 'ussd' | 'dial' | 'sms' | 'web' | 'deeplink';
+export type CampaignActionType = 'none' | 'ussd' | 'dial' | 'sms' | 'web' | 'deeplink' | 'purchase';
 export type CampaignLastActionStatus = 'idle' | 'success' | 'failed' | 'pending';
 
 export interface CampaignActionPayload {
@@ -13,6 +13,10 @@ export interface CampaignActionPayload {
   url?: string;
   deep_link?: string;
   fallback_label?: string;
+  packageRef?: string | number;
+  package_ref?: string | number;
+  amount?: number;
+  allowedPaymentProviders?: string[];
   [key: string]: any;
 }
 
@@ -30,6 +34,10 @@ export interface CampaignItem {
   action_type: CampaignActionType;
   action_payload: CampaignActionPayload;
   customer_action_enabled: boolean;
+  is_purchasable: boolean;
+  purchase_package_ref?: string;
+  purchase_amount?: number;
+  allowed_payment_providers: Array<'emola' | 'mkesh'>;
   saved: boolean;
   last_action_status: CampaignLastActionStatus;
 }
@@ -120,6 +128,19 @@ export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
   const actionType = actionEnabled
     ? (safeText(customerAction.type ?? item?.action_type, 'none') as CampaignActionType)
     : 'none';
+  const purchasePackageRef = safeText(actionPayload.packageRef ?? actionPayload.package_ref, '');
+  const purchaseAmount = Number(actionPayload.amount ?? actionPayload.price ?? 0);
+  const allowedProviders = Array.isArray(actionPayload.allowedPaymentProviders)
+    ? actionPayload.allowedPaymentProviders
+        .map((provider: any) => String(provider).toLowerCase())
+        .filter((provider: string) => provider === 'emola' || provider === 'mkesh')
+    : ['emola', 'mkesh'];
+  const isPurchasable =
+    actionEnabled &&
+    actionType === 'purchase' &&
+    Boolean(purchasePackageRef) &&
+    Number.isFinite(purchaseAmount) &&
+    purchaseAmount > 0;
 
   return {
     id: safeText(item?.id, `campaign-${index + 1}`),
@@ -131,10 +152,14 @@ export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
     expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
     eligibility: safeText(item?.eligibility ?? item?.eligibility_label, 'Available to eligible subscribers.'),
     benefit: safeText(item?.benefit ?? item?.reward ?? item?.offer_value, ''),
-    cta_label: safeText(item?.cta_label ?? customerAction.label, actionEnabled ? 'View Offer' : 'View Details'),
+    cta_label: safeText(item?.cta_label ?? customerAction.label, isPurchasable ? 'Buy Offer' : 'View Details'),
     action_type: actionType,
     action_payload: actionEnabled ? actionPayload : {},
-    customer_action_enabled: actionEnabled,
+    customer_action_enabled: actionEnabled && isPurchasable,
+    is_purchasable: isPurchasable,
+    purchase_package_ref: isPurchasable ? purchasePackageRef : undefined,
+    purchase_amount: isPurchasable ? purchaseAmount : undefined,
+    allowed_payment_providers: allowedProviders.length > 0 ? (allowedProviders as Array<'emola' | 'mkesh'>) : ['emola', 'mkesh'],
     saved: Boolean(item?.saved ?? false),
     last_action_status: (item?.last_action_status as CampaignLastActionStatus) ?? 'idle',
   };

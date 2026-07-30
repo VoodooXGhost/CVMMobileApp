@@ -520,6 +520,24 @@ export const apiSlice = createApi({
         ),
       invalidatesTags: ['Wallet', 'Home', 'Shop'],
     }),
+    purchaseCampaignOffer: builder.mutation<any, any>({
+      queryFn: (body: any, api, extraOptions) => {
+        const { wallet_token: walletToken, ...purchaseBody } = body;
+        const headers = typeof walletToken === 'string' && walletToken.length > 0
+          ? { 'X-Wallet-Token': walletToken }
+          : undefined;
+
+        return mutationWithFallback(
+          [
+            { url: '/api/v1/mobile/v1/offers/purchase', method: 'POST', body: purchaseBody, headers },
+            { url: '/api/offers/purchase', method: 'POST', body: purchaseBody, headers },
+          ],
+          api,
+          extraOptions,
+        );
+      },
+      invalidatesTags: ['Wallet', 'Home', 'Shop', 'Campaigns', 'Transactions'],
+    }),
     getUsageData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
         queryWithFallback(
@@ -701,6 +719,7 @@ export const {
   usePlayGameMutation,
   useGetUsageDataQuery,
   useRedeemOfferMutation,
+  usePurchaseCampaignOfferMutation,
   useGetNotificationsQuery,
   useMarkNotificationsReadMutation,
   useMarkAllNotificationsReadMutation,
