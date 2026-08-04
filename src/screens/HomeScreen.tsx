@@ -31,7 +31,7 @@ import {
 } from 'lucide-react-native';
 import {
   useGetHomeDataQuery,
-  useGetAirtimeBalanceQuery,
+  useGetEMolaWalletQuery,
   useGetCampaignsDataQuery,
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
@@ -67,7 +67,7 @@ const HomeScreen = () => {
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
-  const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery(undefined, {
+  const { data: walletResponse, refetch: refetchWallet } = useGetEMolaWalletQuery(undefined, {
     refetchOnMountOrArgChange: true,
   });
   const { data: campaignResponse, isFetching: isCampaignsFetching, error: campaignError, refetch: refetchCampaigns } = useGetCampaignsDataQuery();
@@ -117,10 +117,15 @@ const HomeScreen = () => {
 
   const homeData = response?.data || {};
   const { profile, loyalty, gamification, hero_banners, offers, categories } = homeData;
-  const airtimeBalancePayload = airtimeBalanceResponse?.data ?? airtimeBalanceResponse ?? {};
-  const resolvedAirtimeBalance = airtimeBalancePayload?.airtimeBalance
-    ?? airtimeBalancePayload?.airtime_balance
-    ?? profile?.balances?.airtime
+  const walletBalancePayload = walletResponse?.data ?? walletResponse ?? {};
+  // Home should mirror the same customer-facing money balance shown in Wallet.
+  const resolvedWalletBalance = walletBalancePayload?.balance
+    ?? walletBalancePayload?.eMolaBalance
+    ?? walletBalancePayload?.eMola_balance
+    ?? walletBalancePayload?.balance_mzn
+    ?? profile?.balances?.eMola
+    ?? profile?.balances?.emola
+    ?? profile?.balances?.wallet
     ?? '0.00';
   const safeOffers = Array.isArray(offers) ? offers : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -443,10 +448,10 @@ const HomeScreen = () => {
           <View className="flex-row items-center justify-between mb-md">
             <View className="flex-1 items-center">
               <Text style={{ fontSize: ss(20) }} className="font-black text-on-surface font-display">
-                {formatMznCurrency(resolvedAirtimeBalance, language)}
+                {formatMznCurrency(resolvedWalletBalance, language)}
               </Text>
               <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
-                {t('home.airtime', 'Airtime')}
+                {t('wallet.mobileMoney', 'Mobile Money')}
               </Text>
             </View>
             <View className="w-[1px] h-[30px] bg-outline-variant" />
@@ -837,7 +842,7 @@ const HomeScreen = () => {
         onClose={() => setCampaignActionVisible(false)}
         campaign={selectedCampaign}
         onPurchaseComplete={async () => {
-          await Promise.all([refetch(), refetchAirtimeBalance(), refetchCampaigns()]);
+          await Promise.all([refetch(), refetchWallet(), refetchCampaigns()]);
         }}
       />
 
