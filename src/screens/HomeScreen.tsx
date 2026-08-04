@@ -15,23 +15,15 @@ import {
 import { MotiView } from 'moti';
 import { useAuth } from '../services/auth.context';
 import { 
-  Home, 
-  Wallet, 
-  Store, 
-  Gift, 
-  User, 
   Zap, 
   Star, 
-  Flame, 
   ChevronRight, 
   Bell, 
   Search, 
-  Gamepad2, 
-  Smartphone 
 } from 'lucide-react-native';
 import {
   useGetHomeDataQuery,
-  useGetEMolaWalletQuery,
+  useGetAirtimeBalanceQuery,
   useGetCampaignsDataQuery,
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
@@ -43,7 +35,6 @@ import { getExperimentAssignments } from '../services/experiments';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
 import { platformStorage } from '../services/storage';
-import { resolveYmBalance, resolvePointsToNext } from '../services/loyalty';
 import {
   CampaignItem,
   loadCampaignCache,
@@ -67,7 +58,7 @@ const HomeScreen = () => {
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const { data: response, isLoading, error, refetch } = useGetHomeDataQuery();
-  const { data: walletResponse, refetch: refetchWallet } = useGetEMolaWalletQuery(undefined, {
+  const { data: airtimeBalanceResponse, refetch: refetchAirtimeBalance } = useGetAirtimeBalanceQuery(undefined, {
     refetchOnMountOrArgChange: true,
   });
   const { data: campaignResponse, isFetching: isCampaignsFetching, error: campaignError, refetch: refetchCampaigns } = useGetCampaignsDataQuery();
@@ -116,16 +107,11 @@ const HomeScreen = () => {
   }, []);
 
   const homeData = response?.data || {};
-  const { profile, loyalty, gamification, hero_banners, offers, categories } = homeData;
-  const walletBalancePayload = walletResponse?.data ?? walletResponse ?? {};
-  // Home should mirror the same customer-facing money balance shown in Wallet.
-  const resolvedWalletBalance = walletBalancePayload?.balance
-    ?? walletBalancePayload?.eMolaBalance
-    ?? walletBalancePayload?.eMola_balance
-    ?? walletBalancePayload?.balance_mzn
-    ?? profile?.balances?.eMola
-    ?? profile?.balances?.emola
-    ?? profile?.balances?.wallet
+  const { profile, hero_banners, offers, categories } = homeData;
+  const airtimeBalancePayload = airtimeBalanceResponse?.data ?? airtimeBalanceResponse ?? {};
+  const resolvedAirtimeBalance = airtimeBalancePayload?.airtimeBalance
+    ?? airtimeBalancePayload?.airtime_balance
+    ?? profile?.balances?.airtime
     ?? '0.00';
   const safeOffers = Array.isArray(offers) ? offers : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -448,10 +434,10 @@ const HomeScreen = () => {
           <View className="flex-row items-center justify-between mb-md">
             <View className="flex-1 items-center">
               <Text style={{ fontSize: ss(20) }} className="font-black text-on-surface font-display">
-                {formatMznCurrency(resolvedWalletBalance, language)}
+                {formatMznCurrency(resolvedAirtimeBalance, language)}
               </Text>
               <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
-                {t('wallet.mobileMoney', 'Mobile Money')}
+                {t('home.airtime', 'Airtime')}
               </Text>
             </View>
             <View className="w-[1px] h-[30px] bg-outline-variant" />
@@ -463,51 +449,15 @@ const HomeScreen = () => {
                 {t('home.data', 'Data')}
               </Text>
             </View>
-            <View className="w-[1px] h-[30px] bg-outline-variant" />
-            <View className="flex-1 items-center">
-              <Text style={{ fontSize: ss(20) }} className="font-black text-secondary font-display">
-                {resolveYmBalance(loyalty).toLocaleString()}
-              </Text>
-              <Text style={{ fontSize: ss(10) }} className="font-caption font-bold text-on-surface-variant mt-1 uppercase">
-                YM
-              </Text>
-            </View>
           </View>
 
           <TouchableOpacity style={{ minHeight: layout.buttonHeight }} className="bg-cta-primary-bg flex-row items-center justify-center rounded-xl gap-2 shadow-sm active:opacity-90" onPress={() => navigation.navigate('Wallet')}>
             <Text style={{ fontSize: ss(12) }} className="font-label text-[#111316] font-black uppercase">
-              {t('home.quickRecharge', 'QUICK RECHARGE')}
+              {t('home.openServices', 'OPEN SERVICES')}
             </Text>
             <ChevronRight size={rs(16)} color="#111316" />
           </TouchableOpacity>
         </MotiView>
-
-        {/* Streak / Gamification Visibility */}
-        {gamification && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 100 }}
-            className="flex-row items-center bg-surface-container-lowest p-md rounded-xl shadow-sm mb-lg"
-          >
-             <View style={{ width: rs(44), height: rs(44) }} className="rounded-full bg-primary-container justify-center items-center">
-                <Flame size={rs(20)} color="#2260a2" fill="#2260a2" />
-             </View>
-             <View className="flex-1 ml-3">
-                <Text style={{ fontSize: ss(18) }} className="font-title text-on-surface font-semibold">
-                  {gamification.current_streak} {t('home.dayStreak', 'Day Streak!')}
-                </Text>
-                <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-60">
-                  {gamification.milestone_target - gamification.current_streak} {t('home.daysToNextReward', 'days to next reward')}
-                </Text>
-             </View>
-             <TouchableOpacity style={{ minHeight: layout.buttonHeight - 16 }} className="bg-cta-secondary-bg px-5 rounded-md justify-center active:opacity-90" onPress={() => navigation.navigate('Rewards')}>
-                <Text style={{ fontSize: ss(12) }} className="font-label text-white font-bold">
-                  {t('home.play', 'PLAY')}
-                </Text>
-             </TouchableOpacity>
-          </MotiView>
-        )}
 
         {/* Notification Inbox Entry */}
         <MotiView
@@ -709,34 +659,6 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* Loyalty Progression */}
-        <MotiView
-          from={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 15 }}
-          className="bg-[#1a1c1c] p-5 rounded-xl mb-lg shadow-md"
-        >
-           <View className="flex-row justify-between items-center mb-4">
-              <View>
-                <Text style={{ fontSize: ss(10) }} className="text-white/60 font-caption font-black uppercase">
-                  {t('home.currentTier', 'CURRENT TIER')}
-                </Text>
-                <Text style={{ fontSize: ss(20) }} className="text-white font-black mt-1">
-                  {loyalty?.current_tier || 'Bronze'}
-                </Text>
-              </View>
-              <Text style={{ fontSize: ss(16) }} className="text-secondary font-black">
-                {resolveYmBalance(loyalty).toLocaleString()} YM
-              </Text>
-           </View>
-           <View style={{ height: rs(6) }} className="bg-white/10 rounded-full mb-2">
-              <View style={{ width: `${loyalty?.progress_percentage || 0}%` }} className="h-full bg-secondary rounded-full" />
-           </View>
-           <Text style={{ fontSize: ss(10) }} className="text-white/50 font-caption font-semibold">
-              {resolvePointsToNext(loyalty).toLocaleString()} {t('home.pointsNeededFor', 'points needed for')} {loyalty?.next_tier || 'Silver'}
-           </Text>
-        </MotiView>
-
         {/* Market Sneak Peek */}
         <View className="mb-lg">
            <Text style={{ fontSize: ss(18) }} className="font-title mb-md font-semibold">
@@ -781,7 +703,7 @@ const HomeScreen = () => {
                           {offer.title}
                         </Text>
                         <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
-                          {formatMznCurrency(offer.price, language)} • YM
+                          {formatMznCurrency(offer.price, language)}
                         </Text>
                      </View>
                      <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.4)" />
@@ -827,7 +749,7 @@ const HomeScreen = () => {
                   <View key={`filtered-${offer.id}`} className="bg-surface-container-lowest rounded-md p-md mb-sm shadow-sm">
                     <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">{offer.title}</Text>
                     <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
-                      {formatMznCurrency(offer.price, language)} • YM
+                      {formatMznCurrency(offer.price, language)}
                     </Text>
                   </View>
                 ))}
@@ -841,9 +763,6 @@ const HomeScreen = () => {
         visible={campaignActionVisible && Boolean(selectedCampaign)}
         onClose={() => setCampaignActionVisible(false)}
         campaign={selectedCampaign}
-        onPurchaseComplete={async () => {
-          await Promise.all([refetch(), refetchWallet(), refetchCampaigns()]);
-        }}
       />
 
       {/* Notifications Modal */}

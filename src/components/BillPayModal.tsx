@@ -2,28 +2,25 @@ import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { X, ChevronDown } from 'lucide-react-native';
 import { AppInput, AppButton } from './Primitives';
-import { usePayBillMutation } from '../services/apiSlice';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useI18n } from '../services/i18n';
 import { Colors } from '../theme/tokens';
-import PaymentProviderSelector from './PaymentProviderSelector';
-import { resolveLocalizedApiError } from '../services/apiErrors';
+import { openTmcelMenu } from '../services/telephonyFallback';
+import { track } from '../services/analytics';
 
 interface BillPayModalProps {
   visible: boolean;
   onClose: () => void;
-  eMolaBalance?: number;
 }
 
-export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPayModalProps) {
+export default function BillPayModal({ visible, onClose }: BillPayModalProps) {
   const { t } = useI18n();
   const { ss } = useResponsiveScale();
   const [billerCode, setBillerCode] = useState('EDM'); // Default to EDM (Electricity)
   const [reference, setReference] = useState('');
   const [amount, setAmount] = useState('');
   const [showBillerList, setShowBillerList] = useState(false);
-  const [paymentProvider, setPaymentProvider] = useState<'emola' | 'mkesh' | 'millennium_izi'>('emola');
-  const [payBill, { isLoading }] = usePayBillMutation();
+  const [isOpeningMenu, setIsOpeningMenu] = useState(false);
 
   const billers = [
     { code: 'EDM', name: 'Electricidade de Moçambique' },
@@ -38,7 +35,13 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
     setShowBillerList(false);
   };
 
-  const handlePay = async () => {
+  const resetAndClose = () => {
+    setReference('');
+    setAmount('');
+    onClose();
+  };
+
+  const handlePay = () => {
     const numAmount = parseFloat(amount);
     if (!reference.trim()) {
       Alert.alert(t('common.error', 'Error'), t('wallet.enterReference', 'Please enter a valid bill reference/contract number.'));
@@ -49,37 +52,34 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
       return;
     }
 
-    try {
-      const response = await payBill({
-        biller_code: billerCode,
-        amount: numAmount,
-        reference: reference.trim(),
-        payment_provider: paymentProvider,
-      }).unwrap();
-
-      Alert.alert(
-        t('common.success', 'Success'),
-        t('wallet.billSuccess', 'Successfully paid MZN {amount} to {biller}. Receipt: {receipt}')
-          .replace('{amount}', String(numAmount))
-          .replace('{biller}', billerCode)
-          .replace('{receipt}', response.data?.receipt || ''),
-        [{ text: 'OK', onPress: () => {
-          setReference('');
-          setAmount('');
-          setPaymentProvider('emola');
-          onClose();
-        }}]
-      );
-    } catch (error: any) {
-      Alert.alert(
-        t('common.error', 'Error'),
-        resolveLocalizedApiError(
-          t,
-          error,
-          t('wallet.paymentFailed', 'Bill payment failed. Please try again.'),
-        )
-      );
-    }
+    const billerName = billers.find((b) => b.code === billerCode)?.name || billerCode;
+    Alert.alert(
+      t('wallet.confirmBillHandoff', 'Open Tmcel Menu'),
+      t('wallet.billHandoffBody', 'You are about to open the Tmcel phone menu to continue bill payment for {biller}, reference {reference}, amount MZN {amount}.')
+        .replace('{biller}', billerName)
+        .replace('{reference}', reference.trim())
+        .replace('{amount}', String(numAmount)),
+      [
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: t('wallet.openTmcelMenu', 'Open Tmcel Menu'),
+          onPress: async () => {
+            setIsOpeningMenu(true);
+            await track('bill_payment_handoff_start', { biller_code: billerCode, amount: numAmount }, { screen: 'services' });
+            try {
+              await openTmcelMenu();
+              await track('bill_payment_handoff_success', { biller_code: billerCode, amount: numAmount }, { screen: 'services' });
+              resetAndClose();
+            } catch (error: any) {
+              await track('bill_payment_handoff_fail', { biller_code: billerCode, reason: error?.message || 'unknown' }, { screen: 'services' });
+              Alert.alert(t('common.error', 'Error'), error?.message || t('wallet.billHandoffFailed', 'Unable to open the Tmcel menu.'));
+            } finally {
+              setIsOpeningMenu(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -152,13 +152,6 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
               )}
             </View>
 
-            {/* Payment Method Selector */}
-            <PaymentProviderSelector
-              selected={paymentProvider}
-              onChange={setPaymentProvider}
-              eMolaBalance={eMolaBalance}
-            />
-
             {/* Reference Number */}
             <View>
               <Text style={{ marginBottom: ss(6), color: Colors.on_surface_variant, fontSize: ss(14), fontWeight: '600' }}>
@@ -187,12 +180,12 @@ export default function BillPayModal({ visible, onClose, eMolaBalance }: BillPay
 
             <AppButton
             label={
-              isLoading
-                ? 'Processing...'
-                : t('wallet.payVia', 'Pay via {provider}').replace('{provider}', paymentProvider === 'mkesh' ? 'mKesh' : 'eMola')
+              isOpeningMenu
+                ? t('wallet.processing', 'Processing...')
+                : t('wallet.openTmcelMenu', 'Open Tmcel Menu')
             }
               onPress={handlePay}
-              disabled={isLoading}
+              disabled={isOpeningMenu}
             />
           </ScrollView>
         </View>

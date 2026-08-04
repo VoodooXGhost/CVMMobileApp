@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { MotiView } from 'moti';
-import { useGetCvmMarketplaceQuery, useRedeemOfferMutation } from '../services/apiSlice';
-import { getAnalyticsIdentity, track } from '../services/analytics';
+import { useGetCvmMarketplaceQuery } from '../services/apiSlice';
+import { track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
-import { useBiometricAuth } from '../hooks/useBiometricAuth';
-import { ensureWalletAccess } from '../services/walletAccess';
-import { getApiErrorCode, resolveLocalizedApiError } from '../services/apiErrors';
-import { isEmulatorLikeAndroidDevice } from '../services/deviceEnvironment';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
@@ -22,18 +18,14 @@ import { CampaignItem, normalizeCampaignFeed } from '../services/campaigns';
 /**
  * MarketplaceScreen Component
  * 
- * An intuitive marketplace for customers to purchase data, airtime, and rewards.
- * Dynamically displays products and CVM-driven campaigns/promotions.
+ * Customer marketplace for viewing safe CVM-driven campaigns and offers.
  */
 const MarketplaceScreen = () => {
   const { language, t } = useI18n();
-  const { data: marketplaceData, isLoading, error, refetch: refetchMarketplace } = useGetCvmMarketplaceQuery();
-  const [redeemOffer, { isLoading: isRedeeming }] = useRedeemOfferMutation();
+  const { data: marketplaceData, isLoading, error } = useGetCvmMarketplaceQuery();
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
-  const { authenticate } = useBiometricAuth();
-  const useSafePhoneFlow = isEmulatorLikeAndroidDevice();
 
   const { ss, rs, width } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
@@ -64,67 +56,15 @@ const MarketplaceScreen = () => {
     );
   }
 
-  const handleRedeem = (product: any) => {
-    const itemId = Number(product?.id);
-    const price = Number(product?.price);
-    if (!Number.isFinite(itemId) || itemId <= 0 || !Number.isFinite(price) || price < 0) {
-      Alert.alert(t('marketplace.unavailable', 'Unavailable'), t('marketplace.notRedeemable', 'This item is not redeemable right now.'));
-      return;
-    }
-
-    const prompt = t('marketplace.purchasePrompt', 'Are you sure you want to buy {title} for {amount}?')
-      .replace('{title}', String(product.title))
-      .replace('{amount}', formatMznCurrency(product.price, language));
+  const handleViewOffer = (product: any) => {
+    track(
+      'offer_click',
+      { item_id: product?.id, placement: 'marketplace_grid' },
+      { screen: 'marketplace', placement: 'marketplace_grid' },
+    );
     Alert.alert(
-      t('marketplace.confirmPurchase', 'Confirm Purchase'),
-      prompt,
-      [
-        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
-        { 
-          text: t('marketplace.buy', 'Buy'), 
-          onPress: async () => {
-            if (useSafePhoneFlow) {
-              Alert.alert(
-                t('common.unavailable', 'Unavailable'),
-                t(
-                  'wallet.deviceUnsupportedSpendBody',
-                  'This device profile does not submit live spend actions. Use a physical device to continue.',
-                ),
-              );
-              return;
-            }
-
-            try {
-              const accepted = await authenticate(t('wallet.stepUpPrompt', 'Authenticate to continue spending.'));
-              if (!accepted) {
-                return;
-              }
-              await ensureWalletAccess();
-              await track(
-                'redeem_start',
-                { item_id: itemId, placement: 'marketplace_grid' },
-                { screen: 'marketplace', placement: 'marketplace_grid' }
-              );
-              await redeemOffer({ item_id: itemId }).unwrap();
-              await track(
-                'redeem_success',
-                { item_id: itemId, placement: 'marketplace_grid' },
-                { screen: 'marketplace', placement: 'marketplace_grid' }
-              );
-              Alert.alert(t('common.success', 'Success'), t('marketplace.purchaseSuccess', 'You have successfully purchased {title}!').replace('{title}', String(product.title)));
-            } catch (err: any) {
-              const errorCode = getApiErrorCode(err);
-              const errorMessage = resolveLocalizedApiError(t, err, t('marketplace.purchaseFail', 'Failed to complete purchase.'));
-              await track(
-                'redeem_fail',
-                { item_id: itemId, reason: errorCode || err?.status || 'unknown' },
-                { screen: 'marketplace', placement: 'marketplace_grid' }
-              );
-              Alert.alert(t('common.error', 'Error'), errorMessage);
-            }
-          }
-        }
-      ]
+      String(product?.title || t('marketplace.featuredOffers', 'Featured Offers')),
+      String(product?.description || product?.category || t('campaign.viewDetails', 'View Details')),
     );
   };
 
@@ -253,12 +193,12 @@ const MarketplaceScreen = () => {
                     </Text>
                     
                     <TouchableOpacity
-                      onPress={() => handleRedeem(product)}
+                      onPress={() => handleViewOffer(product)}
                       style={{ height: rs(36) }}
                       className="bg-primary rounded-lg justify-center items-center active:bg-primary-container"
                     >
                       <Text style={{ fontSize: ss(12) }} className="font-black text-white">
-                        {t('marketplace.buyNow', 'Buy')}
+                        {t('campaign.viewDetails', 'View Details')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -274,9 +214,6 @@ const MarketplaceScreen = () => {
         visible={selectedCampaign !== null}
         onClose={() => setSelectedCampaign(null)}
         campaign={selectedCampaign}
-        onPurchaseComplete={async () => {
-          await refetchMarketplace();
-        }}
       />
     </SafeAreaView>
   );

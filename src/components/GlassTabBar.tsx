@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, Platform } from 'react-native';
-import { Home, Wallet, Store, Gift, User } from 'lucide-react-native';
+import { Home, Smartphone, Store, User } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useI18n } from '../services/i18n';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
@@ -110,18 +110,17 @@ const GlassTabBar = ({ state, descriptors, navigation }: any) => {
           const renderIcon = (color: string) => {
             const isCompact = sizeClass === 'compact';
             const iconSize = isCompact ? 18 : 22;
-            if (index === 0) return <Home size={iconSize} color={color} />;
-            if (index === 1) return <Wallet size={iconSize} color={color} />;
-            if (index === 2) return <Store size={iconSize} color={color} />;
-            if (index === 3) return <Gift size={iconSize} color={color} />;
-            if (index === 4) return <User size={iconSize} color={color} />;
+            if (route.name === 'Home') return <Home size={iconSize} color={color} />;
+            if (route.name === 'Wallet') return <Smartphone size={iconSize} color={color} />;
+            if (route.name === 'Marketplace') return <Store size={iconSize} color={color} />;
+            if (route.name === 'Account') return <User size={iconSize} color={color} />;
             return null;
           };
 
           const label =
-            index === 4
+            route.name === 'Account'
               ? t('nav.account', 'Account')
-              : index === 2
+              : route.name === 'Marketplace'
                 ? t('nav.store', 'Store')
                 : options.title || route.name;
 
