@@ -29,6 +29,7 @@ export interface CampaignItem {
   status: string;
   expiry: string;
   eligibility: string;
+  customer_eligible: boolean | null;
   benefit: string;
   cta_label: string;
   action_type: CampaignActionType;
@@ -42,7 +43,7 @@ export interface CampaignItem {
   last_action_status: CampaignLastActionStatus;
 }
 
-const CAMPAIGN_CACHE_KEY = 'campaign_feed_cache_v1';
+const CAMPAIGN_CACHE_KEY = 'campaign_feed_cache_v2';
 const CAMPAIGN_FAVORITES_KEY = 'campaign_favorites_v1';
 const CAMPAIGN_STATUS_KEY = 'campaign_last_actions_v1';
 
@@ -57,6 +58,7 @@ const safeParse = (raw: string | null) => {
 
 const ACTIVE_STATUSES = new Set(['active', 'running', 'available', 'live']);
 const HIDDEN_STATUSES = new Set(['scheduled', 'draft', 'paused', 'expired', 'internal', 'test', 'inactive', 'archived']);
+const LIFECYCLE_STATUSES = new Set([...ACTIVE_STATUSES, ...HIDDEN_STATUSES]);
 
 const safeText = (value: any, fallback = ''): string => {
   if (value == null) return fallback;
@@ -84,11 +86,63 @@ const safeText = (value: any, fallback = ''): string => {
 const safeObject = (value: any): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
-const normalizeStatus = (item: any) =>
-  safeText(
-    item?.mobile_status ?? item?.status ?? item?.state ?? item?.lifecycle_status ?? item?.campaign_status,
-    'active',
+const normalizeStatus = (item: any) => {
+  const suppliedStatus = safeText(
+    item?.mobile_status ?? item?.campaign_status ?? item?.lifecycle_status ?? item?.status ?? item?.state,
+    '',
   ).toLowerCase();
+  if (suppliedStatus) return suppliedStatus;
+
+  // Some CVM feeds use `type` for lifecycle state; accept only known lifecycle tokens.
+  const typeStatus = safeText(item?.type, '').toLowerCase();
+  return LIFECYCLE_STATUSES.has(typeStatus) ? typeStatus : '';
+};
+
+const isNotExpiredOrScheduled = (item: any) => {
+  const expiry = item?.expiry ?? item?.expires_at ?? item?.end_date;
+  if (expiry) {
+    const expiryTime = new Date(expiry).getTime();
+    if (Number.isFinite(expiryTime) && expiryTime < Date.now()) return false;
+  }
+
+  const startsAt = item?.starts_at ?? item?.start_at ?? item?.start_date;
+  if (startsAt) {
+    const startTime = new Date(startsAt).getTime();
+    if (Number.isFinite(startTime) && startTime > Date.now()) return false;
+  }
+  return true;
+};
+
+const hasCustomerVisibility = (item: any) =>
+  item?.visible_to_mobile !== false &&
+  item?.customer_visible !== false &&
+  item?.mobile_visible !== false &&
+  item?.internal !== true &&
+  item?.test !== true;
+
+export const isCustomerVisibleOffer = (item: any) => {
+  const status = normalizeStatus(item);
+  const activeFlag = item?.is_active === true || item?.active === true;
+  return (
+    hasCustomerVisibility(item) &&
+    item?.is_active !== false &&
+    item?.active !== false &&
+    (ACTIVE_STATUSES.has(status) || (!status && activeFlag)) &&
+    isNotExpiredOrScheduled(item)
+  );
+};
+
+export const normalizeCustomerOffers = (items: any[]) =>
+  (Array.isArray(items) ? items : []).filter(isCustomerVisibleOffer);
+
+const normalizeEligibility = (item: any): boolean | null => {
+  const eligibility = safeText(item?.eligibility ?? item?.eligibility_label ?? item?.eligibility_status, '').toLowerCase();
+  if (item?.is_eligible === true || item?.eligible === true) return true;
+  if (item?.is_eligible === false || item?.eligible === false) return false;
+  if (/not eligible|ineligible|not part of (the )?target segment|subscriber.*not (in|part)/.test(eligibility)) return false;
+  if (['eligible', 'qualified', 'matched'].includes(eligibility)) return true;
+  return null;
+};
 
 const resolveCustomerActionEnabled = (item: any) => {
   const customerAction = safeObject(item?.customer_action);
@@ -102,23 +156,11 @@ const resolveCustomerActionEnabled = (item: any) => {
 
 export const isCustomerVisibleCampaign = (item: any) => {
   const status = normalizeStatus(item);
-  const isExplicitlyHidden =
-    item?.visible_to_mobile === false ||
-    item?.customer_visible === false ||
-    item?.internal === true ||
-    item?.test === true ||
-    HIDDEN_STATUSES.has(status);
+  const activeFlag = item?.is_active === true || item?.active === true;
+  const isExplicitlyHidden = !hasCustomerVisibility(item) || item?.is_active === false || item?.active === false || HIDDEN_STATUSES.has(status);
 
   if (isExplicitlyHidden) return false;
-  if (status && !ACTIVE_STATUSES.has(status)) return false;
-
-  const expiry = item?.expiry ?? item?.expires_at ?? item?.end_date;
-  if (expiry) {
-    const expiryTime = new Date(expiry).getTime();
-    if (Number.isFinite(expiryTime) && expiryTime < Date.now()) return false;
-  }
-
-  return true;
+  return (ACTIVE_STATUSES.has(status) || (!status && activeFlag)) && isNotExpiredOrScheduled(item);
 };
 
 export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
@@ -141,16 +183,19 @@ export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
     Boolean(purchasePackageRef) &&
     Number.isFinite(purchaseAmount) &&
     purchaseAmount > 0;
+  const rawType = safeText(item?.type, '');
+  const typeCategory = LIFECYCLE_STATUSES.has(rawType.toLowerCase()) ? '' : rawType;
 
   return {
     id: safeText(item?.id, `campaign-${index + 1}`),
     title: safeText(item?.title ?? item?.name, `Campaign ${index + 1}`),
     summary: safeText(item?.summary ?? item?.description, ''),
-    category: safeText(item?.category ?? item?.segment ?? item?.type, 'Campaign'),
+    category: safeText(item?.customer_category ?? item?.campaign_category ?? item?.category ?? item?.segment ?? typeCategory, 'Campaign'),
     priority: safeText(item?.priority, 'normal'),
     status: normalizeStatus(item),
-    expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+    expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, ''),
     eligibility: safeText(item?.eligibility ?? item?.eligibility_label, 'Available to eligible subscribers.'),
+    customer_eligible: normalizeEligibility(item),
     benefit: safeText(item?.benefit ?? item?.reward ?? item?.offer_value, ''),
     cta_label: safeText(item?.cta_label ?? customerAction.label, isPurchasable ? 'Buy Offer' : 'View Details'),
     action_type: actionType,

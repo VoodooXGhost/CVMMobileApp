@@ -75,9 +75,11 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
 
       {/* Footer Row */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: ss(11), color: Colors.on_surface_variant, opacity: 0.6 }}>
-          {t('campaign.expiresShort', 'Expires')}: {new Date(campaign.expiry).toLocaleDateString()}
-        </Text>
+        {campaign.expiry ? (
+          <Text style={{ fontSize: ss(11), color: Colors.on_surface_variant, opacity: 0.6 }}>
+            {t('campaign.expiresShort', 'Expires')}: {new Date(campaign.expiry).toLocaleDateString()}
+          </Text>
+        ) : <View />}
         <TouchableOpacity
           onPress={onPressAction}
           style={{

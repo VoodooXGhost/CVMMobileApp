@@ -71,14 +71,16 @@ export default function CampaignDetailModal({ visible, onClose, campaign, onCust
                 </Text>
               </View>
             ) : null}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: ss(12), fontWeight: '600', color: Colors.on_surface_variant }}>
-                {t('campaign.expires', 'Expires On')}
-              </Text>
-              <Text style={{ fontSize: ss(12), fontWeight: '700', color: Colors.primary }}>
-                {new Date(campaign.expiry).toLocaleDateString()}
-              </Text>
-            </View>
+            {campaign.expiry ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: ss(12), fontWeight: '600', color: Colors.on_surface_variant }}>
+                  {t('campaign.expires', 'Expires On')}
+                </Text>
+                <Text style={{ fontSize: ss(12), fontWeight: '700', color: Colors.primary }}>
+                  {new Date(campaign.expiry).toLocaleDateString()}
+                </Text>
+              </View>
+            ) : null}
             </View>
 
             {hasCustomerAction ? (

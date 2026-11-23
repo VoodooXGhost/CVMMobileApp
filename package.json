@@ -9,8 +9,9 @@
     "web": "expo start --web",
     "typecheck": "npx expo config --json > /dev/null",
     "contract:check": "node scripts/check-analytics-contract.js",
+    "test:campaigns": "node --test tests/campaigns-normalization.test.cjs",
     "manifest:generate": "node scripts/generate-release-manifest.js",
-    "ci:check": "npm run typecheck && npm run contract:check"
+    "ci:check": "npm run typecheck && npm run contract:check && npm run test:campaigns"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

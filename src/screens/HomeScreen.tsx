@@ -641,12 +641,18 @@ const HomeScreen = () => {
                         {campaign.benefit}
                       </Text>
                     ) : null}
-                    <Text style={{ fontSize: ss(11) }} className="font-label mt-1 text-on-surface-variant opacity-60">
-                      {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
-                    </Text>
+                    {campaign.expiry ? (
+                      <Text style={{ fontSize: ss(11) }} className="font-label mt-1 text-on-surface-variant opacity-60">
+                        {t('home.campaignExpiry', 'Expires {date}').replace('{date}', new Date(campaign.expiry).toLocaleDateString())}
+                      </Text>
+                    ) : null}
                     <View className="mt-md flex-row justify-between items-center gap-sm">
                       <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant font-bold">
-                        {t('home.campaignAvailable', 'Available')}
+                        {campaign.customer_eligible === true
+                          ? t('home.campaignEligible', 'Eligible')
+                          : campaign.customer_eligible === false
+                            ? t('home.campaignNotEligible', 'Not eligible')
+                            : t('home.campaignEligibilityVaries', 'Eligibility varies')}
                       </Text>
                       <Text style={{ fontSize: ss(12) }} className="font-label text-primary font-black uppercase">
                         {campaign.customer_action_enabled ? campaign.cta_label : t('campaign.viewDetails', 'View Details')}

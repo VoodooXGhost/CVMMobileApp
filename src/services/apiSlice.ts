@@ -5,7 +5,7 @@ import { getZeroRateRequestHeaders, runtimeConfig } from '../config/runtime';
 import { invalidateAuthSession, refreshAuthSession } from './session';
 import { normalizeLoyaltyPayload } from './loyalty';
 import { normalizeGamesPayload } from './games';
-import { normalizeCampaignFeed } from './campaigns';
+import { normalizeCampaignFeed, normalizeCustomerOffers } from './campaigns';
 
 /**
  * Enterprise API Slice using RTK Query.
@@ -70,7 +70,7 @@ const normalizeHomeData = (raw: any) => {
   const legacyYelloBucks = source.yelloBucks ?? {};
   const loyaltySource = normalizeLoyaltyPayload(source.loyalty ?? {}, legacyYelloBucks);
 
-  const offers = toArray(source.offers).map((offer: any, index: number) => ({
+  const offers = normalizeCustomerOffers(toArray(source.offers)).map((offer: any, index: number) => ({
     id: offer?.id ?? index + 1,
     title: offer?.title ?? 'Offer',
     category: offer?.category ?? offer?.tag ?? 'General',
@@ -116,7 +116,7 @@ const normalizeHomeData = (raw: any) => {
     gamification: normalizedGamification,
     hero_banners: toArray(source.hero_banners),
     offers,
-    categories: source.categories ?? categories,
+    categories,
   };
 };
 
@@ -207,7 +207,7 @@ const normalizeTransactionsData = (raw: any) => {
 const normalizeOffersData = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const list = source.offers ?? source.trending ?? [];
-  const offers = toArray(list).map((offer: any, index: number) => ({
+  const offers = normalizeCustomerOffers(toArray(list)).map((offer: any, index: number) => ({
     id: offer?.id ?? `offer-${index + 1}`,
     title: offer?.title ?? offer?.name ?? 'Offer',
     price: normalizeCurrencyAmount(offer?.price),
@@ -215,7 +215,7 @@ const normalizeOffersData = (raw: any) => {
     image_url: offer?.image_url,
   }));
 
-  const categories = source.categories ?? Array.from(
+  const categories = Array.from(
     new Set(offers.map((offer: any) => offer.category).filter(Boolean)),
   );
 
@@ -225,7 +225,7 @@ const normalizeOffersData = (raw: any) => {
 const normalizeCvmMarketplace = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const rawList = source.offers ?? source.trending ?? (Array.isArray(source) ? source : []);
-  const offers = toArray(rawList).map((offer: any, index: number) => ({
+  const offers = normalizeCustomerOffers(toArray(rawList)).map((offer: any, index: number) => ({
     id: offer?.id ?? index + 1,
     title: offer?.title ?? offer?.name ?? 'Offer',
     price: normalizeCurrencyAmount(offer?.price),
@@ -233,7 +233,7 @@ const normalizeCvmMarketplace = (raw: any) => {
     image_url: offer?.image_url,
   }));
 
-  const categories = source.categories ?? Array.from(
+  const categories = Array.from(
     new Set(offers.map((offer: any) => offer.category).filter(Boolean)),
   );
 
