@@ -17,7 +17,8 @@ try {
         const key = trimmed.substring(0, index).trim();
         const value = trimmed.substring(index + 1).trim().replace(/^['"]|['"]$/g, '');
         if (key.startsWith('EXPO_PUBLIC_')) {
-          process.env[key] = value;
+          // Explicit build inputs must win over a developer's local .env file.
+          if (process.env[key] == null) process.env[key] = value;
         }
       }
     });
