@@ -95,7 +95,11 @@ const normalizeStatus = (item: any) => {
 
   // Some CVM feeds use `type` for lifecycle state; accept only known lifecycle tokens.
   const typeStatus = safeText(item?.type, '').toLowerCase();
-  return LIFECYCLE_STATUSES.has(typeStatus) ? typeStatus : '';
+  if (LIFECYCLE_STATUSES.has(typeStatus)) return typeStatus;
+
+  // Legacy mobile feed mapped campaign state into `category`; treat known lifecycle values as state.
+  const categoryStatus = safeText(item?.category, '').toLowerCase();
+  return LIFECYCLE_STATUSES.has(categoryStatus) ? categoryStatus : '';
 };
 
 const isNotExpiredOrScheduled = (item: any) => {
@@ -120,6 +124,20 @@ const hasCustomerVisibility = (item: any) =>
   item?.internal !== true &&
   item?.test !== true;
 
+const isDeactivatedMoneyOrLoyaltyOffer = (item: any) => {
+  const catalogText = [
+    item?.title,
+    item?.name,
+    item?.description,
+    item?.category,
+    item?.reward_type,
+    item?.payment_provider,
+    item?.fulfillment_type,
+  ].map((value) => safeText(value, '')).join(' ').toLowerCase();
+  return /\b(momo|emola|mkesh|yellomola|mobile money|money transfer|wallet|loyalty|reward|rewards)\b/.test(catalogText) ||
+    /(^|[^a-z0-9])ym($|[^a-z0-9])/i.test(catalogText);
+};
+
 export const isCustomerVisibleOffer = (item: any) => {
   const status = normalizeStatus(item);
   const activeFlag = item?.is_active === true || item?.active === true;
@@ -128,6 +146,8 @@ export const isCustomerVisibleOffer = (item: any) => {
     item?.is_active !== false &&
     item?.active !== false &&
     (ACTIVE_STATUSES.has(status) || (!status && activeFlag)) &&
+    normalizeEligibility(item) !== false &&
+    !isDeactivatedMoneyOrLoyaltyOffer(item) &&
     isNotExpiredOrScheduled(item)
   );
 };
@@ -136,9 +156,15 @@ export const normalizeCustomerOffers = (items: any[]) =>
   (Array.isArray(items) ? items : []).filter(isCustomerVisibleOffer);
 
 const normalizeEligibility = (item: any): boolean | null => {
-  const eligibility = safeText(item?.eligibility ?? item?.eligibility_label ?? item?.eligibility_status, '').toLowerCase();
-  if (item?.is_eligible === true || item?.eligible === true) return true;
-  if (item?.is_eligible === false || item?.eligible === false) return false;
+  const eligibilityPayload = safeObject(item?.eligibility);
+  const eligibility = safeText(
+    eligibilityPayload.message ?? item?.eligibility_label ?? item?.eligibility_status ?? item?.eligibility,
+    '',
+  ).toLowerCase();
+  const isEligible = eligibilityPayload.is_eligible ?? item?.is_eligible ?? item?.eligible;
+  const status = safeText(eligibilityPayload.status ?? item?.eligibility_status, '').toLowerCase();
+  if (isEligible === true || ['eligible', 'qualified', 'matched'].includes(status)) return true;
+  if (isEligible === false || ['ineligible', 'not_eligible', 'unavailable', 'disqualified'].includes(status)) return false;
   if (/not eligible|ineligible|not part of (the )?target segment|subscriber.*not (in|part)/.test(eligibility)) return false;
   if (['eligible', 'qualified', 'matched'].includes(eligibility)) return true;
   return null;
@@ -157,7 +183,16 @@ const resolveCustomerActionEnabled = (item: any) => {
 export const isCustomerVisibleCampaign = (item: any) => {
   const status = normalizeStatus(item);
   const activeFlag = item?.is_active === true || item?.active === true;
-  const isExplicitlyHidden = !hasCustomerVisibility(item) || item?.is_active === false || item?.active === false || HIDDEN_STATUSES.has(status);
+  const rawType = safeText(item?.type, '').toLowerCase();
+  const rawCategory = safeText(item?.category, '').toLowerCase();
+  const isExplicitlyHidden =
+    !hasCustomerVisibility(item) ||
+    item?.is_active === false ||
+    item?.active === false ||
+    HIDDEN_STATUSES.has(status) ||
+    HIDDEN_STATUSES.has(rawType) ||
+    HIDDEN_STATUSES.has(rawCategory) ||
+    normalizeEligibility(item) === false;
 
   if (isExplicitlyHidden) return false;
   return (ACTIVE_STATUSES.has(status) || (!status && activeFlag)) && isNotExpiredOrScheduled(item);
@@ -184,13 +219,14 @@ export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
     Number.isFinite(purchaseAmount) &&
     purchaseAmount > 0;
   const rawType = safeText(item?.type, '');
-  const typeCategory = LIFECYCLE_STATUSES.has(rawType.toLowerCase()) ? '' : rawType;
+  const categoryValue = safeText(item?.customer_category ?? item?.campaign_category ?? item?.category ?? item?.segment ?? rawType, '');
+  const category = LIFECYCLE_STATUSES.has(categoryValue.toLowerCase()) ? 'Campaign' : categoryValue || 'Campaign';
 
   return {
     id: safeText(item?.id, `campaign-${index + 1}`),
     title: safeText(item?.title ?? item?.name, `Campaign ${index + 1}`),
     summary: safeText(item?.summary ?? item?.description, ''),
-    category: safeText(item?.customer_category ?? item?.campaign_category ?? item?.category ?? item?.segment ?? typeCategory, 'Campaign'),
+    category,
     priority: safeText(item?.priority, 'normal'),
     status: normalizeStatus(item),
     expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, ''),

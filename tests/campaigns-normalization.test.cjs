@@ -48,6 +48,22 @@ test('does not show a campaign without an explicit active lifecycle state', () =
   assert.deepEqual(feed.campaigns, []);
 });
 
+test('recognizes lifecycle state leaked through the legacy category field', () => {
+  const feed = normalizeCampaignFeed({
+    campaigns: [{ id: 'legacy-scheduled', title: 'Future promo', category: 'scheduled' }],
+  });
+
+  assert.deepEqual(feed.campaigns, []);
+});
+
+test('does not treat a canonical active status as overriding a scheduled category', () => {
+  const feed = normalizeCampaignFeed({
+    campaigns: [{ id: 'conflicting-state', status: 'active', category: 'scheduled' }],
+  });
+
+  assert.deepEqual(feed.campaigns, []);
+});
+
 test('keeps active campaigns and does not expose lifecycle labels as categories', () => {
   const feed = normalizeCampaignFeed({
     campaigns: [
@@ -73,6 +89,16 @@ test('filters non-live and expired offers before normalizing customer cards', ()
   assert.equal(offers[0].title, 'Live data offer');
 });
 
+test('keeps deactivated money and loyalty rewards out of customer offers', () => {
+  const offers = normalizeCustomerOffers([
+    { id: 'bundle', title: 'Data bundle', status: 'active', category: 'data' },
+    { id: 'momo', title: 'MoMo Cash Reward MZN 50', status: 'active', category: 'rewards' },
+    { id: 'loyalty', title: 'Weekly Bonus', status: 'running', reward_type: 'YelloMola' },
+  ]);
+
+  assert.deepEqual(offers.map((offer) => offer.id), ['bundle']);
+});
+
 test('retains eligibility evidence instead of labeling every campaign available', () => {
   const feed = normalizeCampaignFeed({
     campaigns: [
@@ -82,5 +108,42 @@ test('retains eligibility evidence instead of labeling every campaign available'
     ],
   });
 
-  assert.deepEqual(feed.campaigns.map((campaign) => campaign.customer_eligible), [true, false, null]);
+  assert.deepEqual(feed.campaigns.map((campaign) => campaign.customer_eligible), [true, null]);
+});
+
+test('filters CVM campaigns explicitly marked ineligible in a nested eligibility object', () => {
+  const feed = normalizeCampaignFeed({
+    campaigns: [
+      {
+        id: 'ineligible',
+        status: 'running',
+        category: 'retention',
+        eligibility: {
+          status: 'ineligible',
+          is_eligible: false,
+          message: 'Subscriber is not part of the target segment',
+        },
+      },
+      { id: 'eligible', status: 'running', eligibility: { status: 'eligible', is_eligible: true, message: 'Eligible' } },
+    ],
+  });
+
+  assert.deepEqual(feed.campaigns.map((campaign) => campaign.id), ['eligible']);
+  assert.equal(feed.campaigns[0].customer_eligible, true);
+});
+
+test('fails closed on the current UAT feed records until CVM supplies active state', () => {
+  const campaigns = normalizeCampaignFeed({
+    campaigns: [
+      { id: 'netgiro', title: 'NetGiro 100MT Unlimited Upsell', category: 'scheduled', eligibility: { status: 'unavailable' } },
+      { id: 'audit', title: 'Data Protection Audit', category: 'retention', eligibility: { status: 'ineligible', is_eligible: false } },
+    ],
+  });
+  const offers = normalizeCustomerOffers([
+    { id: 'data', title: 'TMcel Super Data 10GB', category: 'lifestyle' },
+    { id: 'momo', title: 'MoMo Cash Reward MZN 50', category: 'lifestyle' },
+  ]);
+
+  assert.deepEqual(campaigns.campaigns, []);
+  assert.deepEqual(offers, []);
 });
