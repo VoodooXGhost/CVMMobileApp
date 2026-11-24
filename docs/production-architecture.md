@@ -41,4 +41,6 @@
 - A campaign lifecycle status remains a feed-control field only; it is not a
   customer-facing category or label. Campaigns without customer-safe copy use
   a generic Tmcel title and remain subject to the feed's visibility/eligibility
-  filtering.
+  filtering. Cached campaign data is normalized through the same rules before
+  being rendered, and Home/Marketplace offer cards use a whitelisted display
+  model rather than rendering raw feed objects.

@@ -40,6 +40,8 @@ import {
   loadCampaignCache,
   loadCampaignFavorites,
   normalizeCampaignFeed,
+  normalizeCustomerOfferForDisplay,
+  normalizeCustomerOffers,
   saveCampaignCache,
   saveCampaignFavorites,
   normalizeOfferAsCampaignItem,
@@ -116,7 +118,8 @@ const HomeScreen = () => {
     ?? airtimeBalancePayload?.airtime_balance
     ?? profile?.balances?.airtime
     ?? '0.00';
-  const safeOffers = Array.isArray(offers) ? offers : [];
+  const safeOffers = normalizeCustomerOffers(Array.isArray(offers) ? offers : [])
+    .map((offer: any, index: number) => normalizeCustomerOfferForDisplay(offer, index));
   const safeCategories = Array.isArray(categories) ? categories : [];
   const allCategoryLabel = t('common.all', 'All');
   const filteredOffers = safeOffers.filter(
@@ -174,7 +177,7 @@ const HomeScreen = () => {
       ]);
       setCampaignFavoritesState(favorites);
       if (cache?.campaigns?.length) {
-        setCampaigns(cache.campaigns);
+        setCampaigns(normalizeCampaignFeed({ campaigns: cache.campaigns }).campaigns);
       }
     };
     loadCampaignState();
@@ -197,7 +200,7 @@ const HomeScreen = () => {
     const restoreCache = async () => {
       const cached = await loadCampaignCache();
       if (cached?.campaigns?.length) {
-        setCampaigns(cached.campaigns);
+        setCampaigns(normalizeCampaignFeed({ campaigns: cached.campaigns }).campaigns);
         setCampaignErrorMessage(null);
         return;
       }

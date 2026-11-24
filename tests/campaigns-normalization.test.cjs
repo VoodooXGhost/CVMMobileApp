@@ -34,6 +34,7 @@ const {
   normalizeCampaignFeed,
   normalizeCampaignItem,
   normalizeCustomerOffers,
+  normalizeCustomerOfferForDisplay,
   performCampaignUssdHandoff,
 } = campaignModule.exports;
 
@@ -102,6 +103,25 @@ test('keeps deactivated money and loyalty rewards out of customer offers', () =>
   ]);
 
   assert.deepEqual(offers.map((offer) => offer.id), ['bundle']);
+});
+
+test('normalizes offer card copy and drops operator metadata before display', () => {
+  const offer = normalizeCustomerOfferForDisplay({
+    id: 5,
+    name: 'Data Protection Audit',
+    description: 'Subscriber is not part of the target segment.',
+    category: 'scheduled',
+    status: 'available',
+    visible_to_mobile: true,
+    segment_names: ['high value'],
+    price: 20,
+  });
+
+  assert.equal(offer.title, 'Tmcel Offer');
+  assert.equal(offer.description, '');
+  assert.equal(offer.category, 'Offer');
+  assert.equal(offer.price, 20);
+  assert.equal('segment_names' in offer, false);
 });
 
 test('retains eligibility evidence instead of labeling every campaign available', () => {

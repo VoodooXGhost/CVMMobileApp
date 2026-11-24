@@ -312,6 +312,24 @@ export const normalizeOfferAsCampaignItem = (item: any, index = 0): CampaignItem
     index,
   );
 
+export const normalizeCustomerOfferForDisplay = (item: any, index = 0) => {
+  const normalized = normalizeOfferAsCampaignItem(item, index);
+  const price = item?.price ?? item?.amount ?? item?.value;
+  return {
+    id: normalized.id,
+    title: normalized.title,
+    description: normalized.summary,
+    category: normalized.category,
+    status: normalized.status,
+    expiry: normalized.expiry,
+    price: typeof price === 'number' || typeof price === 'string' ? price : undefined,
+    customer_action_enabled: normalized.customer_action_enabled,
+    cta_label: normalized.cta_label,
+    action_type: normalized.action_type,
+    action_payload: normalized.action_payload,
+  };
+};
+
 export const normalizeCampaignFeed = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const campaigns = Array.isArray(source.campaigns)

@@ -13,7 +13,13 @@ import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 import PromoBannerCarousel from '../components/PromoBannerCarousel';
 import CampaignCard from '../components/CampaignCard';
 import CampaignDetailModal from '../components/CampaignDetailModal';
-import { CampaignItem, normalizeCampaignFeed, normalizeOfferAsCampaignItem } from '../services/campaigns';
+import {
+  CampaignItem,
+  normalizeCampaignFeed,
+  normalizeCustomerOfferForDisplay,
+  normalizeCustomerOffers,
+  normalizeOfferAsCampaignItem,
+} from '../services/campaigns';
 import { useCampaignUssdAction } from '../hooks/useCampaignUssdAction';
 
 /**
@@ -36,7 +42,8 @@ const MarketplaceScreen = () => {
   const spacing = getResponsiveSpacing(sizeClass);
 
   const { banners = [], campaigns = [], offers = [], categories = [] } = marketplaceData || {};
-  const safeOffers = Array.isArray(offers) ? offers : [];
+  const safeOffers = normalizeCustomerOffers(Array.isArray(offers) ? offers : [])
+    .map((offer: any, index: number) => normalizeCustomerOfferForDisplay(offer, index));
   const safeCampaigns: CampaignItem[] = normalizeCampaignFeed({
     campaigns: campaignFeed?.campaigns ?? campaigns,
   }).campaigns;
