@@ -107,6 +107,10 @@ const safeText = (value: any, fallback = ''): string => {
 const safeObject = (value: any): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
+/** Unwraps the RTK Query envelope without assuming the response contains feed data. */
+export const unwrapMarketplacePayload = (value: any): Record<string, any> =>
+  safeObject(value?.data ?? value);
+
 const safeCustomerCopy = (value: any, fallback = '') => {
   const text = safeText(value, fallback);
   return INTERNAL_CAMPAIGN_COPY.test(text) ? '' : text;
@@ -315,6 +319,7 @@ export const normalizeOfferAsCampaignItem = (item: any, index = 0): CampaignItem
 export const normalizeCustomerOfferForDisplay = (item: any, index = 0) => {
   const normalized = normalizeOfferAsCampaignItem(item, index);
   const price = item?.price ?? item?.amount ?? item?.value;
+  const currency = safeText(item?.currency ?? item?.price_currency ?? item?.unit, '').toUpperCase();
   return {
     id: normalized.id,
     title: normalized.title,
@@ -323,6 +328,7 @@ export const normalizeCustomerOfferForDisplay = (item: any, index = 0) => {
     status: normalized.status,
     expiry: normalized.expiry,
     price: typeof price === 'number' || typeof price === 'string' ? price : undefined,
+    currency: currency || undefined,
     customer_action_enabled: normalized.customer_action_enabled,
     cta_label: normalized.cta_label,
     action_type: normalized.action_type,

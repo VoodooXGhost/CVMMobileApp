@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MotiView } from 'moti';
 import { useGetCampaignsDataQuery, useGetCvmMarketplaceQuery } from '../services/apiSlice';
 import { track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
-import { formatMznCurrency } from '../services/formatters';
+import { formatOfferPrice } from '../services/formatters';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
 import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 
 // New Components
-import PromoBannerCarousel from '../components/PromoBannerCarousel';
 import CampaignCard from '../components/CampaignCard';
 import CampaignDetailModal from '../components/CampaignDetailModal';
 import {
@@ -19,6 +18,7 @@ import {
   normalizeCustomerOfferForDisplay,
   normalizeCustomerOffers,
   normalizeOfferAsCampaignItem,
+  unwrapMarketplacePayload,
 } from '../services/campaigns';
 import { useCampaignUssdAction } from '../hooks/useCampaignUssdAction';
 
@@ -29,8 +29,8 @@ import { useCampaignUssdAction } from '../hooks/useCampaignUssdAction';
  */
 const MarketplaceScreen = () => {
   const { language, t } = useI18n();
-  const { data: marketplaceData, isLoading, error } = useGetCvmMarketplaceQuery();
-  const { data: campaignFeed } = useGetCampaignsDataQuery();
+  const { data: marketplaceData, isLoading, error, refetch } = useGetCvmMarketplaceQuery();
+  const { data: campaignFeed, refetch: refetchCampaigns } = useGetCampaignsDataQuery();
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
@@ -41,12 +41,23 @@ const MarketplaceScreen = () => {
   const layout = getResponsiveLayout(sizeClass);
   const spacing = getResponsiveSpacing(sizeClass);
 
-  const { banners = [], campaigns = [], offers = [], categories = [] } = marketplaceData || {};
+  const marketplacePayload = unwrapMarketplacePayload(marketplaceData);
+  const campaignPayload = unwrapMarketplacePayload(campaignFeed);
+  const { campaigns = [], offers = [] } = marketplacePayload;
   const safeOffers = normalizeCustomerOffers(Array.isArray(offers) ? offers : [])
     .map((offer: any, index: number) => normalizeCustomerOfferForDisplay(offer, index));
   const safeCampaigns: CampaignItem[] = normalizeCampaignFeed({
-    campaigns: campaignFeed?.campaigns ?? campaigns,
+    campaigns: campaignPayload?.campaigns ?? campaigns,
   }).campaigns;
+  const visibleCategories = Array.from(new Set([
+    ...safeOffers.map((offer) => offer.category),
+    ...safeCampaigns.map((campaign) => campaign.category),
+  ].filter(Boolean)));
+
+  const refreshFeeds = () => {
+    void refetch();
+    void refetchCampaigns();
+  };
 
   useEffect(() => {
     track('screen_view', { name: 'marketplace' }, { screen: 'marketplace' });
@@ -64,6 +75,9 @@ const MarketplaceScreen = () => {
     return (
       <View className="flex-1 justify-center items-center bg-surface">
         <Text className="font-body text-[16px] text-on-surface">{t('marketplace.loadError', 'Error loading marketplace. Please try again.')}</Text>
+        <TouchableOpacity onPress={refreshFeeds} className="mt-4 rounded-full bg-primary px-6 py-3">
+          <Text className="font-label font-bold text-white">{t('common.retry', 'Retry')}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -104,43 +118,35 @@ const MarketplaceScreen = () => {
           {t('marketplace.subtitle', 'Exclusive Tmcel deals and promotions tailored for you.')}
         </Text>
 
-        {/* Promo Carousel */}
-        {banners.length > 0 && (
-          <PromoBannerCarousel
-            banners={banners}
-            onPressBanner={(banner) => {
-              Alert.alert(banner.title, banner.description);
-            }}
-          />
-        )}
-
-        {/* Category Horizontal Filter Scroller */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-lg" contentContainerStyle={{ gap: spacing.sm }}>
-          {categories.map((category: string) => {
-            const isSelected = activeCategory === category;
-            return (
-              <TouchableOpacity
-                key={category}
-                onPress={() => setActiveCategory(category)}
-                style={{
-                  height: rs(34),
-                  paddingHorizontal: spacing.md,
-                  backgroundColor: isSelected ? '#111316' : '#f3f4f6',
-                  borderRadius: rs(17),
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  style={{ fontSize: ss(12), fontWeight: '700' }}
-                  className={isSelected ? 'text-white' : 'text-on-surface-variant'}
+        {/* Categories come only from the live, customer-safe CVM feed. */}
+        {visibleCategories.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-lg" contentContainerStyle={{ gap: spacing.sm }}>
+            {[allCategory, ...visibleCategories].map((category: string) => {
+              const isSelected = activeCategory === category;
+              return (
+                <TouchableOpacity
+                  key={category}
+                  onPress={() => setActiveCategory(category)}
+                  style={{
+                    height: rs(34),
+                    paddingHorizontal: spacing.md,
+                    backgroundColor: isSelected ? '#111316' : '#f3f4f6',
+                    borderRadius: rs(17),
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
                 >
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  <Text
+                    style={{ fontSize: ss(12), fontWeight: '700' }}
+                    className={isSelected ? 'text-white' : 'text-on-surface-variant'}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Campaigns Feed Section (from CVM) */}
         {filteredCampaigns.length > 0 && (
@@ -203,7 +209,7 @@ const MarketplaceScreen = () => {
                       </Text>
                     )}
                     <Text style={{ fontSize: ss(14) }} className="font-display font-black text-on-surface mb-md">
-                      {formatMznCurrency(product.price, language)}
+                      {formatOfferPrice(product.price, product.currency, language)}
                     </Text>
                     
                     <TouchableOpacity
@@ -219,6 +225,22 @@ const MarketplaceScreen = () => {
                 </MotiView>
               ))}
             </View>
+          </View>
+        )}
+
+        {filteredCampaigns.length === 0 && filteredOffers.length === 0 && (
+          <View className="items-center rounded-2xl border border-outline-variant bg-surface-container-lowest px-lg py-xl">
+            <Text style={{ fontSize: ss(16) }} className="font-title font-bold text-on-surface text-center">
+              {t('marketplace.emptyTitle', 'No active offers right now')}
+            </Text>
+            <Text style={{ fontSize: ss(13) }} className="font-body text-on-surface-variant mt-sm text-center">
+              {t('marketplace.emptyBody', 'New customer offers and running campaigns from Tmcel will appear here.')}
+            </Text>
+            <TouchableOpacity onPress={refreshFeeds} className="mt-md rounded-full bg-primary px-lg py-sm">
+              <Text style={{ fontSize: ss(12) }} className="font-label font-bold text-white">
+                {t('common.refresh', 'Refresh')}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>

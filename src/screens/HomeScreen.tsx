@@ -9,13 +9,11 @@ import {
   Image,
   Modal,
   RefreshControl,
-  Alert,
   Platform,
 } from 'react-native';
 import { MotiView } from 'moti';
 import { useAuth } from '../services/auth.context';
 import { 
-  Zap, 
   Star, 
   ChevronRight, 
   Bell, 
@@ -30,10 +28,9 @@ import {
   useMarkNotificationsReadMutation,
 } from '../services/apiSlice';
 import { useNavigation } from '@react-navigation/native';
-import { getAnalyticsIdentity, shouldTrackImpression, track } from '../services/analytics';
-import { getExperimentAssignments } from '../services/experiments';
+import { shouldTrackImpression, track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
-import { formatMznCurrency } from '../services/formatters';
+import { formatMznCurrency, formatOfferPrice } from '../services/formatters';
 import { platformStorage } from '../services/storage';
 import {
   CampaignItem,
@@ -76,7 +73,6 @@ const HomeScreen = () => {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [campaignFavorites, setCampaignFavoritesState] = useState<Record<string, boolean>>({});
   const [campaignErrorMessage, setCampaignErrorMessage] = useState<string | null>(null);
-  const [heroVariant, setHeroVariant] = useState('claim_now');
   const [marketingEnabled, setMarketingEnabled] = useState(true);
   const [campaignEnabled, setCampaignEnabled] = useState(true);
   const [notifCursor, setNotifCursor] = useState<string | null>(null);
@@ -86,7 +82,7 @@ const HomeScreen = () => {
   const [isNotifLoading, setIsNotifLoading] = useState(false);
   const [notifImpressionIds, setNotifImpressionIds] = useState<Record<string, boolean>>({});
   
-  const { ss, rs, width, height } = useResponsiveScale();
+  const { ss, rs } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
   const layout = getResponsiveLayout(sizeClass);
   const spacing = getResponsiveSpacing(sizeClass);
@@ -103,16 +99,8 @@ const HomeScreen = () => {
     track('screen_view', { name: 'home' }, { screen: 'home' });
   }, []);
 
-  useEffect(() => {
-    const loadVariant = async () => {
-      const assignments = await getExperimentAssignments(getAnalyticsIdentity());
-      setHeroVariant(assignments.home_hero_cta_variant || 'claim_now');
-    };
-    loadVariant();
-  }, []);
-
   const homeData = response?.data || {};
-  const { profile, hero_banners, offers, categories } = homeData;
+  const { profile, offers, categories } = homeData;
   const airtimeBalancePayload = airtimeBalanceResponse?.data ?? airtimeBalanceResponse ?? {};
   const resolvedAirtimeBalance = airtimeBalancePayload?.airtimeBalance
     ?? airtimeBalancePayload?.airtime_balance
@@ -151,19 +139,6 @@ const HomeScreen = () => {
       }
     });
   }, [activeCategory, safeOffers]);
-
-  useEffect(() => {
-    const banners = Array.isArray(hero_banners) ? hero_banners : [];
-    banners.forEach((banner: any) => {
-      if (shouldTrackImpression(banner.id, 'home_hero_banner')) {
-        track(
-          'offer_impression',
-          { item_id: banner.id, placement: 'home_hero_banner', category: 'hero' },
-          { screen: 'home', placement: 'home_hero_banner' },
-        );
-      }
-    });
-  }, [hero_banners]);
 
   useEffect(() => {
     loadNotificationPreferences();
@@ -497,55 +472,6 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </MotiView>
 
-        {/* FR-1.2 Dynamic CVM Banner (MAB Optimized) */}
-        <View className="mb-lg">
-          <ScrollView 
-            horizontal 
-            pagingEnabled 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: spacing.md }}
-            className="-mx-md"
-          >
-            {hero_banners?.map((banner: any) => (
-              <TouchableOpacity
-                key={banner.id}
-                style={{ width: width - spacing.md * 2 }}
-                className="mr-3"
-                onPress={() => {
-                  track(
-                    'offer_click',
-                    { item_id: banner.id, placement: 'home_hero_banner' },
-                    { screen: 'home', placement: 'home_hero_banner' },
-                  );
-                  navigation.navigate('Marketplace');
-                }}
-              >
-                 <View style={{ height: width * 0.46 }} className="rounded-xl overflow-hidden bg-zinc-800 relative">
-                    <Image 
-                      source={{ uri: banner.image_url }} 
-                      className="absolute inset-0 w-full h-full"
-                      resizeMode="cover"
-                    />
-                    <View className="absolute inset-0 bg-black/35 p-5 justify-end">
-                      <View className="flex-row items-center gap-1 mb-2">
-                        <Zap size={rs(12)} color="#fff" fill="#fff" />
-                        <Text style={{ fontSize: ss(10) }} className="text-white font-black uppercase">JUST FOR YOU</Text>
-                      </View>
-                      <Text style={{ fontSize: ss(22) }} className="text-white font-black leading-7" numberOfLines={1}>{banner.title}</Text>
-                      <Text style={{ fontSize: ss(12) }} className="text-white opacity-90 mt-1" numberOfLines={1}>{banner.subtitle}</Text>
-                      <View style={{ minHeight: rs(36) }} className="bg-cta-primary-bg self-start px-5 rounded-full mt-3 justify-center shadow-sm">
-                        <Text style={{ fontSize: ss(11) }} className="text-cta-primary-text font-black uppercase">
-                          {heroVariant === 'unlock_offer' ? 'UNLOCK OFFER' : 'CLAIM NOW'}
-                        </Text>
-                      </View>
-                    </View>
-                 </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-
         {/* Campaign Feed */}
         <View className="mb-lg">
           <View className="flex-row items-start justify-between mb-sm gap-sm">
@@ -722,7 +648,7 @@ const HomeScreen = () => {
                           {offer.title}
                         </Text>
                         <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
-                          {formatMznCurrency(offer.price, language)}
+                          {formatOfferPrice(offer.price, offer.currency, language)}
                         </Text>
                      </View>
                      <ChevronRight size={rs(18)} color="rgba(26, 28, 28, 0.4)" />
@@ -768,7 +694,7 @@ const HomeScreen = () => {
                   <View key={`filtered-${offer.id}`} className="bg-surface-container-lowest rounded-md p-md mb-sm shadow-sm">
                     <Text style={{ fontSize: ss(14) }} className="font-title font-bold text-on-surface">{offer.title}</Text>
                     <Text style={{ fontSize: ss(12) }} className="font-label text-primary mt-1 font-semibold">
-                      {formatMznCurrency(offer.price, language)}
+                      {formatOfferPrice(offer.price, offer.currency, language)}
                     </Text>
                   </View>
                 ))}

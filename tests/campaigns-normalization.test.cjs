@@ -35,6 +35,7 @@ const {
   normalizeCampaignItem,
   normalizeCustomerOffers,
   normalizeCustomerOfferForDisplay,
+  unwrapMarketplacePayload,
   performCampaignUssdHandoff,
 } = campaignModule.exports;
 
@@ -122,6 +123,48 @@ test('normalizes offer card copy and drops operator metadata before display', ()
   assert.equal(offer.category, 'Offer');
   assert.equal(offer.price, 20);
   assert.equal('segment_names' in offer, false);
+});
+
+test('unwraps the RTK Query data envelope so Marketplace can render the CVM feed', () => {
+  const payload = unwrapMarketplacePayload({
+    data: {
+      offers: [{ id: 1, title: 'Live data offer' }],
+      campaigns: [{ id: 2, title: 'Running campaign' }],
+    },
+  });
+
+  assert.equal(payload.offers[0].title, 'Live data offer');
+  assert.equal(payload.campaigns[0].title, 'Running campaign');
+});
+
+test('preserves the CVM offer currency instead of assuming MZN', () => {
+  const offer = normalizeCustomerOfferForDisplay({
+    id: 3,
+    title: 'Data bundle',
+    status: 'available',
+    currency: 'POINTS',
+    price: 150,
+  });
+
+  assert.equal(offer.currency, 'POINTS');
+});
+
+test('formats offer points and only labels explicitly-MZN amounts as currency', () => {
+  const formatterSource = fs.readFileSync(path.join(__dirname, '../src/services/formatters.ts'), 'utf8');
+  const formatterCompiled = typescript.transpileModule(formatterSource, {
+    compilerOptions: {
+      module: typescript.ModuleKind.CommonJS,
+      target: typescript.ScriptTarget.ES2020,
+    },
+  }).outputText;
+  const formatterModule = { exports: {} };
+  new Function('require', 'exports', 'module', formatterCompiled)(require, formatterModule.exports, formatterModule);
+  const { formatOfferPrice } = formatterModule.exports;
+
+  assert.match(formatOfferPrice(150, 'POINTS', 'en'), /150 points/);
+  assert.match(formatOfferPrice(150, 'POINTS', 'pt'), /150 pontos/);
+  assert.match(formatOfferPrice(20, 'MZN', 'en'), /MZN/);
+  assert.doesNotMatch(formatOfferPrice(20, undefined, 'en'), /MZN/);
 });
 
 test('retains eligibility evidence instead of labeling every campaign available', () => {
