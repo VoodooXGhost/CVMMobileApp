@@ -42,7 +42,9 @@ import {
   normalizeCampaignFeed,
   saveCampaignCache,
   saveCampaignFavorites,
+  normalizeOfferAsCampaignItem,
 } from '../services/campaigns';
+import { useCampaignUssdAction } from '../hooks/useCampaignUssdAction';
 import CampaignDetailModal from '../components/CampaignDetailModal';
 import { useResponsiveScale } from '../hooks/useResponsiveScale';
 import { useWindowSizeClass } from '../hooks/useWindowSizeClass';
@@ -67,6 +69,7 @@ const HomeScreen = () => {
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [campaignActionVisible, setCampaignActionVisible] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignItem | null>(null);
+  const handleCampaignCustomerAction = useCampaignUssdAction('home');
   const [campaignFilter, setCampaignFilter] = useState('all');
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [campaignFavorites, setCampaignFavoritesState] = useState<Record<string, boolean>>({});
@@ -700,7 +703,8 @@ const HomeScreen = () => {
                         { item_id: offer.id, placement: 'home_marketplace_picks' },
                         { screen: 'home', placement: 'home_marketplace_picks' },
                       );
-                      navigation.navigate('Marketplace');
+                      setSelectedCampaign(normalizeOfferAsCampaignItem(offer));
+                      setCampaignActionVisible(true);
                     }}
                   >
                      <View style={{ width: rs(44), height: rs(44) }} className="rounded-xl bg-surface-container-high justify-center items-center" />
@@ -769,6 +773,7 @@ const HomeScreen = () => {
         visible={campaignActionVisible && Boolean(selectedCampaign)}
         onClose={() => setCampaignActionVisible(false)}
         campaign={selectedCampaign}
+        onCustomerAction={handleCampaignCustomerAction}
       />
 
       {/* Notifications Modal */}

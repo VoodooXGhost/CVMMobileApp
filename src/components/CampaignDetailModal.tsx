@@ -20,7 +20,7 @@ export default function CampaignDetailModal({ visible, onClose, campaign, onCust
 
   if (!campaign) return null;
 
-  const hasCustomerAction = campaign.customer_action_enabled && Boolean(onCustomerAction) && campaign.is_purchasable !== true;
+  const hasCustomerAction = campaign.customer_action_enabled && campaign.action_type === 'ussd' && Boolean(onCustomerAction);
 
   return (
     <Modal visible={visible} animationType="slide" transparent>

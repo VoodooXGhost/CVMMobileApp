@@ -71,6 +71,7 @@ const normalizeHomeData = (raw: any) => {
   const loyaltySource = normalizeLoyaltyPayload(source.loyalty ?? {}, legacyYelloBucks);
 
   const offers = normalizeCustomerOffers(toArray(source.offers)).map((offer: any, index: number) => ({
+    ...offer,
     id: offer?.id ?? index + 1,
     title: offer?.title ?? 'Offer',
     category: offer?.category ?? offer?.tag ?? 'General',
@@ -226,6 +227,7 @@ const normalizeCvmMarketplace = (raw: any) => {
   const source = raw?.data ?? raw ?? {};
   const rawList = source.offers ?? source.trending ?? (Array.isArray(source) ? source : []);
   const offers = normalizeCustomerOffers(toArray(rawList)).map((offer: any, index: number) => ({
+    ...offer,
     id: offer?.id ?? index + 1,
     title: offer?.title ?? offer?.name ?? 'Offer',
     price: normalizeCurrencyAmount(offer?.price),
@@ -410,7 +412,7 @@ const mutationWithFallback = async (
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: executeRequest,
-  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games', 'Campaigns', 'Transactions'],
+  tagTypes: ['Home', 'Wallet', 'Shop', 'Notifications', 'Games', 'Campaigns', 'Transactions', 'CampaignActionAttempts'],
   endpoints: (builder) => ({
     getHomeData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -451,6 +453,22 @@ export const apiSlice = createApi({
           'getCampaignsData',
         ),
       providesTags: ['Campaigns'],
+    }),
+    createCampaignActionAttempt: builder.mutation<any, { campaign_id?: number; offer_id?: number; idempotency_key: string }>({
+      query: (body) => ({
+        url: '/api/v1/mobile/v1/campaign-action-attempts',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['CampaignActionAttempts'],
+    }),
+    updateCampaignActionAttempt: builder.mutation<any, { attemptId: string; status: 'handoff_requested' | 'handoff_failed' }>({
+      query: ({ attemptId, status }) => ({
+        url: `/api/v1/mobile/v1/campaign-action-attempts/${encodeURIComponent(attemptId)}`,
+        method: 'PATCH',
+        body: { status },
+      }),
+      invalidatesTags: ['CampaignActionAttempts'],
     }),
     getBundlesData: builder.query<any, void>({
       queryFn: (_arg, api, extraOptions) =>
@@ -712,6 +730,8 @@ export const {
   useGetWalletDataQuery, 
   useGetOffersDataQuery,
   useGetCampaignsDataQuery,
+  useCreateCampaignActionAttemptMutation,
+  useUpdateCampaignActionAttemptMutation,
   useGetBundlesDataQuery,
   useGetGamesDataQuery,
   useToggleCardFreezeMutation,

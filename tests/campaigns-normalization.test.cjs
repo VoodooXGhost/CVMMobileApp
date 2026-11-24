@@ -30,7 +30,12 @@ new Function('require', 'exports', 'module', compiled)(
   campaignModule,
 );
 
-const { normalizeCampaignFeed, normalizeCustomerOffers } = campaignModule.exports;
+const {
+  normalizeCampaignFeed,
+  normalizeCampaignItem,
+  normalizeCustomerOffers,
+  performCampaignUssdHandoff,
+} = campaignModule.exports;
 
 test('does not treat a workflow type of scheduled as an active campaign', () => {
   const feed = normalizeCampaignFeed({
@@ -146,4 +151,128 @@ test('fails closed on the current UAT feed records until CVM supplies active sta
 
   assert.deepEqual(campaigns.campaigns, []);
   assert.deepEqual(offers, []);
+});
+
+test('exposes a USSD CTA only when CVM explicitly marks it safe and eligible', () => {
+  const safe = normalizeCampaignItem({
+    id: 81,
+    status: 'active',
+    visible_to_mobile: true,
+    eligibility: { status: 'eligible', is_eligible: true },
+    customer_action_enabled: true,
+    customer_action: {
+      enabled: true,
+      customer_safe: true,
+      type: 'ussd',
+      label: 'Continue via Tmcel',
+      payload: { ussd_code: '*123#' },
+    },
+  });
+  const inferred = normalizeCampaignItem({
+    id: 82,
+    status: 'active',
+    primary_channel: 'ussd',
+    action_type: 'ussd',
+    action_payload: { ussd_code: '*456#' },
+  });
+
+  assert.equal(safe.customer_action_enabled, true);
+  assert.equal(safe.action_type, 'ussd');
+  assert.equal(inferred.customer_action_enabled, false);
+});
+
+test('does not surface legacy purchase metadata as an in-app payment CTA', () => {
+  const item = normalizeCampaignItem({
+    id: 83,
+    status: 'active',
+    customer_action_enabled: true,
+    customer_action: {
+      enabled: true,
+      type: 'purchase',
+      payload: { packageRef: 'DATA-1', amount: 20, allowedPaymentProviders: ['emola'] },
+    },
+  });
+
+  assert.equal(item.customer_action_enabled, false);
+  assert.equal(item.action_type, 'none');
+  assert.equal(item.cta_label, 'View Details');
+  assert.deepEqual(item.action_payload, {});
+});
+
+test('records confirmed attempt before opening USSD and then marks handoff requested', async () => {
+  const item = normalizeCampaignItem({
+    id: 81,
+    status: 'active',
+    visible_to_mobile: true,
+    eligibility: { status: 'eligible', is_eligible: true },
+    customer_action_enabled: true,
+    customer_action: {
+      enabled: true,
+      customer_safe: true,
+      type: 'ussd',
+      payload: { ussd_code: '*123#' },
+    },
+  });
+  const calls = [];
+  const result = await performCampaignUssdHandoff(item, {
+    createAttempt: async (body) => {
+      calls.push(['record', body]);
+      return { data: { attempt_id: 'attempt-1' } };
+    },
+    openURL: async (uri) => calls.push(['open', uri]),
+    updateAttempt: async (_attemptId, body) => calls.push(['status', body]),
+    idempotencyKey: 'test-action-key',
+  });
+
+  assert.deepEqual(calls.map(([name]) => name), ['record', 'open', 'status']);
+  assert.equal(calls[0][1].campaign_id, 81);
+  assert.equal(calls[1][1], 'tel:*123%23');
+  assert.equal(calls[2][1].status, 'handoff_requested');
+  assert.equal(result.outcome, 'unknown');
+});
+
+test('does not open USSD when the attempt record fails and records handoff failure', async () => {
+  const item = normalizeCampaignItem({
+    id: 81,
+    status: 'active',
+    visible_to_mobile: true,
+    eligibility: { status: 'eligible', is_eligible: true },
+    customer_action_enabled: true,
+    customer_action: { enabled: true, customer_safe: true, type: 'ussd', payload: { ussd_code: '*123#' } },
+  });
+  const opened = [];
+
+  await assert.rejects(
+    performCampaignUssdHandoff(item, {
+      createAttempt: async () => { throw new Error('CVM unavailable'); },
+      openURL: async (uri) => opened.push(uri),
+      updateAttempt: async () => {},
+      idempotencyKey: 'test-action-key',
+    }),
+    /CVM unavailable/,
+  );
+  assert.deepEqual(opened, []);
+});
+
+test('records failed OS handoff without claiming purchase success', async () => {
+  const item = normalizeCampaignItem({
+    id: 81,
+    status: 'active',
+    visible_to_mobile: true,
+    eligibility: { status: 'eligible', is_eligible: true },
+    customer_action_enabled: true,
+    customer_action: { enabled: true, customer_safe: true, type: 'ussd', payload: { ussd_code: '*123#' } },
+  });
+  const statuses = [];
+
+  await assert.rejects(
+    performCampaignUssdHandoff(item, {
+      createAttempt: async () => ({ data: { attempt_id: 'attempt-2' } }),
+      openURL: async () => { throw new Error('No phone app'); },
+      updateAttempt: async (_attemptId, body) => statuses.push(body.status),
+      idempotencyKey: 'test-action-key-2',
+    }),
+    /No phone app/,
+  );
+  assert.deepEqual(statuses, ['handoff_failed']);
 });

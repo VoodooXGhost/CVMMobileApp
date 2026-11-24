@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { MotiView } from 'moti';
-import { useGetCvmMarketplaceQuery } from '../services/apiSlice';
+import { useGetCampaignsDataQuery, useGetCvmMarketplaceQuery } from '../services/apiSlice';
 import { track } from '../services/analytics';
 import { useI18n } from '../services/i18n';
 import { formatMznCurrency } from '../services/formatters';
@@ -13,7 +13,8 @@ import { getResponsiveLayout, getResponsiveSpacing } from '../theme/responsive';
 import PromoBannerCarousel from '../components/PromoBannerCarousel';
 import CampaignCard from '../components/CampaignCard';
 import CampaignDetailModal from '../components/CampaignDetailModal';
-import { CampaignItem, normalizeCampaignFeed } from '../services/campaigns';
+import { CampaignItem, normalizeCampaignFeed, normalizeOfferAsCampaignItem } from '../services/campaigns';
+import { useCampaignUssdAction } from '../hooks/useCampaignUssdAction';
 
 /**
  * MarketplaceScreen Component
@@ -23,9 +24,11 @@ import { CampaignItem, normalizeCampaignFeed } from '../services/campaigns';
 const MarketplaceScreen = () => {
   const { language, t } = useI18n();
   const { data: marketplaceData, isLoading, error } = useGetCvmMarketplaceQuery();
+  const { data: campaignFeed } = useGetCampaignsDataQuery();
   const allCategory = t('common.all', 'All');
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
+  const handleCampaignCustomerAction = useCampaignUssdAction('marketplace');
 
   const { ss, rs, width } = useResponsiveScale();
   const { sizeClass } = useWindowSizeClass();
@@ -34,7 +37,9 @@ const MarketplaceScreen = () => {
 
   const { banners = [], campaigns = [], offers = [], categories = [] } = marketplaceData || {};
   const safeOffers = Array.isArray(offers) ? offers : [];
-  const safeCampaigns: CampaignItem[] = normalizeCampaignFeed({ campaigns }).campaigns;
+  const safeCampaigns: CampaignItem[] = normalizeCampaignFeed({
+    campaigns: campaignFeed?.campaigns ?? campaigns,
+  }).campaigns;
 
   useEffect(() => {
     track('screen_view', { name: 'marketplace' }, { screen: 'marketplace' });
@@ -62,10 +67,12 @@ const MarketplaceScreen = () => {
       { item_id: product?.id, placement: 'marketplace_grid' },
       { screen: 'marketplace', placement: 'marketplace_grid' },
     );
-    Alert.alert(
-      String(product?.title || t('marketplace.featuredOffers', 'Featured Offers')),
-      String(product?.description || product?.category || t('campaign.viewDetails', 'View Details')),
+    track(
+      'campaign_details_open',
+      { offer_id: product?.id, category: product?.category },
+      { screen: 'marketplace', placement: 'offer_feed' },
     );
+    setSelectedCampaign(normalizeOfferAsCampaignItem(product));
   };
 
   const cardWidth = (width - spacing.md * 2 - spacing.md) / 2;
@@ -198,7 +205,7 @@ const MarketplaceScreen = () => {
                       className="bg-primary rounded-lg justify-center items-center active:bg-primary-container"
                     >
                       <Text style={{ fontSize: ss(12) }} className="font-black text-white">
-                        {t('campaign.viewDetails', 'View Details')}
+                          {product.customer_action_enabled ? product.cta_label : t('campaign.viewDetails', 'View Details')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -214,6 +221,7 @@ const MarketplaceScreen = () => {
         visible={selectedCampaign !== null}
         onClose={() => setSelectedCampaign(null)}
         campaign={selectedCampaign}
+        onCustomerAction={handleCampaignCustomerAction}
       />
     </SafeAreaView>
   );
