@@ -61,9 +61,11 @@ export default function CampaignCard({ campaign, onPressAction, onToggleSave }: 
       <Text style={{ fontSize: ss(16), fontWeight: '700', color: Colors.primary, marginBottom: ss(4) }}>
         {campaign.title}
       </Text>
-      <Text style={{ fontSize: ss(13), color: Colors.on_surface_variant, marginBottom: ss(12), lineHeight: ss(18) }}>
-        {campaign.summary}
-      </Text>
+      {campaign.summary ? (
+        <Text style={{ fontSize: ss(13), color: Colors.on_surface_variant, marginBottom: ss(12), lineHeight: ss(18) }}>
+          {campaign.summary}
+        </Text>
+      ) : null}
       {campaign.benefit ? (
         <Text style={{ fontSize: ss(12), color: Colors.primary, marginBottom: ss(12), fontWeight: '700', lineHeight: ss(18) }}>
           {campaign.benefit}

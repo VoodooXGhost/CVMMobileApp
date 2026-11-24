@@ -66,6 +66,20 @@ const safeParse = (raw: string | null) => {
 const ACTIVE_STATUSES = new Set(['active', 'running', 'available', 'live']);
 const HIDDEN_STATUSES = new Set(['scheduled', 'draft', 'paused', 'expired', 'internal', 'test', 'inactive', 'archived']);
 const LIFECYCLE_STATUSES = new Set([...ACTIVE_STATUSES, ...HIDDEN_STATUSES]);
+const INTERNAL_CAMPAIGN_COPY = /marketable|audience criteria|target segment|matched to segment|customer segment|no\s+(network|package|recharge)|((network|package|recharge)\s+filter)|operator\s+(only|use)|internal only|test campaign|\bupsell\b|\baudit\b/i;
+const CUSTOMER_CATEGORIES: Record<string, string> = {
+  airtime: 'Airtime',
+  bundle: 'Bundle',
+  data: 'Data',
+  general: 'General',
+  internet: 'Internet',
+  lifestyle: 'Lifestyle',
+  offer: 'Offer',
+  promotion: 'Promotion',
+  retention: 'retention',
+  sms: 'SMS',
+  voice: 'Voice',
+};
 
 const safeText = (value: any, fallback = ''): string => {
   if (value == null) return fallback;
@@ -92,6 +106,11 @@ const safeText = (value: any, fallback = ''): string => {
 
 const safeObject = (value: any): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+
+const safeCustomerCopy = (value: any, fallback = '') => {
+  const text = safeText(value, fallback);
+  return INTERNAL_CAMPAIGN_COPY.test(text) ? '' : text;
+};
 
 const normalizeStatus = (item: any) => {
   const suppliedStatus = safeText(
@@ -168,7 +187,7 @@ const normalizeEligibility = (item: any): boolean | null => {
     eligibilityPayload.message ?? item?.eligibility_label ?? item?.eligibility_status ?? item?.eligibility,
     '',
   ).toLowerCase();
-  const isEligible = eligibilityPayload.is_eligible ?? item?.is_eligible ?? item?.eligible;
+  const isEligible = eligibilityPayload.is_eligible ?? item?.customer_eligible ?? item?.is_eligible ?? item?.eligible;
   const status = safeText(eligibilityPayload.status ?? item?.eligibility_status, '').toLowerCase();
   if (isEligible === true || ['eligible', 'qualified', 'matched'].includes(status)) return true;
   if (isEligible === false || ['ineligible', 'not_eligible', 'unavailable', 'disqualified'].includes(status)) return false;
@@ -242,22 +261,27 @@ export const normalizeCampaignItem = (item: any, index = 0): CampaignItem => {
   const normalizedActionPayload = isCustomerSafeAction
     ? { ussd_code: safeUssdTarget(actionPayload.ussd_code ?? actionPayload.ussd) }
     : {};
-  const rawType = safeText(item?.type, '');
-  const categoryValue = safeText(item?.customer_category ?? item?.campaign_category ?? item?.category ?? item?.segment ?? rawType, '');
-  const category = LIFECYCLE_STATUSES.has(categoryValue.toLowerCase()) ? 'Campaign' : categoryValue || 'Campaign';
+  const customerDisplay = safeObject(item?.customer_display);
+  const categoryValue = safeText(
+    item?.customer_category ?? customerDisplay.category ?? item?.mobile_category ?? item?.category ?? item?.type,
+    '',
+  ).toLowerCase();
+  const category = CUSTOMER_CATEGORIES[categoryValue] ?? (item?.item_kind === 'offer' ? 'Offer' : 'Campaign');
+  const customerEligibility = normalizeEligibility(item);
+  const safeTitle = safeCustomerCopy(item?.customer_title ?? customerDisplay.title ?? item?.title ?? item?.name);
 
   return {
     id: safeText(item?.id, `campaign-${index + 1}`),
     item_kind: item?.item_kind === 'offer' ? 'offer' : 'campaign',
-    title: safeText(item?.title ?? item?.name, `Campaign ${index + 1}`),
-    summary: safeText(item?.summary ?? item?.description, ''),
+    title: safeTitle || (item?.item_kind === 'offer' ? 'Tmcel Offer' : 'Tmcel Campaign'),
+    summary: safeCustomerCopy(customerDisplay.summary ?? item?.summary ?? item?.description),
     category,
     priority: safeText(item?.priority, 'normal'),
     status: normalizeStatus(item),
     expiry: safeText(item?.expiry ?? item?.expires_at ?? item?.end_date, ''),
-    eligibility: safeText(item?.eligibility ?? item?.eligibility_label, 'Available to eligible subscribers.'),
-    customer_eligible: normalizeEligibility(item),
-    benefit: safeText(item?.benefit ?? item?.reward ?? item?.offer_value, ''),
+    eligibility: customerEligibility === true ? 'Available to you.' : customerEligibility === false ? 'Not currently available.' : 'Eligibility may apply.',
+    customer_eligible: customerEligibility,
+    benefit: safeCustomerCopy(customerDisplay.benefit ?? item?.benefit ?? item?.reward ?? item?.offer_value),
     cta_label: isCustomerSafeAction ? safeText(item?.cta_label ?? customerAction.label, 'Continue via Tmcel') : 'View Details',
     action_type: isCustomerSafeAction ? 'ussd' : 'none',
     action_payload: normalizedActionPayload,

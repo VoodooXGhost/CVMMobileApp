@@ -186,6 +186,9 @@ const translations = {
       ussdHandoffOpened: 'The Tmcel phone menu was opened. Follow its instructions to continue. This app cannot confirm whether the offer was activated.',
       ussdHandoffFailed: 'The phone menu could not be opened. No purchase was confirmed.',
       ussdAttemptRecordFailed: 'We could not record your request with CVM, so the phone menu was not opened. Retry?',
+      eligibleForYou: 'Available to you.',
+      eligibilityMayApply: 'Eligibility may apply.',
+      notAvailable: 'Not currently available.',
     },
     wallet: {
       title: 'Services',
@@ -493,6 +496,9 @@ const translations = {
       ussdHandoffOpened: 'O menu telefonico da Tmcel foi aberto. Siga as instrucoes para continuar. Esta app nao pode confirmar se a oferta foi ativada.',
       ussdHandoffFailed: 'Nao foi possivel abrir o menu telefonico. Nenhuma compra foi confirmada.',
       ussdAttemptRecordFailed: 'Nao foi possivel registar o pedido no CVM, por isso o menu nao foi aberto. Tentar novamente?',
+      eligibleForYou: 'Disponivel para si.',
+      eligibilityMayApply: 'Podem aplicar-se criterios de elegibilidade.',
+      notAvailable: 'Indisponivel neste momento.',
     },
     wallet: {
       title: 'Servicos',

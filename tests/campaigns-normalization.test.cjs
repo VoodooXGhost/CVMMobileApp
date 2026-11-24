@@ -199,6 +199,28 @@ test('does not surface legacy purchase metadata as an in-app payment CTA', () =>
   assert.deepEqual(item.action_payload, {});
 });
 
+test('removes internal CVM copy, lifecycle labels, and segment-targeting details', () => {
+  const campaign = normalizeCampaignItem({
+    id: 84,
+    title: 'NetGiro 100MT Unlimited Upsell',
+    type: 'scheduled',
+    status: 'active',
+    category: 'scheduled',
+    description: 'Marketable Tmcel prepaid base; no network, package, or recharge filter.',
+    eligibility: {
+      status: 'eligible',
+      is_eligible: true,
+      message: 'Customer matches the campaign audience criteria',
+    },
+  });
+
+  assert.equal(campaign.category, 'Campaign');
+  assert.equal(campaign.title, 'Tmcel Campaign');
+  assert.equal(campaign.summary, '');
+  assert.equal(campaign.eligibility, 'Available to you.');
+  assert.doesNotMatch(`${campaign.title} ${campaign.category} ${campaign.summary} ${campaign.eligibility}`, /scheduled|marketable|network|filter|audience criteria|upsell/i);
+});
+
 test('records confirmed attempt before opening USSD and then marks handoff requested', async () => {
   const item = normalizeCampaignItem({
     id: 81,

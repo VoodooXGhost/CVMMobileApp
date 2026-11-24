@@ -633,11 +633,17 @@ const HomeScreen = () => {
                       </TouchableOpacity>
                     </View>
                     <Text style={{ fontSize: ss(18) }} className="font-title font-bold text-on-surface">{campaign.title}</Text>
-                    <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant mt-1 leading-[20px]">
-                      {campaign.summary}
-                    </Text>
+                    {campaign.summary ? (
+                      <Text style={{ fontSize: ss(14) }} className="font-body text-on-surface-variant mt-1 leading-[20px]">
+                        {campaign.summary}
+                      </Text>
+                    ) : null}
                     <Text style={{ fontSize: ss(12) }} className="font-label text-on-surface-variant opacity-70 mt-2">
-                      {campaign.eligibility}
+                      {campaign.customer_eligible === true
+                        ? t('campaign.eligibleForYou', 'Available to you.')
+                        : campaign.customer_eligible === false
+                          ? t('campaign.notAvailable', 'Not currently available.')
+                          : t('campaign.eligibilityMayApply', 'Eligibility may apply.')}
                     </Text>
                     {campaign.benefit ? (
                       <Text style={{ fontSize: ss(12) }} className="font-label mt-2 text-primary font-semibold">

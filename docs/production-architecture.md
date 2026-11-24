@@ -30,3 +30,15 @@
 - Validation is local and simulated at the OS boundary. A live USSD session or
   charge must be separately authorized by Tmcel; neither is part of CI.
 - Checks: `npm run ci:check` and `npx tsc --noEmit --pretty false`.
+
+## Customer-Safe Campaign Display
+
+- Customer campaign cards and details must not expose CVM audience rules,
+  segment names, operator campaign types, internal lifecycle labels, or
+  diagnostic descriptions. The app allowlists customer categories, replaces
+  eligibility explanations with generic localized wording, filters known
+  internal copy from legacy/cached feeds, and omits empty descriptions.
+- A campaign lifecycle status remains a feed-control field only; it is not a
+  customer-facing category or label. Campaigns without customer-safe copy use
+  a generic Tmcel title and remain subject to the feed's visibility/eligibility
+  filtering.

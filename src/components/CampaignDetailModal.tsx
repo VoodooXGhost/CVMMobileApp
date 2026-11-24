@@ -40,9 +40,11 @@ export default function CampaignDetailModal({ visible, onClose, campaign, onCust
               {campaign.title}
             </Text>
 
-            <Text style={{ fontSize: ss(14), color: Colors.on_surface, marginBottom: ss(16), lineHeight: ss(20) }}>
-              {campaign.summary}
-            </Text>
+            {campaign.summary ? (
+              <Text style={{ fontSize: ss(14), color: Colors.on_surface, marginBottom: ss(16), lineHeight: ss(20) }}>
+                {campaign.summary}
+              </Text>
+            ) : null}
 
             <View style={{ backgroundColor: Colors.surface_container_high, borderRadius: ss(12), padding: ss(16), gap: ss(12), marginBottom: ss(16) }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: ss(12) }}>
@@ -58,7 +60,11 @@ export default function CampaignDetailModal({ visible, onClose, campaign, onCust
                 {t('campaign.eligibility', 'Eligibility')}
               </Text>
               <Text style={{ flex: 1, textAlign: 'right', fontSize: ss(12), fontWeight: '700', color: Colors.primary }}>
-                {campaign.eligibility}
+                {campaign.customer_eligible === true
+                  ? t('campaign.eligibleForYou', 'Available to you.')
+                  : campaign.customer_eligible === false
+                    ? t('campaign.notAvailable', 'Not currently available.')
+                    : t('campaign.eligibilityMayApply', 'Eligibility may apply.')}
               </Text>
             </View>
             {campaign.benefit ? (
